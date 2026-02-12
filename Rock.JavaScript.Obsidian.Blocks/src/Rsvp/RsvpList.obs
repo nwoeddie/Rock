@@ -1,0 +1,130 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <Grid :definition="config.gridDefinition ?? undefined"
+          :data="gridDataSource"
+          keyField="idKey"
+          itemTerm="Rsvp"
+          liveUpdates
+          :onAddItem="config.isAddEnabled ? onAddItem : undefined"
+          @selectItem="onSelectItem">
+
+        <DateColumn name="date"
+                    title="Date"
+                    field="date"
+                    :filter="dateValueFilter"
+                    visiblePriority="xs" />
+
+        <TextColumn name="name"
+                    title="Name"
+                    field="name"
+                    :filter="textValueFilter"
+                    visiblePriority="xs" />
+
+        <TextColumn name="schedule"
+                    title="Schedule"
+                    field="schedule"
+                    :filter="textValueFilter"
+                    visiblePriority="xs" />
+
+
+    </Grid>
+</template>
+
+<script setup lang="ts">
+    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
+    import { EntityType } from "@Obsidian/SystemGuids/entityType";
+    import Grid, { TextColumn, DateColumn, dateValueFilter, textValueFilter } from "@Obsidian/Controls/grid";
+    import { alert } from "@Obsidian/Utility/dialogs";
+    import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
+    import { RsvpListOptionsBag } from "@Obsidian/ViewModels/Blocks/Rsvp/RsvpList/rsvpListOptionsBag";
+    import { GetOccurrenceIdBag } from "@Obsidian/ViewModels/Blocks/Rsvp/RsvpList/getOccurrenceIdBag";
+    import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
+    import { NavigationUrlKey } from "./RsvpList/types.partial";
+    import { reactive, ref } from "vue";
+
+    const config = useConfigurationValues<ListBlockBox<RsvpListOptionsBag>>();
+    const invokeBlockAction = useInvokeBlockAction();
+
+    // All blocks auto reload when changing block settings unless there is an
+    // explicit reason not to (like using a custom reload function instead),
+    // in which case you can remove this code.
+    onConfigurationValuesChanged(useReloadBlock());
+
+    // #region Values
+
+    const gridDataSource = ref<Promise<GridDataBag>>();
+    let gridData: GridDataBag | undefined;
+
+    // #endregion
+
+    // #region Functions
+
+    /**
+     * Called when the grid is requesting the row data be loaded.
+     */
+    async function loadGridData(): Promise<GridDataBag> {
+        const result = await invokeBlockAction<GridDataBag>("GetGridData");
+
+        if (result.isSuccess && result.data) {
+            gridData = reactive(result.data);
+            console.log(gridData.rows);
+            return gridData;
+        }
+        else {
+            throw new Error(result.errorMessage ?? "Unknown error while trying to load grid data.");
+        }
+    }
+
+    // #endregion
+
+    // #region Event Handlers
+
+    /**
+     * Called when a row has been selected by the individual.
+     *
+     * @param key The key of the row that was selected.
+     */
+    async function onSelectItem(key: string): Promise<void> {
+
+        if (gridData?.rows == null) return;
+
+        const selectedOccurrence = gridData?.rows.find(r => r.idKey === key);
+        if (!selectedOccurrence) return;
+
+        // Of the occurence has not been created, get an id for it
+        if (selectedOccurrence.id === 0) {
+            const result = await invokeBlockAction<string>("GetOccurrenceId", {
+                bag: {
+                    occurrenceDate: selectedOccurrence.date,
+                    scheduleId: selectedOccurrence.scheduleId,
+                    locationId: selectedOccurrence.locationId
+                } as GetOccurrenceIdBag
+            });
+            if (result.isSuccess || !result.data) {
+                console.log("HERE", result);
+                return;
+            }
+
+            key = result.data;
+            console.log(key);
+        }
+
+        if (config.navigationUrls?.[NavigationUrlKey.DetailPage]) {
+            window.location.href = config.navigationUrls[NavigationUrlKey.DetailPage].replace("((Key))", key);
+        }
+    }
+
+    /**
+     * Called when the Add button has been clicked by the individual.
+     */
+    function onAddItem(): void {
+        if (config.navigationUrls?.[NavigationUrlKey.DetailPage]) {
+            window.location.href = config.navigationUrls[NavigationUrlKey.DetailPage].replace("((Key))", "0");
+        }
+    }
+
+
+    // #endregion
+
+    gridDataSource.value = loadGridData();
+</script>
