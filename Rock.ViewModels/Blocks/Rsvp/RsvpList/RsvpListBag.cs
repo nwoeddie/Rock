@@ -9,12 +9,9 @@ namespace Rock.ViewModels.Blocks.Rsvp.RsvpList
     public class RsvpListBag
     {
         /// <summary>
-        /// Gets or sets the IdKey.
+        /// Unique identifier for the keyfield of uncreated occurrences -> Occurrences are not addeed to the database if part of a schedule and no interactions have occurred.
         /// </summary>
-        /// <value>
-        /// The Queue Type IdKey.
-        /// </value>
-        public string IdKey { get; set; }
+        public string keyField { get; set; }
 
         /// <summary>
         /// Gets or sets the unique identifier for the entity.
@@ -33,7 +30,7 @@ namespace Rock.ViewModels.Blocks.Rsvp.RsvpList
         /// <summary>
         /// Id for location used to create occurrence if doesn't exist.
         /// </summary>
-        public int LocationId { get; set; }
+        public int? LocationId { get; set; }
         /// <summary>
         /// Name of the Location Event is being held at
         /// </summary>
@@ -42,7 +39,7 @@ namespace Rock.ViewModels.Blocks.Rsvp.RsvpList
         /// <summary>
         /// ID used for schedule used to create occurrence if doesn't exist.
         /// </summary>
-        public int ScheduleId { get; set; }
+        public int? ScheduleId { get; set; }
 
         /// <summary>
         /// Name of the Schedule associated with the RSVP
@@ -96,17 +93,6 @@ namespace Rock.ViewModels.Blocks.Rsvp.RsvpList
                     return 0;
                 }
                 return ( int ) ( Math.Round( ( decimal ) DeclinedCount / InvitedCount, 2 ) * 100 );
-            }
-        }
-
-        /// <summary>
-        /// Get the percentage of people that have not responded to the invitation to the event. Rounded to the nearest whole number.
-        /// </summary>
-        public int UnknownPercentage
-        {
-            get
-            {
-                return 100 - AcceptedPercentage - DeclinedPercentage;
             }
         }
 

@@ -17,7 +17,6 @@
 
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
@@ -113,9 +112,15 @@ namespace Rock.Blocks.Rsvp
         /// <returns>A dictionary of key names and URL values.</returns>
         private Dictionary<string, string> GetBoxNavigationUrls()
         {
+            var queryParams = new Dictionary<string, string>
+            {
+                ["OccurrenceId"] = "((Key))",
+                ["GroupId"] = PageParameter( PageParameterKey.GroupId )
+            };
+
             return new Dictionary<string, string>
             {
-                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, "RsvpId", "((Key))" )
+                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, queryParams )
             };
         }
 
@@ -127,7 +132,7 @@ namespace Rock.Blocks.Rsvp
             var locationIds = new List<int>();
             var scheduleIds = new List<int>();
 
-            if(group == null )
+            if ( group == null )
             {
                 return new List<RsvpListBag>().AsQueryable();
             }
@@ -136,11 +141,12 @@ namespace Rock.Blocks.Rsvp
                 .GetGroupOccurrences( group, null, null, locationIds, scheduleIds )
                 .Select( a => new RsvpListBag
                 {
-                    IdKey = a.Id.AsIdKey(),
                     Id = a.Id,
                     Name = a.Name,
                     Date = a.OccurrenceDate,
+                    LocationId = a.LocationId ?? null,
                     LocationName = a.Location != null ? a.Location.Name : "",
+                    ScheduleId = a.ScheduleId ?? null,
                     ScheduleName = a.Schedule != null
                         ? ( a.Schedule.Name.IsNotNullOrWhiteSpace()
                             ? a.Schedule.Name
@@ -150,7 +156,7 @@ namespace Rock.Blocks.Rsvp
                     InvitedCount = a.Attendees.Count(),
                     AcceptedCount = a.Attendees.Count( at => at.RSVP == RSVP.Yes ),
                     DeclinedCount = a.Attendees.Count( at => at.RSVP == RSVP.No ),
-                    NoResponseCount = a.Attendees.Count( at => at.RSVP == RSVP.Unknown )
+                    NoResponseCount = a.Attendees.Count( at => at.RSVP == RSVP.Unknown ),
 
                 } ).AsQueryable();
 
@@ -165,15 +171,16 @@ namespace Rock.Blocks.Rsvp
         /// <returns>A <see cref="IQueryable{T}"/> that will return results in the desired order.</returns>
         protected override IQueryable<RsvpListBag> GetOrderedListQueryable( IQueryable<RsvpListBag> queryable, RockContext rockContext )
         {
-            return queryable.OrderByDescending( c => c.Date);
+            return queryable.OrderByDescending( c => c.Date ).ThenByDescending( c => c.Date );
         }
 
         /// <inheritdoc/>
         protected override GridBuilder<RsvpListBag> GetGridBuilder()
         {
+            var groupId = PageParameter( PageParameterKey.GroupId );
             return new GridBuilder<RsvpListBag>()
                 .WithBlock( this )
-                .AddTextField( "idKey", a => a.IdKey == "0" || a.IdKey == null ? new System.Guid().ToString() : a.IdKey )
+                .AddTextField( "keyField", a => a.Id == 0 || a.Id == null ? $"{a.Date}_{a.ScheduleId ?? 0}_{a.LocationId ?? 0}" : a.Id.AsIdKey() )
                 .AddField( "id", a => a.Id )
                 .AddDateTimeField( "date", a => a.Date )
                 .AddTextField( "name", a => a.Name )
@@ -184,7 +191,17 @@ namespace Rock.Blocks.Rsvp
                 .AddField( "invited", a => a.InvitedCount )
                 .AddField( "accepted", a => a.AcceptedCount )
                 .AddField( "declined", a => a.DeclinedCount )
-                .AddField( "noResponse", a => a.NoResponseCount );
+                .AddField( "noResponse", a => a.NoResponseCount )
+                .AddField( "acceptedPercentage", a => a.AcceptedPercentage )
+                .AddField( "declinedPercentage", a => a.DeclinedPercentage );
+        }
+
+        protected override List<RsvpListBag> GetListItems( IQueryable<RsvpListBag> queryable, RockContext rockContext )
+        {
+            rockContext.SqlLogging( true );
+            var data = queryable.ToList();
+            rockContext.SqlLogging( false );
+            return data;
         }
 
         #endregion
@@ -203,26 +220,41 @@ namespace Rock.Blocks.Rsvp
             var group = new GroupService( new RockContext() ).Get( groupId );
             var attendanceOccurrenceService = new AttendanceOccurrenceService( RockContext );
 
+            //If this occurrence has already been created, just return the existing one.
+            var id = attendanceOccurrenceService.Queryable()
+            .Where( o => o.OccurrenceDate == occurrenceDate )
+            .Where( o => groupId == null || o.GroupId == group.Id )
+            .Where( o => scheduleId == null || o.ScheduleId == scheduleId )
+            .Where( o => locationId == null || o.LocationId == locationId )
+            .Select( o => o.Id )
+            .FirstOrDefault();
+
+            if ( id != 0 )
+            {
+                return ActionOk( id );
+            }
+
             var attendanceOccurrence = new AttendanceOccurrence();
 
             if ( group.Id != null )
             {
                 attendanceOccurrence.GroupId = group.Id;
             }
-            if (scheduleId != null && scheduleId != 0)
+
+            if ( scheduleId != null && scheduleId != 0 )
             {
                 attendanceOccurrence.ScheduleId = scheduleId;
             }
-            if (locationId != null && locationId != 0)
+            if ( locationId != null && locationId != 0 )
             {
                 attendanceOccurrence.LocationId = locationId;
             }
+
             attendanceOccurrence.OccurrenceDate = occurrenceDate;
             attendanceOccurrenceService.Add( attendanceOccurrence );
             RockContext.SaveChanges();
             return ActionOk( attendanceOccurrence.Id );
         }
-
         #endregion
     }
 }

@@ -40,14 +40,14 @@ export type RsvpListBag = {
     /** Gets or sets the unique identifier for the entity. */
     id: number;
 
-    /** Gets or sets the IdKey. */
-    idKey?: string | null;
-
     /** Number of people invited to the event */
     invitedCount: number;
 
+    /** Unique identifier for the keyfield of uncreated occurrences -&gt; Occurrences are not addeed to the database if part of a schedule and no interactions have occurred. */
+    keyField?: string | null;
+
     /** Id for location used to create occurrence if doesn't exist. */
-    locationId: number;
+    locationId?: number | null;
 
     /** Name of the Location Event is being held at */
     locationName?: string | null;
@@ -59,11 +59,8 @@ export type RsvpListBag = {
     noResponseCount: number;
 
     /** ID used for schedule used to create occurrence if doesn't exist. */
-    scheduleId: number;
+    scheduleId?: number | null;
 
     /** Name of the Schedule associated with the RSVP */
     scheduleName?: string | null;
-
-    /** Get the percentage of people that have not responded to the invitation to the event. Rounded to the nearest whole number. */
-    unknownPercentage: number;
 };
