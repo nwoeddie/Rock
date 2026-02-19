@@ -67,6 +67,11 @@ namespace Rock.ViewModels.Blocks.Rsvp.RsvpList
         public int NoResponseCount { get; set; }
 
         /// <summary>
+        /// 
+        /// </summary>
+        public int GroupTypeId { get; set; }
+
+        /// <summary>
         /// Get the percentage of people that accepted the invitation to the event. Rounded to the nearest whole number.
         /// </summary>
         public int AcceptedPercentage

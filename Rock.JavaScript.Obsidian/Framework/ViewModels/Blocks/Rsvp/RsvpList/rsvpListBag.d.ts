@@ -37,6 +37,8 @@ export type RsvpListBag = {
     /** Get the percentage of people that declined the invitation to the event. Rounded to the nearest whole number. */
     declinedPercentage: number;
 
+    groupTypeId: number;
+
     /** Gets or sets the unique identifier for the entity. */
     id: number;
 

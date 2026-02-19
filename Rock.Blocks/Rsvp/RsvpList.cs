@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -129,6 +130,7 @@ namespace Rock.Blocks.Rsvp
         {
             var groupId = PageParameter( PageParameterKey.GroupId );
             var group = new GroupService( rockContext ).Get( groupId );
+
             var locationIds = new List<int>();
             var scheduleIds = new List<int>();
 
@@ -137,41 +139,160 @@ namespace Rock.Blocks.Rsvp
                 return new List<RsvpListBag>().AsQueryable();
             }
 
-            var attendanceOccurrences = new AttendanceOccurrenceService( rockContext )
-                .GetGroupOccurrences( group, null, null, locationIds, scheduleIds )
-                .Select( a => new RsvpListBag
-                {
-                    Id = a.Id,
-                    Name = a.Name,
-                    Date = a.OccurrenceDate,
-                    LocationId = a.LocationId ?? null,
-                    LocationName = a.Location != null ? a.Location.Name : "",
-                    ScheduleId = a.ScheduleId ?? null,
-                    ScheduleName = a.Schedule != null
-                        ? ( a.Schedule.Name.IsNotNullOrWhiteSpace()
-                            ? a.Schedule.Name
-                            : a.Schedule.ToString() )
+            var occurrenceQry = new AttendanceOccurrenceService( rockContext ).Queryable().Where( o => o.GroupId == group.Id);
+
+            var attendanceQry = new AttendanceService( rockContext ).Queryable();
+
+            var qry = occurrenceQry.Select( o => new RsvpListBag
+            {
+                Id = o.Id,
+                Name = o.Name,
+                Date = o.OccurrenceDate,
+                LocationId = o.LocationId ?? null,
+                LocationName = o.Location != null ? o.Location.Name : "",
+                ScheduleId = o.ScheduleId ?? null,
+                ScheduleName =
+                    o.Schedule != null
+                        ? ( o.Schedule.Name != null && o.Schedule.Name != ""
+                            ? o.Schedule.Name
+                            : o.Schedule.Description )
                         : "",
+                InvitedCount = o.Attendees.Count(),
+                AcceptedCount = o.Attendees.Count( at => at.RSVP == RSVP.Yes ),
+                DeclinedCount = o.Attendees.Count( at => at.RSVP == RSVP.No ),
+                NoResponseCount = o.Attendees.Count( at => at.RSVP == RSVP.Unknown ),
+                GroupTypeId = group.GroupTypeId
+            } );
 
-                    InvitedCount = a.Attendees.Count(),
-                    AcceptedCount = a.Attendees.Count( at => at.RSVP == RSVP.Yes ),
-                    DeclinedCount = a.Attendees.Count( at => at.RSVP == RSVP.No ),
-                    NoResponseCount = a.Attendees.Count( at => at.RSVP == RSVP.Unknown ),
+            return qry;
+        }
 
-                } ).AsQueryable();
+        protected override List<RsvpListBag> GetListItems( IQueryable<RsvpListBag> queryable, RockContext rockContext )
+        {
+            // materialize the DB occurrences
+            var data = queryable.ToList();
 
-            return attendanceOccurrences;
+            // Get Occurrneces from Schedule that have not been added to DB yet
+            if(data.Any(data => data.ScheduleId.HasValue ) )
+            {
+                var scheduleId = data.Where( d => d.ScheduleId.HasValue ).Select( d => d.ScheduleId.Value ).FirstOrDefault();
+                var groupTypeId = data.Where( d => d.GroupTypeId != 0 ).Select( d => d.GroupTypeId ).FirstOrDefault();
+                data.AddRange( GetScheduleOccurrences( data, scheduleId, groupTypeId ) );
+            }
+
+            var result = data.OrderByDescending(o => o.Date).ToList();
+            return result;
         }
 
         /// <summary>
-        /// Gets the queryable that will have proper default ordering applied.
+        /// Used to get all occurrences for a schedule that have not had any interactions and therefore have not been added to the database yet.
+        /// This allows the block to show future occurrences that haven't had any interactions yet.
+        /// Similar logic to GetGroupOccurrences in the AttendanceOccurrenceService, but rewritten for this block to avoid early materialization.
         /// </summary>
-        /// <param name="queryable">The queryable to have ordering applied to it.</param>
-        /// <param name="rockContext">The rock context that will be used to access the database.</param>
-        /// <returns>A <see cref="IQueryable{T}"/> that will return results in the desired order.</returns>
-        protected override IQueryable<RsvpListBag> GetOrderedListQueryable( IQueryable<RsvpListBag> queryable, RockContext rockContext )
+        /// <param name="existingOccurrences"></param>
+        /// <returns></returns>
+        private List<RsvpListBag> GetScheduleOccurrences(List<RsvpListBag> existingOccurrences, int scheduleId, int groupTypeId)
         {
-            return queryable.OrderByDescending( c => c.Date ).ThenByDescending( c => c.Date );
+            var newOccurrences = new List<RsvpListBag>();
+
+            Schedule groupSchedule = null;
+            groupSchedule = new ScheduleService( RockContext ).Get( scheduleId );
+
+            if ( groupSchedule == null )
+            {
+                return newOccurrences;
+            }
+
+            var startDate = RockDateTime.Today.AddMonths( -2 );
+            var endDate = RockDateTime.Today.AddDays( 1 );
+
+
+            var existingDates = existingOccurrences
+                .Where( o => o.ScheduleId.HasValue && o.ScheduleId == groupSchedule.Id )
+                .Select( o => o.Date.Date )
+                .Distinct()
+                .ToHashSet();
+
+            var possibleNewOccurrenceDates = new List<DateTime>();
+
+            if ( !string.IsNullOrWhiteSpace( groupSchedule.iCalendarContent ) )
+            {
+                // If schedule has an iCal schedule, get all the past occurrences
+                foreach ( var occurrence in groupSchedule.GetICalOccurrences( startDate, endDate ) )
+                {
+                    possibleNewOccurrenceDates.Add( occurrence.Period.StartTime.Date );
+                }
+            }
+            else if ( groupSchedule.WeeklyDayOfWeek.HasValue )
+            {
+                var dt = startDate;
+
+                while (dt.DayOfWeek != groupSchedule.WeeklyDayOfWeek.Value )
+                {
+                    dt = dt.AddDays( 1 );
+                }
+
+                if ( groupSchedule.WeeklyTimeOfDay.HasValue )
+                {
+                    dt = dt.Add( groupSchedule.WeeklyTimeOfDay.Value );
+                }
+
+                while ( dt < endDate )
+                {
+                    possibleNewOccurrenceDates.Add( dt );
+                    dt = dt.AddDays( 7 );
+                }
+            }
+
+
+            // filter exclusions
+            var groupType = GroupTypeCache.Get( groupTypeId );
+            var exclusions = groupType.GroupScheduleExclusions;
+            foreach (var exclusion in exclusions )
+            {
+                if( !exclusion.Start.HasValue || !exclusion.End.HasValue )
+                {
+                    continue;
+                }
+
+                foreach( var occurrence in possibleNewOccurrenceDates.ToList() )
+                {
+                    if ( occurrence.Date >= exclusion.Start.Value.Date &&
+                        occurrence.Date < exclusion.End.Value.Date.AddDays( 1 ))
+                    {
+                        possibleNewOccurrenceDates.Remove( occurrence );
+                    }
+                }
+            }
+
+            // Loop through schedule occurrences and add if they don't exist in the database
+            foreach ( var date in possibleNewOccurrenceDates)
+            {
+                
+                if ( !existingDates.Contains( date.Date ) )
+                {
+                    newOccurrences.Add( new RsvpListBag
+                    {
+                        Id = 0,
+                        Name = string.Empty,
+                        Date = date,
+                        LocationId = null,
+                        LocationName = string.Empty,
+                        ScheduleId = groupSchedule.Id,
+                        ScheduleName =
+                            groupSchedule != null
+                                ? ( groupSchedule.Name != null && groupSchedule.Name != ""
+                                    ? groupSchedule.Name
+                                    : groupSchedule.ToString() )
+                                : "",
+                        InvitedCount = 0,
+                        AcceptedCount = 0,
+                        DeclinedCount = 0,
+                        NoResponseCount = 0
+                    } );
+                }
+            }
+            return newOccurrences;
         }
 
         /// <inheritdoc/>
@@ -194,14 +315,6 @@ namespace Rock.Blocks.Rsvp
                 .AddField( "noResponse", a => a.NoResponseCount )
                 .AddField( "acceptedPercentage", a => a.AcceptedPercentage )
                 .AddField( "declinedPercentage", a => a.DeclinedPercentage );
-        }
-
-        protected override List<RsvpListBag> GetListItems( IQueryable<RsvpListBag> queryable, RockContext rockContext )
-        {
-            rockContext.SqlLogging( true );
-            var data = queryable.ToList();
-            rockContext.SqlLogging( false );
-            return data;
         }
 
         #endregion
