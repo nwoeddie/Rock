@@ -27,6 +27,7 @@ using Rock.Obsidian.UI;
 using Rock.Security;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Core.EntityTypes;
+using Rock.ViewModels.Blocks.Core.PersonSignalList;
 using Rock.Web.Cache;
 
 namespace Rock.Blocks.Core
@@ -123,11 +124,19 @@ namespace Rock.Blocks.Core
                     Id = e.Id,
                     Name = e.Name,
                     FriendlyName = e.FriendlyName,
-                    IsCommon = e.IsCommon
-                });
+                    IsCommon = e.IsCommon,
+                    IsSecured = e.IsSecured
+            } );
 
             return data;
         }
+
+        /// <inheritdoc/>
+        protected override IQueryable<EntityTypesBag> GetOrderedListQueryable( IQueryable<EntityTypesBag> queryable, RockContext rockContext )
+        {
+            return queryable.OrderBy( p => p.Name );
+        }
+
 
         /// <inheritdoc/>
         protected override GridBuilder<EntityTypesBag> GetGridBuilder()
@@ -137,7 +146,8 @@ namespace Rock.Blocks.Core
                 .AddTextField( "idKey", a => a.Id.AsIdKey() )
                 .AddTextField( "name", a => a.Name )
                 .AddTextField( "friendlyName", a => a.FriendlyName )
-                .AddField( "isCommon", a => a.IsCommon );
+                .AddField( "isCommon", a => a.IsCommon )
+                .AddField( "isSecurityDisabled", a => !a.IsSecured );
         }
 
         #endregion
@@ -145,37 +155,40 @@ namespace Rock.Blocks.Core
         #region Block Actions
 
         /// <summary>
-        /// Deletes the specified entity.
+        /// Gets the entity type representation for editing purposes.
         /// </summary>
-        /// <param name="key">The identifier of the entity to be deleted.</param>
-        /// <returns>An empty result that indicates if the operation succeeded.</returns>
+        /// <param name="key">The unique identifier of the entity type to be edited.</param>
+        /// <returns>A response that includes the editable representation of the entity type.</returns>
         [BlockAction]
-        public BlockActionResult Delete( string key )
+        public BlockActionResult GetEditEntityType( string key )
         {
-            var entityService = new EntityTypeService( RockContext );
-            var entity = entityService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+            var entityTypeService = new EntityTypeService( RockContext );
+            var entity = entityTypeService.Get( key, false );
 
             if ( entity == null )
             {
                 return ActionBadRequest( $"{EntityType.FriendlyTypeName} not found." );
             }
 
-            if ( !BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
             {
-                return ActionBadRequest( $"Not authorized to delete {EntityType.FriendlyTypeName}." );
+                return ActionBadRequest( "Not authorized to make changes to this entity type." );
             }
 
-            if ( !entityService.CanDelete( entity, out var errorMessage ) )
+            var editBag = new EntityTypesBag
             {
-                return ActionBadRequest( errorMessage );
-            }
+                Id = entity.Id,
+                Name = entity.Name,
+                FriendlyName = entity.FriendlyName,
+                IsCommon = entity.IsCommon,
+                IsRelatedToInteractionTrackedOnCreate = entity.IsRelatedToInteractionTrackedOnCreate,
+                IndexResultTemplate = entity.IndexResultTemplate,
+                IndexDocumentUrl = entity.IndexDocumentUrl,
+                LinkUrlLavaTemplate = entity.LinkUrlLavaTemplate,
+            };
 
-            entityService.Delete( entity );
-            RockContext.SaveChanges();
-
-            return ActionOk();
+            return ActionOk( editBag );
         }
-
         #endregion
     }
 }

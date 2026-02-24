@@ -29,11 +29,21 @@ export type EntityTypesBag = {
     /** Id of Entity Type */
     id: number;
 
+    /** Gets or sets the index document URL. */
+    indexDocumentUrl?: string | null;
+
+    /** Gets or sets the index result template. */
+    indexResultTemplate?: string | null;
+
     /** Represents whether the entity is commonly used or not */
     isCommon: boolean;
 
-    /** Security level of the entity type. */
-    isSystem: boolean;
+    isRelatedToInteractionTrackedOnCreate: boolean;
+
+    isSecured: boolean;
+
+    /** Gets or sets a lava template that can be used for generating a link to view details for this entity (i.e. "~/person/{{ Entity.Id }}"). */
+    linkUrlLavaTemplate?: string | null;
 
     /** Name of entity type */
     name?: string | null;
