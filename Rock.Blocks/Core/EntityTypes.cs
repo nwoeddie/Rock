@@ -15,9 +15,9 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
@@ -27,7 +27,7 @@ using Rock.Obsidian.UI;
 using Rock.Security;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Core.EntityTypes;
-using Rock.ViewModels.Blocks.Core.PersonSignalList;
+using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
 
 namespace Rock.Blocks.Core
@@ -40,7 +40,7 @@ namespace Rock.Blocks.Core
     [Category( "Core" )]
     [Description( "Displays a list of entity types." )]
     [IconCssClass( "fa fa-list" )]
-    // [SupportedSiteTypes( Model.SiteType.Web )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     [LinkedPage( "Detail Page",
         Description = "The page that will show the entity type details.",
@@ -137,7 +137,6 @@ namespace Rock.Blocks.Core
             return queryable.OrderBy( p => p.Name );
         }
 
-
         /// <inheritdoc/>
         protected override GridBuilder<EntityTypesBag> GetGridBuilder()
         {
@@ -148,6 +147,79 @@ namespace Rock.Blocks.Core
                 .AddTextField( "friendlyName", a => a.FriendlyName )
                 .AddField( "isCommon", a => a.IsCommon )
                 .AddField( "isSecurityDisabled", a => !a.IsSecured );
+        }
+
+        /// <summary>
+        /// Attempt to get entity type that is being updated
+        /// </summary>
+        /// <param name="idKey"></param>
+        /// <param name="entity"></param>
+        /// <param name="error"></param>
+        /// <returns></returns>
+        protected bool TryGetEntityForEditAction( string idKey, out EntityType entity, out BlockActionResult error )
+        {
+            var entityTypeService = new EntityTypeService( RockContext );
+            error = null;
+
+            if ( idKey.IsNotNullOrWhiteSpace() )
+            {
+                // If editing an existing entity then load it and make sure it
+                // was found and can still be edited.
+                entity = entityTypeService.Get( idKey, !PageCache.Layout.Site.DisablePredictableIds );
+            }
+            else
+            {
+                entity = null;
+                return false;
+            }
+
+            if ( entity == null )
+            {
+                error = ActionBadRequest( $"{EntityType.FriendlyTypeName} not found." );
+                return false;
+            }
+
+            if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                error = ActionBadRequest( $"Not authorized to edit ${EntityType.FriendlyTypeName}." );
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Check each provided property is valid and if so update the entity with the new value.
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <param name="box"></param>
+        /// <returns></returns>
+        private bool UpdateEntityFromBox( EntityType entity, ValidPropertiesBox<EntityTypesBag> box )
+        {
+            if ( box.ValidProperties == null )
+            {
+                return false;
+            }
+
+            box.IfValidProperty( nameof( box.Bag.FriendlyName ),
+                () => entity.FriendlyName = box.Bag.FriendlyName );
+
+            box.IfValidProperty( nameof( box.Bag.IsCommon ),
+                () => entity.IsCommon = box.Bag.IsCommon );
+
+            box.IfValidProperty( nameof( box.Bag.IsRelatedToInteractionTrackedOnCreate ),
+                () => entity.IsRelatedToInteractionTrackedOnCreate = box.Bag.IsRelatedToInteractionTrackedOnCreate );
+
+            box.IfValidProperty( nameof( box.Bag.IndexResultTemplate ),
+                () => entity.IndexResultTemplate = box.Bag.IndexResultTemplate );
+
+            box.IfValidProperty( nameof( box.Bag.IndexDocumentUrl ),
+                () => entity.IndexDocumentUrl = box.Bag.IndexDocumentUrl );
+
+            box.IfValidProperty( nameof( box.Bag.LinkUrlLavaTemplate ),
+                () => entity.LinkUrlLavaTemplate = box.Bag.LinkUrlLavaTemplate );
+
+            return true;
         }
 
         #endregion
@@ -188,6 +260,30 @@ namespace Rock.Blocks.Core
             };
 
             return ActionOk( editBag );
+        }
+
+        [BlockAction]
+        public BlockActionResult SaveEntityType( ValidPropertiesBox<EntityTypesBag> box )
+        {
+                var entityTypeService = new EntityTypeService( RockContext );
+
+                if ( !TryGetEntityForEditAction( box.Bag.Id.AsIdKey(), out var entity, out var actionError ) )
+                {
+                    return actionError;
+                }
+
+                // Update the entity instance from the information in the bag.
+                if ( !UpdateEntityFromBox( entity, box ) )
+                {
+                    return ActionBadRequest( "Invalid data." );
+                }
+
+                RockContext.WrapTransaction( () =>
+                {
+                    RockContext.SaveChanges();
+                } );
+
+                return ActionOk( GetGridBuilder() );
         }
         #endregion
     }

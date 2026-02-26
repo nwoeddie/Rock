@@ -29,21 +29,25 @@
                         label="Index Results Template"
                         help="The Lava used by the Universal Search feature to display results. Available merge fields include CurrentPerson, IndexDocument and DisplayOptions."
                         :isReadOnly="!isEditable"
-                        language="lava" />
+                        mode="lava"
+                        editor="monaco" />
         </ContentStack>
         <ContentStack>
             <CodeEditor v-model="indexDocumentUrl"
                         label="Index Document URL Pattern"
                         help="The Lava used by the Universal Search feature to determine the Rock URL of the document. Available merge fields include CurrentPerson, IndexDocument and DisplayOptions."
                         :isReadOnly="!isEditable"
-                        language="lava" />
+                        mode="lava"
+                        editor="monaco" />
         </ContentStack>
         <ContentStack>
             <CodeEditor v-model="linkUrlLavaTemplate"
                         label="Link URL Pattern"
                         help="The Lava used when Rock needs to create a URL to an entity based just on the entity type (ie. Tag Report). Available merge field is Entity."
                         :isReadOnly="!isEditable"
-                        language="lava" />
+                        mode="lava"
+                        editor="monaco"
+                        :editorHeight="80" />
         </ContentStack>
     </fieldset>
 </template>
@@ -59,7 +63,6 @@
     import { tooltip } from "@Obsidian/Utility/tooltip";
     import CodeEditor from "@Obsidian/Controls/codeEditor.obs";
     import ContentStack from "@Obsidian/Controls/contentStack.obs";
-    import ContentSection from "@Obsidian/Controls/contentSection.obs";
     const props = defineProps({
         modelValue: {
             type: Object as PropType<ValidPropertiesBox<EntityTypesBag>>,
@@ -79,8 +82,6 @@
     const indexDocumentUrl = ref(props.modelValue.bag?.indexDocumentUrl ?? "");
     const linkUrlLavaTemplate = ref(props.modelValue.bag?.linkUrlLavaTemplate ?? "");
     const isEditable = ref(true);
-
-
 
     // #endregion
 
@@ -107,12 +108,22 @@
     // Determines which values we want to track changes on (defined in the
     // array) and then emit a new object defined as newValue.
     watch([
-        friendlyName], () => {
+        friendlyName,
+        isCommon,
+        trackInteraction,
+        indexResultTemplate,
+        indexDocumentUrl,
+        linkUrlLavaTemplate], () => {
             const newValue: ValidPropertiesBox<EntityTypesBag> = {
                 bag: { ...props.modelValue.bag } as EntityTypesBag
             };
 
             setPropertiesBoxValue(newValue, "friendlyName", friendlyName.value);
+            setPropertiesBoxValue(newValue, "isCommon", isCommon.value);
+            setPropertiesBoxValue(newValue, "isRelatedToInteractionTrackedOnCreate", trackInteraction.value);
+            setPropertiesBoxValue(newValue, "indexResultTemplate", indexResultTemplate.value);
+            setPropertiesBoxValue(newValue, "indexDocumentUrl", indexDocumentUrl.value);
+            setPropertiesBoxValue(newValue, "linkUrlLavaTemplate", linkUrlLavaTemplate.value);
 
             emit("update:modelValue", newValue);
         });

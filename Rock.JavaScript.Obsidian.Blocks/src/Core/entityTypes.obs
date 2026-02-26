@@ -36,7 +36,7 @@
                 <button v-if="!row.isSecurityDisabled"
                         class="btn btn-security btn-sm"
                         type="button"
-                        @click="onSecurityClick(row.idKey, row.friendlyName)">
+                        @click.stop="onSecurityClick(row.idKey, row.friendlyName)">
                     <i class="ti ti-lock"></i>
                 </button>
             </template>
@@ -65,7 +65,7 @@
     import Modal from "@Obsidian/Controls/modal.obs";
     import { reactive, ref } from "vue";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
-    import EntityTypeEditor from "./EntityTypes/EntityTypeEditor.partial.obs";
+    import EntityTypeEditor from "./EntityTypes/entityTypeEditor.partial.obs";
     import RockForm from "@Obsidian/Controls/rockForm.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import { alert, showSecurity } from "@Obsidian/Utility/dialogs";
@@ -138,6 +138,8 @@
 
 
     const saveEntityType = async (): Promise<void> => {
+
+        console.log("Entity edit bag", entityTypeEditBag.value);
         const result = await invokeBlockAction<ValidPropertiesBox<EntityTypesBag>>("SaveEntityType", {
             box: entityTypeEditBag.value
         });
