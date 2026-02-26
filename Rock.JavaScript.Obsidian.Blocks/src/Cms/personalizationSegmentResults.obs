@@ -96,7 +96,7 @@
      * @param key The key of the row that was selected.
      */
     function onPersonClicked(key: string): void {
-        if (key?.length > 0) {
+        if (key) {
             window.location.href = `/person/${key}`;
         }
     }

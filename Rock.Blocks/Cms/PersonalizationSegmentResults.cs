@@ -23,7 +23,6 @@ using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
 using Rock.Obsidian.UI;
-using Rock.Security;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Cms.PersonalizationSegmentResults;
 using Rock.Web.Cache;
@@ -41,7 +40,8 @@ namespace Rock.Blocks.Cms
     [SupportedSiteTypes( Model.SiteType.Web )]
 
     [Rock.SystemGuid.EntityTypeGuid( "3d9b1436-3022-4875-9346-020317aee3b5" )]
-    [Rock.SystemGuid.BlockTypeGuid( "b286e17f-1faa-48c4-8a0b-035018207212" )]
+    //WAS [Rock.SystemGuid.BlockTypeGuid( "b286e17f-1faa-48c4-8a0b-035018207212" )]
+    [Rock.SystemGuid.BlockTypeGuid( "438432E3-22A8-43D9-9F06-179C3B65D298" )]
     [CustomizedGrid]
     public class PersonalizationSegmentResults : RockEntityListBlockType<Person>
     {
@@ -77,7 +77,7 @@ namespace Rock.Blocks.Cms
         {
             var options = new PersonalizationSegmentResultsOptionsBag();
             var segment = PersonalizationSegmentCache.Get( PageParameter( PageParameterKey.PersonalizationSegmentGuid ).AsGuid() );
-            options.SegmentName = segment.Name;
+            options.SegmentName = segment?.Name;
             return options;
         }
 
@@ -90,6 +90,11 @@ namespace Rock.Blocks.Cms
             var personService = new PersonService( rockContext );
             var personAliasService = new PersonAliasService( rockContext );
             var personalizationSegmentService = new PersonalizationSegmentService( rockContext );
+
+            if ( personalizationSegment == null )
+            {
+                return Enumerable.Empty<Person>().AsQueryable();
+            }
 
             // Person Aliases in segment
             var segmentAliasQry = personalizationSegmentService.GetPersonAliasPersonalizationSegmentQuery( personalizationSegment );
