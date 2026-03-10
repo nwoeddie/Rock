@@ -44,6 +44,40 @@ namespace Rock.Web.Cache
         where TT : Model<TT>, new()
     {
         /// <summary>
+        /// Transitional opt-in. Default false for backward compatibility.
+        /// Derived cache classes override to true once migrated.
+        /// </summary>
+        protected virtual bool EnableModelSecurityBridge => false;
+
+        /// <summary>
+        /// Calls TT.IsAuthorizedCore(ISecured,string,Person) if present and bridge is enabled.
+        /// </summary>
+        protected bool TryModelIsAuthorized( string action, Person person, out bool result )
+        {
+            if ( !EnableModelSecurityBridge )
+            {
+                result = default;
+                return false;
+            }
+
+            return ModelSecurityBridge.TryIsAuthorized( typeof( TT ), this, action, person, out result );
+        }
+
+        /// <summary>
+        /// Calls TT.GetParentAuthorityCore(ISecured) if present and bridge is enabled.
+        /// </summary>
+        protected bool TryModelParentAuthority( out ISecured parent )
+        {
+            if ( !EnableModelSecurityBridge )
+            {
+                parent = null;
+                return false;
+            }
+
+            return ModelSecurityBridge.TryGetParentAuthority( typeof( TT ), this, out parent );
+        }
+
+        /// <summary>
         /// Sets the cached object's properties from the model/entity's properties.
         /// </summary>
         /// <param name="entity">The entity.</param>
@@ -152,6 +186,12 @@ namespace Rock.Web.Cache
         {
             get
             {
+                if ( TryModelParentAuthority( out var parent ) )
+                {
+                    return parent;
+                }
+
+                // Existing behavior unchanged:
                 if ( Id == 0 )
                 {
                     return new GlobalDefault();
@@ -185,6 +225,12 @@ namespace Rock.Web.Cache
         /// </returns>
         public virtual bool IsAuthorized( string action, Person person )
         {
+            if ( TryModelIsAuthorized( action, person, out var modelResult ) )
+            {
+                return modelResult;
+            }
+
+            // Existing behavior unchanged:
             return Authorization.Authorized( this, action, person );
         }
 

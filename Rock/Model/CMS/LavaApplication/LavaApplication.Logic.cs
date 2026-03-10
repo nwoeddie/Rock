@@ -26,7 +26,6 @@ namespace Rock.Model
 {
     public partial class LavaApplication
     {
-
         #region Security
         /// <summary>
         /// Gets the parent authority where security authorizations are being inherited from.
@@ -34,16 +33,18 @@ namespace Rock.Model
         /// <value>
         /// The parent authority.
         /// </value>
-        public override ISecured ParentAuthority
+        internal static ISecured GetParentAuthorityShared( ISecured secured )
         {
-            get
-            {
-                // We intentionally want to break security inheritance to force the application to
-                // explicitly declare cases where everyone should have access. Otherwise, they would
-                // inherit the global default of "Can View".
-                return null;
-            }
+            // We intentionally want to break security inheritance to force the application to
+            // explicitly declare cases where everyone should have access. Otherwise, they would
+            // inherit the global default of "Can View".
+            return null;
         }
+
+        /// <summary>
+        /// <inheritdoc cref="Model{T}.ParentAuthority" />
+        /// </summary>
+        public override ISecured ParentAuthority => GetParentAuthorityShared( this );
 
         /// <summary>
         /// Provides custom security authorization logic. 
@@ -51,7 +52,10 @@ namespace Rock.Model
         /// <param name="action"></param>
         /// <param name="person"></param>
         /// <returns></returns>
-        public override bool IsAuthorized( string action, Person person )
+        public override bool IsAuthorized( string action, Person person ) => IsAuthorizedShared( this, action, person );
+
+        // Shared core: used by both model and cache via ModelSecurityBridge.
+        internal static bool IsAuthorizedShared( ISecured secured, string action, Person person )
         {
             // If the person is a Rock Admin always allow access to View/Edit/Administrate (but not Execute)
             var isInOverrideRole = RoleCache.Get( Rock.SystemGuid.Group.GROUP_ADMINISTRATORS.AsGuid() ).IsPersonInRole( person.Guid )
@@ -62,8 +66,8 @@ namespace Rock.Model
                 return true;
             }
 
-            // Check to see if user is authorized using normal authorization rules
-            return base.IsAuthorized( action, person );
+            // Baseline "normal rules" without calling secured.IsAuthorized (avoid recursion).
+            return Authorization.Authorized( secured, action, person );
         }
         #endregion
 

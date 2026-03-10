@@ -89,6 +89,9 @@ namespace Rock.Web.Cache
 
         #region Properties
 
+        /// <inheritdoc/>
+        protected override bool EnableModelSecurityBridge => true;
+
         /// <summary>
         /// Gets or sets the field type name.
         /// </summary>
@@ -227,27 +230,6 @@ namespace Rock.Web.Cache
                 // inherit the global default of "Can View".
                 return null;
             }
-        }
-
-        /// <summary>
-        /// Provides custom security authorization logic. 
-        /// </summary>
-        /// <param name="action"></param>
-        /// <param name="person"></param>
-        /// <returns></returns>
-        public override bool IsAuthorized( string action, Person person )
-        {
-            // If the person is a Rock Admin always allow
-            var isInOverrideRole = ( person != null ) && (RoleCache.Get( Rock.SystemGuid.Group.GROUP_ADMINISTRATORS.AsGuid() ).IsPersonInRole( person.Guid )
-                                || RoleCache.Get( SystemGuid.Group.GROUP_LAVA_APPLICATION_DEVELOPERS.AsGuid() ).IsPersonInRole( person.Guid) );
-
-            if ( isInOverrideRole )
-            {
-                return true;
-            }
-
-            // Check to see if user is authorized using normal authorization rules
-            return base.IsAuthorized( action, person );
         }
 
         #endregion
