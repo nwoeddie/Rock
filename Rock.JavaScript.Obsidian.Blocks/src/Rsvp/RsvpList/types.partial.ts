@@ -14,8 +14,17 @@
 // limitations under the License.
 // </copyright>
 //
+import { SlidingDateRange } from "@Obsidian/Utility/slidingDateRange";
 
 export const enum NavigationUrlKey {
     DetailPage = "DetailPage"
 }
+
+export const enum PreferenceKey {
+    FilterDateRange = "filter-date"
+}
+
+export type GridSettingsOptions = {
+    filterDateRange: SlidingDateRange | null;
+};
 

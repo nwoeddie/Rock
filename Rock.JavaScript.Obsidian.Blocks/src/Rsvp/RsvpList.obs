@@ -6,6 +6,9 @@
           title="RSVP Occurrences"
           itemTerm="RSVP Occurrence"
           liveUpdates
+          gridSettings
+          :gridSettingsActive="hasSettingsFilters"
+          @gridSettingsClick="isGridSettingsVisible = true"
           :onAddItem="config.isAddEnabled ? onAddItem : undefined"
           @selectItem="onSelectItem">
 
@@ -92,22 +95,24 @@
                       visiblePriority="xs" />
 
     </Grid>
+    <GridSettingsModal v-model="gridSettings" v-model:visible="isGridSettingsVisible" />
 </template>
 
 <script setup lang="ts">
-    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
-    import { EntityType } from "@Obsidian/SystemGuids/entityType";
+    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock, usePersonPreferences } from "@Obsidian/Utility/block";
     import Grid, { TextColumn, DateColumn, dateValueFilter, textValueFilter, NumberColumn } from "@Obsidian/Controls/grid";
-    import { alert } from "@Obsidian/Utility/dialogs";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { RsvpListOptionsBag } from "@Obsidian/ViewModels/Blocks/Rsvp/RsvpList/rsvpListOptionsBag";
     import { GetOccurrenceIdBag } from "@Obsidian/ViewModels/Blocks/Rsvp/RsvpList/getOccurrenceIdBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import { NavigationUrlKey } from "./RsvpList/types.partial";
-    import { reactive, ref } from "vue";
+    import { GridSettingsOptions, NavigationUrlKey, PreferenceKey } from "./RsvpList/types.partial";
+    import { reactive, ref, watch, computed } from "vue";
+    import GridSettingsModal from "./RsvpList/gridSettingsModal.partial.obs";
+    import { parseSlidingDateRangeString, slidingDateRangeToString } from "@Obsidian/Utility/slidingDateRange";
 
     const config = useConfigurationValues<ListBlockBox<RsvpListOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
+    const preferences = usePersonPreferences().blockPreferences;
 
     // All blocks auto reload when changing block settings unless there is an
     // explicit reason not to (like using a custom reload function instead),
@@ -128,14 +133,28 @@
     async function loadGridData(): Promise<GridDataBag> {
         const result = await invokeBlockAction<GridDataBag>("GetGridData");
 
-        if (result.isSuccess && result.data) {
-            gridData = reactive(result.data);
-            return gridData;
-        }
-        else {
+        if (!result.isSuccess || !result.data) {
             throw new Error(result.errorMessage ?? "Unknown error while trying to load grid data.");
         }
+        gridData = reactive(result.data);
+
+        if (!gridData.rows || gridData.rows.length === 0) {
+            if (config.navigationUrls?.[NavigationUrlKey.DetailPage]) {
+                window.location.href = config.navigationUrls[NavigationUrlKey.DetailPage].replace("((Key))", "0");
+            }
+            return {
+                ...gridData,
+                rows: []
+            };
+        }
+        console.log(gridData);
+        return gridData;
     }
+
+    const isGridSettingsVisible = ref(false);
+    const gridSettings = ref<GridSettingsOptions>({
+        filterDateRange: parseSlidingDateRangeString(preferences.getValue(PreferenceKey.FilterDateRange)) ?? null,
+    });
 
     // #endregion
 
@@ -150,7 +169,6 @@
      * @param key The key of the row that was selected.
      */
     async function onSelectItem(key: string): Promise<void> {
-        console.log(isSelectingItem.value);
         if (isSelectingItem.value === true) {
             return;
         }
@@ -193,6 +211,21 @@
 
 
     // #endregion
+    const hasSettingsFilters = computed((): boolean => {
+        return !!gridSettings.value.filterDateRange;
+    });
+
+
+    watch(gridSettings, async () => {
+        const filterDateRangeString = gridSettings.value.filterDateRange
+            ? slidingDateRangeToString(gridSettings.value.filterDateRange)
+            : "";
+
+        preferences.setValue(PreferenceKey.FilterDateRange, filterDateRangeString);
+        await preferences.save();
+
+        gridDataSource.value = loadGridData();
+    });
 
     gridDataSource.value = loadGridData();
 </script>

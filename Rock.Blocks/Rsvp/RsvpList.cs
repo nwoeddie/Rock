@@ -22,22 +22,25 @@ using System.Linq;
 
 using Rock.Attribute;
 using Rock.Data;
+using Rock.Enums.Controls;
 using Rock.Model;
 using Rock.Obsidian.UI;
 using Rock.Security;
+using Rock.Utility;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Rsvp.RsvpList;
+using Rock.ViewModels.Controls;
 using Rock.Web.Cache;
 
 namespace Rock.Blocks.Rsvp
 {
     /// <summary>
-    /// Displays a list of people.
+    /// Displays a list of RSVPs.
     /// </summary>
 
     [DisplayName( "Rsvp List" )]
     [Category( "Rsvp" )]
-    [Description( "Displays a list of people." )]
+    [Description( "Displays a list of RSVPs." )]
     [IconCssClass( "fa fa-list" )]
     [SupportedSiteTypes( Model.SiteType.Web )]
 
@@ -62,12 +65,49 @@ namespace Rock.Blocks.Rsvp
             public const string DetailPage = "DetailPage";
         }
 
+        private static class PreferenceKey
+        {
+            public const string FilterDateRange = "filter-date";
+        }
+
         private static class PageParameterKey
         {
             public const string GroupId = "GroupId";
         }
 
         #endregion Keys
+
+        #region Fields
+
+        /// <summary>
+        /// The Short Link attributes that are configured to show on the grid.
+        /// </summary>
+        private readonly Lazy<List<AttributeCache>> _gridAttributes = new Lazy<List<AttributeCache>>( BuildGridAttributes );
+
+        private PersonPreferenceCollection _personPreferences;
+
+        #endregion
+
+        #region Properties
+
+        public PersonPreferenceCollection PersonPreferences
+        {
+            get
+            {
+                if ( _personPreferences == null )
+                {
+                    _personPreferences = this.GetBlockPersonPreferences();
+                }
+
+                return _personPreferences;
+            }
+        }
+
+        private SlidingDateRangeBag FilterDateRange => PersonPreferences
+            .GetValue( PreferenceKey.FilterDateRange )
+            .ToSlidingDateRangeBagOrNull();
+
+        #endregion
 
         #region Methods
 
@@ -94,7 +134,6 @@ namespace Rock.Blocks.Rsvp
         private RsvpListOptionsBag GetBoxOptions()
         {
             var options = new RsvpListOptionsBag();
-
             return options;
         }
 
@@ -125,23 +164,67 @@ namespace Rock.Blocks.Rsvp
             };
         }
 
+        /// <summary>
+        /// Builds the list of grid attributes that should be included on the Grid.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation returns only attributes that are not qualified.
+        /// </remarks>
+        /// <returns>A list of <see cref="AttributeCache"/> objects.</returns>
+        private static List<AttributeCache> BuildGridAttributes()
+        {
+            var entityTypeId = EntityTypeCache.Get<RsvpListBag>( false )?.Id;
+
+            if ( entityTypeId.HasValue )
+            {
+                return AttributeCache.GetOrderedGridAttributes( entityTypeId, string.Empty, string.Empty );
+            }
+
+            return new List<AttributeCache>();
+        }
+
         /// <inheritdoc/>
         protected override IQueryable<RsvpListBag> GetListQueryable( RockContext rockContext )
         {
             var groupId = PageParameter( PageParameterKey.GroupId );
             var group = new GroupService( rockContext ).Get( groupId );
 
-            var locationIds = new List<int>();
-            var scheduleIds = new List<int>();
-
             if ( group == null )
             {
                 return new List<RsvpListBag>().AsQueryable();
             }
 
-            var occurrenceQry = new AttendanceOccurrenceService( rockContext ).Queryable().Where( o => o.GroupId == group.Id);
+            var occurrenceQry = new AttendanceOccurrenceService( rockContext )
+                .Queryable()
+                .Where( o => o.GroupId == group.Id );
 
-            var attendanceQry = new AttendanceService( rockContext ).Queryable();
+            // Apply date range filter from person preferences.
+            var filterDateRange = FilterDateRange;
+
+            if ( filterDateRange != null )
+            {
+                // Default to the last 180 days if a null/invalid range was selected.
+                var defaultSlidingDateRange = new SlidingDateRangeBag
+                {
+                    RangeType = SlidingDateRangeType.Last,
+                    TimeUnit = TimeUnitType.Day,
+                    TimeValue = 180
+                };
+
+                var dateRange = filterDateRange.Validate( defaultSlidingDateRange ).ActualDateRange;
+
+                if ( dateRange.Start.HasValue )
+                {
+                    var startDate = dateRange.Start.Value.Date;
+                    occurrenceQry = occurrenceQry.Where( o => o.OccurrenceDate >= startDate );
+                }
+
+                if ( dateRange.End.HasValue )
+                {
+                    var endDate = dateRange.End.Value.Date;
+                    occurrenceQry = occurrenceQry.Where( o => o.OccurrenceDate <= endDate );
+                }
+            }
 
             var qry = occurrenceQry.Select( o => new RsvpListBag
             {
@@ -173,14 +256,14 @@ namespace Rock.Blocks.Rsvp
             var data = queryable.ToList();
 
             // Get Occurrneces from Schedule that have not been added to DB yet
-            if(data.Any(data => data.ScheduleId.HasValue ) )
+            if(data.Any( d => d.ScheduleId.HasValue ) )
             {
                 var scheduleId = data.Where( d => d.ScheduleId.HasValue ).Select( d => d.ScheduleId.Value ).FirstOrDefault();
                 var groupTypeId = data.Where( d => d.GroupTypeId != 0 ).Select( d => d.GroupTypeId ).FirstOrDefault();
                 data.AddRange( GetScheduleOccurrences( data, scheduleId, groupTypeId ) );
             }
 
-            var result = data.OrderByDescending(o => o.Date).ToList();
+            var result = data.OrderByDescending( o => o.Date ).ToList();
             return result;
         }
 
@@ -191,7 +274,7 @@ namespace Rock.Blocks.Rsvp
         /// </summary>
         /// <param name="existingOccurrences"></param>
         /// <returns></returns>
-        private List<RsvpListBag> GetScheduleOccurrences(List<RsvpListBag> existingOccurrences, int scheduleId, int groupTypeId)
+        private List<RsvpListBag> GetScheduleOccurrences( List<RsvpListBag> existingOccurrences, int scheduleId, int groupTypeId )
         {
             var newOccurrences = new List<RsvpListBag>();
 
@@ -203,9 +286,18 @@ namespace Rock.Blocks.Rsvp
                 return newOccurrences;
             }
 
-            var startDate = RockDateTime.Today.AddMonths( -2 );
-            var endDate = RockDateTime.Today.AddDays( 1 );
+            var defaultSlidingDateRange = new SlidingDateRangeBag
+            {
+                RangeType = SlidingDateRangeType.Last,
+                TimeUnit = TimeUnitType.Day,
+                TimeValue = 180
+            };
 
+            var filterDateRange = FilterDateRange ?? defaultSlidingDateRange;
+            var dateRange = filterDateRange.Validate( defaultSlidingDateRange ).ActualDateRange;
+
+            var startDate = dateRange.Start?.Date ?? RockDateTime.Today.AddMonths( -2 );
+            var endDate = dateRange.End?.Date.AddDays( 1 ) ?? RockDateTime.Today.AddDays( 1 );
 
             var existingDates = existingOccurrences
                 .Where( o => o.ScheduleId.HasValue && o.ScheduleId == groupSchedule.Id )
@@ -227,7 +319,7 @@ namespace Rock.Blocks.Rsvp
             {
                 var dt = startDate;
 
-                while (dt.DayOfWeek != groupSchedule.WeeklyDayOfWeek.Value )
+                while ( dt.DayOfWeek != groupSchedule.WeeklyDayOfWeek.Value )
                 {
                     dt = dt.AddDays( 1 );
                 }
@@ -248,7 +340,7 @@ namespace Rock.Blocks.Rsvp
             // filter exclusions
             var groupType = GroupTypeCache.Get( groupTypeId );
             var exclusions = groupType.GroupScheduleExclusions;
-            foreach (var exclusion in exclusions )
+            foreach ( var exclusion in exclusions )
             {
                 if( !exclusion.Start.HasValue || !exclusion.End.HasValue )
                 {
@@ -268,7 +360,6 @@ namespace Rock.Blocks.Rsvp
             // Loop through schedule occurrences and add if they don't exist in the database
             foreach ( var date in possibleNewOccurrenceDates)
             {
-                
                 if ( !existingDates.Contains( date.Date ) )
                 {
                     newOccurrences.Add( new RsvpListBag
@@ -330,7 +421,13 @@ namespace Rock.Blocks.Rsvp
             var locationId = bag.LocationId;
             var scheduleId = bag.ScheduleId;
 
-            var group = new GroupService( new RockContext() ).Get( groupId );
+            var group = new GroupService( RockContext ).Get( groupId );
+
+            if(group == null )
+            {
+                return ActionBadRequest( "Group not found." );
+            }
+
             var attendanceOccurrenceService = new AttendanceOccurrenceService( RockContext );
 
             //If this occurrence has already been created, just return the existing one.
@@ -344,15 +441,12 @@ namespace Rock.Blocks.Rsvp
 
             if ( id != 0 )
             {
-                return ActionOk( id );
+                return ActionOk( id.AsIdKey() );
             }
 
             var attendanceOccurrence = new AttendanceOccurrence();
 
-            if ( group.Id != null )
-            {
-                attendanceOccurrence.GroupId = group.Id;
-            }
+            attendanceOccurrence.GroupId = group.Id;
 
             if ( scheduleId != null && scheduleId != 0 )
             {
@@ -366,7 +460,7 @@ namespace Rock.Blocks.Rsvp
             attendanceOccurrence.OccurrenceDate = occurrenceDate;
             attendanceOccurrenceService.Add( attendanceOccurrence );
             RockContext.SaveChanges();
-            return ActionOk( attendanceOccurrence.Id );
+            return ActionOk( attendanceOccurrence.Id.AsIdKey() );
         }
         #endregion
     }
