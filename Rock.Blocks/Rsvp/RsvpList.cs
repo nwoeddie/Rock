@@ -392,7 +392,7 @@ namespace Rock.Blocks.Rsvp
             var groupId = PageParameter( PageParameterKey.GroupId );
             return new GridBuilder<RsvpListBag>()
                 .WithBlock( this )
-                .AddTextField( "keyField", a => a.Id == 0 || a.Id == null ? $"{a.Date}_{a.ScheduleId ?? 0}_{a.LocationId ?? 0}" : a.Id.AsIdKey() )
+                .AddTextField( "keyField", a => a.Id == 0 ? $"{a.Date}_{a.ScheduleId ?? 0}_{a.LocationId ?? 0}" : a.Id.AsIdKey() )
                 .AddField( "id", a => a.Id )
                 .AddDateTimeField( "date", a => a.Date )
                 .AddTextField( "name", a => a.Name )
