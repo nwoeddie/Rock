@@ -46,7 +46,7 @@ namespace Rock.Blocks.Communication
 
     [Rock.SystemGuid.EntityTypeGuid( "5a654bda-e2e3-46f7-b856-151f87a843d1" )]
     // WAS [Rock.SystemGuid.BlockTypeGuid( "8159e724-c9d2-4d67-9a40-5e7b569e0e19" )]
-    [Rock.SystemGuid.BlockTypeGuid( "74BF9B7D-0F1C-4632-ACBB-A3E30061A237" )]
+    [Rock.SystemGuid.BlockTypeGuid( "397583B2-0DC4-4D69-9169-C95B430AB336" )]
     [CustomizedGrid]
     public class SnippetTypeList : RockEntityListBlockType<SnippetType>
     {
