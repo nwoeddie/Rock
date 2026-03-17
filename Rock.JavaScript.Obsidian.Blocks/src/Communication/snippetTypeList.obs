@@ -2,6 +2,7 @@
 <template>
     <Grid :definition="config.gridDefinition ?? undefined"
           :data="gridDataSource"
+          title="Snippet Types"
           keyField="idKey"
           itemTerm="Snippet Type"
           :entityTypeGuid="EntityType.SnippetType"
