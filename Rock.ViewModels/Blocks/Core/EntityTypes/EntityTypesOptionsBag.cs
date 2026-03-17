@@ -22,5 +22,9 @@ namespace Rock.ViewModels.Blocks.Core.EntityTypes
     /// </summary>
     public class EntityTypesOptionsBag
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool IsAuthorizedToEdit { get; set; }
     }
 }

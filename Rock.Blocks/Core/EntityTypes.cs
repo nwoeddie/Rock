@@ -73,11 +73,11 @@ namespace Rock.Blocks.Core
             var box = new ListBlockBox<EntityTypesOptionsBag>();
             var builder = GetGridBuilder();
 
-            box.IsAddEnabled = GetIsAddEnabled();
             box.IsDeleteEnabled = BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
             box.ExpectedRowCount = null;
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions();
+
             box.GridDefinition = builder.BuildDefinition();
 
             return box;
@@ -90,17 +90,8 @@ namespace Rock.Blocks.Core
         private EntityTypesOptionsBag GetBoxOptions()
         {
             var options = new EntityTypesOptionsBag();
-
+            options.IsAuthorizedToEdit = BlockCache.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson );
             return options;
-        }
-
-        /// <summary>
-        /// Determines if the add button should be enabled in the grid.
-        /// <summary>
-        /// <returns>A boolean value that indicates if the add button should be enabled.</returns>
-        private bool GetIsAddEnabled()
-        {
-            return BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
         }
 
         /// <summary>
@@ -235,7 +226,7 @@ namespace Rock.Blocks.Core
         public BlockActionResult GetEditEntityType( string key )
         {
             var entityTypeService = new EntityTypeService( RockContext );
-            var entity = entityTypeService.Get( key, false );
+            var entity = entityTypeService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
 
             if ( entity == null )
             {
@@ -265,26 +256,28 @@ namespace Rock.Blocks.Core
         [BlockAction]
         public BlockActionResult SaveEntityType( ValidPropertiesBox<EntityTypesBag> box )
         {
-                var entityTypeService = new EntityTypeService( RockContext );
+            var entityTypeService = new EntityTypeService( RockContext );
 
-                if ( !TryGetEntityForEditAction( box.Bag.Id.AsIdKey(), out var entity, out var actionError ) )
-                {
-                    return actionError;
-                }
+            if ( !TryGetEntityForEditAction( box.Bag.Id.AsIdKey(), out var entity, out var actionError ) )
+            {
+                return actionError;
+            }
 
-                // Update the entity instance from the information in the bag.
-                if ( !UpdateEntityFromBox( entity, box ) )
-                {
-                    return ActionBadRequest( "Invalid data." );
-                }
+            // Update the entity instance from the information in the bag.
+            if ( !UpdateEntityFromBox( entity, box ) )
+            {
+                return ActionBadRequest( "Invalid data." );
+            }
 
-                RockContext.WrapTransaction( () =>
-                {
-                    RockContext.SaveChanges();
-                } );
+            RockContext.WrapTransaction( () =>
+            {
+                RockContext.SaveChanges();
+            } );
 
-                return ActionOk( GetGridBuilder() );
+            return ActionOk();
         }
+
         #endregion
+
     }
 }

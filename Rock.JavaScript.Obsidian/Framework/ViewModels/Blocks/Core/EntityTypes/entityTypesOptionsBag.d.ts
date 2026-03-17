@@ -23,4 +23,5 @@
 
 /** The additional configuration options for the Entity Type List block. */
 export type EntityTypesOptionsBag = {
+    isAuthorizedToEdit: boolean;
 };

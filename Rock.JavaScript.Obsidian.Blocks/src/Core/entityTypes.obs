@@ -1,9 +1,12 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <Grid :definition="config.gridDefinition ?? undefined"
+    <NotificationBox v-if="!config.options?.isAuthorizedToEdit" alertType="warning"><strong>Warning</strong> You are not authorized to edit entity types</NotificationBox>
+    <Grid
+          v-else
+          :definition="config.gridDefinition ?? undefined"
           :data="gridDataSource"
           keyField="idKey"
-          itemTerm="Entity Type"
+          itemTerm="Entity"
           :entityTypeGuid="EntityType.EntityType"
           liveUpdates
           @selectItem="onSelectItem">
@@ -44,7 +47,6 @@
     </Grid>
     <Modal v-model="showEditEntityTypeModal" title="Edit Entity Type" @closeModal="onCloseModal">
         <RockForm v-model:submit="submitEntityType" @submit="saveEntityType">
-            <!-- <div>Carter Is Here</div> -->
             <EntityTypeEditor v-model="entityTypeEditBag" />
         </RockForm>
 
@@ -69,6 +71,7 @@
     import RockForm from "@Obsidian/Controls/rockForm.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import { alert, showSecurity } from "@Obsidian/Utility/dialogs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
 
     const config = useConfigurationValues<ListBlockBox<EntityTypesOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
@@ -136,15 +139,12 @@
         submitEntityType.value = true;
     };
 
-
     const saveEntityType = async (): Promise<void> => {
-
-        console.log("Entity edit bag", entityTypeEditBag.value);
         const result = await invokeBlockAction<ValidPropertiesBox<EntityTypesBag>>("SaveEntityType", {
             box: entityTypeEditBag.value
         });
 
-        if (!result.isSuccess || !result.data) {
+        if (!result.isSuccess) {
             return alert(result.errorMessage ?? "Unable to save entity type.");
         }
 
@@ -162,7 +162,6 @@
         isEditing.value = false;
         submitEntityType.value = false;
     };
-
 
     /**
      * Called the edit or add modal is closed.
@@ -184,11 +183,9 @@
      * @param event The event that triggered us.
      */
     async function onSecurityClick(entityTypeId: string, typeFriendlyName: string): Promise<void> {
-
         if (!entityTypeId) {
             return;
         }
-
         showSecurity(entityTypeId, 0, typeFriendlyName + " Security");
     }
 
