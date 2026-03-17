@@ -17,7 +17,6 @@
 
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
@@ -46,7 +45,8 @@ namespace Rock.Blocks.Communication
         Key = AttributeKey.DetailPage )]
 
     [Rock.SystemGuid.EntityTypeGuid( "5a654bda-e2e3-46f7-b856-151f87a843d1" )]
-    [Rock.SystemGuid.BlockTypeGuid( "8159e724-c9d2-4d67-9a40-5e7b569e0e19" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "8159e724-c9d2-4d67-9a40-5e7b569e0e19" )]
+    [Rock.SystemGuid.BlockTypeGuid( "74BF9B7D-0F1C-4632-ACBB-A3E30061A237" )]
     [CustomizedGrid]
     public class SnippetTypeList : RockEntityListBlockType<SnippetType>
     {
@@ -95,7 +95,7 @@ namespace Rock.Blocks.Communication
 
         /// <summary>
         /// Determines if the add button should be enabled in the grid.
-        /// <summary>
+        /// </summary>
         /// <returns>A boolean value that indicates if the add button should be enabled.</returns>
         private bool GetIsAddEnabled()
         {
@@ -112,12 +112,6 @@ namespace Rock.Blocks.Communication
             {
                 [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, "SnippetTypeId", "((Key))" )
             };
-        }
-
-        /// <inheritdoc/>
-        protected override IQueryable<SnippetType> GetListQueryable( RockContext rockContext )
-        {
-            return base.GetListQueryable( rockContext );
         }
 
         /// <inheritdoc/>
