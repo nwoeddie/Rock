@@ -1,0 +1,116 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <fieldset>
+
+        <ContentSection>
+            <DisplayCard iconLabelType="default"
+                         :description="props.modelValue?.summary">
+
+                <template #prepend>
+                    <div class="d-flex align-items-center gap-3">
+                        <PersonAvatar v-if="props.modelValue?.authorizedPerson?.photoUrl"
+                                      :photoUrl="props.modelValue.authorizedPerson.photoUrl"
+                                      :personName="props.modelValue.authorizedPerson.name"
+                                      size="md" />
+                        <div>
+                            <h5 class="m-0"><a :href="`/Person/${props.modelValue?.authorizedPerson?.idKey}`">{{ props.modelValue?.authorizedPerson?.name }}</a></h5>
+                            <p class="m-0 text-muted">{{ props.modelValue?.authorizedPerson?.email }}</p>
+                        </div>
+                    </div>
+                </template>
+            </DisplayCard>
+        </ContentSection>
+
+        <!-- <ValueDetailList :modelValue="topValues" />
+
+        <div class="row">
+            <div class="col-md-6">
+                <ValueDetailList :modelValue="leftSideValues" />
+            </div>
+
+            <div class="col-md-6">
+                <ValueDetailList :modelValue="rightSideValues" />
+            </div>
+        </div>
+
+        <AttributeValuesContainer :modelValue="attributeValues" :attributes="attributes" :numberOfColumns="2" /> -->
+
+    </fieldset>
+</template>
+
+<script setup lang="ts">
+    import { computed, PropType, ref } from "vue";
+    import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
+    import ValueDetailList from "@Obsidian/Controls/valueDetailList.obs";
+    import { ValueDetailListItemBuilder } from "@Obsidian/Core/Controls/valueDetailListItemBuilder";
+    import { ValueDetailListItem } from "@Obsidian/Types/Controls/valueDetailListItem";
+    import { TransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionBag";
+    import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
+    import ContentSection from "@Obsidian/Controls/contentSection.obs";
+    import DisplayCard from "@Obsidian/Controls/displayCard.obs";
+    import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
+
+    const props = defineProps({
+        modelValue: {
+            type: Object as PropType<TransactionBag | null>,
+            required: false
+        },
+
+        options: {
+            type: Object as PropType<TransactionDetailOptionsBag>,
+            required: true
+        }
+    });
+
+    // #region Values
+
+    const attributes = ref(props.modelValue?.attributes ?? {});
+    const attributeValues = ref(props.modelValue?.attributeValues ?? {});
+
+    // #endregion
+
+    // #region Computed Values
+
+    /** The values to display full-width at the top of the block. */
+    const topValues = computed((): ValueDetailListItem[] => {
+        const valueBuilder = new ValueDetailListItemBuilder();
+
+        if (!props.modelValue) {
+            return valueBuilder.build();
+        }
+
+        return valueBuilder.build();
+    });
+
+    /** The values to display at half-width on the left side of the block. */
+    const leftSideValues = computed((): ValueDetailListItem[] => {
+        const valueBuilder = new ValueDetailListItemBuilder();
+
+        if (!props.modelValue) {
+            return valueBuilder.build();
+        }
+
+        return valueBuilder.build();
+    });
+
+    /** The values to display at half-width on the right side of the block. */
+    const rightSideValues = computed((): ValueDetailListItem[] => {
+        const valueBuilder = new ValueDetailListItemBuilder();
+
+        if (!props.modelValue) {
+            return valueBuilder.build();
+        }
+
+        return valueBuilder.build();
+    });
+
+    // #endregion
+
+    // #region Functions
+
+    // #endregion
+
+    // #region Event Handlers
+
+    // #endregion
+</script>
