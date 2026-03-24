@@ -58,5 +58,10 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public string ExpirationDate { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool IsCreditCard { get; set; }
     }
 }

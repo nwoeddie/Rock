@@ -98,9 +98,6 @@ export type TransactionBag = {
     /** Gets or sets the source type. */
     sourceType?: ListItemBag | null;
 
-    /** Gets or sets the source type identifier. */
-    sourceTypeValueId?: number | null;
-
     /** Gets or sets the status of the transaction. */
     status?: string | null;
 

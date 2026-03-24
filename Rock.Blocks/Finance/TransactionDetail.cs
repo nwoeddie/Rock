@@ -92,10 +92,10 @@ namespace Rock.Blocks.Finance
         {
             var box = new DetailBlockBox<TransactionBag, TransactionDetailOptionsBag>();
 
-            SetBoxInitialEntityState( box );
 
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions( box.IsEditable );
+            SetBoxInitialEntityState( box );
 
             return box;
         }
@@ -241,7 +241,6 @@ namespace Rock.Blocks.Finance
                 ShowAsAnonymous = entity.ShowAsAnonymous,
 
                 SourceType = entity.SourceTypeValue?.ToListItemBag(),
-                SourceTypeValueId = entity.SourceTypeValueId,
 
                 Status = entity.Status,
                 StatusMessage = entity.StatusMessage,
@@ -513,6 +512,8 @@ namespace Rock.Blocks.Finance
                 return new PaymentDetailBag();
             }
 
+            var isCreditCard = paymentDetail.CurrencyTypeValue?.Guid == Rock.SystemGuid.DefinedValue.CURRENCY_TYPE_CREDIT_CARD.AsGuid();
+
             return new PaymentDetailBag
             {
                 CurrencyType = paymentDetail.CurrencyTypeValue?.ToListItemBag(),
@@ -521,7 +522,8 @@ namespace Rock.Blocks.Finance
                 CreditCardTypeValueId = paymentDetail.CreditCardTypeValueId,
                 NameOnCard = paymentDetail.NameOnCard,
                 AccountNumberMasked = paymentDetail.AccountNumberMasked,
-                ExpirationDate = paymentDetail.ExpirationDate
+                ExpirationDate = paymentDetail.ExpirationDate,
+                IsCreditCard = isCreditCard,
             };
         }
 

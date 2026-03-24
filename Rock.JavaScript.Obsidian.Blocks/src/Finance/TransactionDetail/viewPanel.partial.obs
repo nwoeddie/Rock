@@ -2,9 +2,12 @@
 <template>
     <fieldset>
 
-        <ContentSection>
+        <ContentSection
+                        icon="ti ti-user-check"
+                        title="Authorized By:"
+                        :disableCollapse="true"
+                        class="mb-4">
             <DisplayCard>
-
                 <template #prepend>
                     <div class="d-flex align-items-center">
                         <PersonAvatar v-if="props.modelValue?.authorizedPerson?.photoUrl"
@@ -18,12 +21,14 @@
                         </div>
                     </div>
                 </template>
-                <template #rightMiddleSection>
-                    <div v-for="(address, index) in modelValue?.authorizedPerson?.addresses" :key="index" class="d-flex address-block gap-2">
-                        <i class="ti ti-map-pin"></i>
-                        <div>
-                            <p class="m-0 text-semibold">{{ address.type }} Address</p>
-                            <p>{{ address.formattedAddress }}</p>
+                <template #middleSection>
+                    <div class="d-flex gap-3 address-container">
+                        <div v-for="(address, index) in modelValue?.authorizedPerson?.addresses" :key="index" class="d-flex address-block gap-2">
+                            <i class="ti ti-map-pin"></i>
+                            <div>
+                                <p class="m-0 text-semibold">{{ address.type }} Address</p>
+                                <p>{{ address.formattedAddress }}</p>
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -32,12 +37,36 @@
                 </template>
             </DisplayCard>
             <div>
-                <label class="text-muted text-regular">Date/Time</label>
+                <label class="text-muted">Date/Time</label>
                 <p>{{ formattedDate }}</p>
             </div>
             <div>
-                <label class="text-muted text-regular">Comments</label>
+                <label class="text-muted">Comments</label>
                 <p>{{ modelValue?.summary }}</p>
+            </div>
+        </ContentSection>
+
+        <ContentSection
+                        icon="ti ti-report-money"
+                        title="Transaction Details"
+                        :disableCollapse="true">
+
+            <div class="d-flex justify-content-between">
+                <div>
+                    <label class="text-muted">Transaction Source</label>
+                    <p>{{ modelValue?.sourceType?.text }}</p>
+                    <label class="text-muted">Payment Method</label>
+                    <div v-if="modelValue?.paymentDetail?.isCreditCard">
+                        <p>Credit Card - {{ modelValue?.paymentDetail?.creditCardType?.text }}</p>
+                        <p>Account Number: {{ modelValue?.paymentDetail?.accountNumberMasked }}</p>
+                    </div>
+                    <div v-else>
+                        <p>{{ modelValue?.paymentDetail?.currencyType?.text }}</p>
+                    </div>
+                </div>
+                <div>
+
+                </div>
             </div>
         </ContentSection>
 
@@ -156,5 +185,10 @@
 .ti-map-pin {
     padding-top: 5px;
     font-size: 1.25rem;
+}
+
+.address-container {
+    max-width: 1200px;
+    width: 100%;
 }
 </style>

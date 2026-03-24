@@ -123,11 +123,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public ListItemBag SourceType { get; set; }
 
         /// <summary>
-        /// Gets or sets the source type identifier.
-        /// </summary>
-        public int? SourceTypeValueId { get; set; }
-
-        /// <summary>
         /// Gets or sets the status of the transaction.
         /// </summary>
         public string Status { get; set; }

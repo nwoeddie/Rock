@@ -6,17 +6,27 @@
     <DetailBlock v-if="!blockError"
                  v-model:mode="panelMode"
                  :name="panelName"
-                 :labels="blockLabels"
                  :entityKey="entityKey"
                  :isAuditHidden="true"
                  :isBadgesVisible="true"
                  :isDeleteVisible="false"
                  :isEditVisible="isEditable && options.canEdit"
-                 :isSecurityHidden="false"
+                 :isSecurityHidden="true"
                  @cancelEdit="onCancelEdit"
                  @delete="onDelete"
                  @edit="onEdit"
                  @save="onSave">
+        <template #headerActions>
+            <span class="label label-info">
+                Batch: #{{ transactionViewBag?.batchId }}
+            </span>
+            <span class="label label-success">
+                ${{ transactionViewBag?.totalAmount.toFixed(2) }}
+            </span>
+            <span class="label label-default">
+                {{ transactionViewBag?.transactionType?.text }}
+            </span>
+        </template>
         <template #view>
             <NotificationBox v-if="options.canEdit == false" alertType="info" heading="Note">
                 Because this Financial Transaction belongs to a batch that is either automated or is closed, so editing is not enabled
@@ -87,43 +97,6 @@
      */
     const entityKey = computed((): string => {
         return transactionViewBag.value?.idKey ?? "";
-    });
-
-    /**
-     * Additional labels to display in the block panel.
-     */
-    const blockLabels = computed((): PanelAction[] | undefined => {
-        const labels: PanelAction[] = [];
-
-        if (panelMode.value !== DetailPanelMode.View) {
-            return undefined;
-        }
-
-        const transactionType = transactionViewBag.value?.transactionType?.text;
-        if (transactionType) {
-            labels.push({
-                type: "default",
-                title: transactionType
-            });
-        }
-
-        const totalAmount = transactionViewBag.value?.totalAmount;
-        if (totalAmount !== undefined && totalAmount !== null) {
-            labels.push({
-                type: "success",
-                title: `$${totalAmount.toFixed(2)}`
-            });
-        }
-
-        const batchNumber = transactionViewBag.value?.batchId;
-        if (batchNumber !== undefined && batchNumber !== null) {
-            labels.push({
-                type: "info",
-                title: `Batch: #${batchNumber}`
-            });
-        }
-
-        return labels;
     });
 
     const isEditable = computed((): boolean => {

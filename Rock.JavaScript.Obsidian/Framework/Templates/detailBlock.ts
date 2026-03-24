@@ -923,9 +923,10 @@ export default defineComponent({
 
     <template #headerActions>
         <div v-if="showExperienceMode" class="panel-experience-mode">
-            <ExperienceModePicker />
+        <ExperienceModePicker />
         </div>
 
+        <slot name="headerActions" />
         <span v-for="action in headerActions" :class="getClassForIconAction(action)" :title="action.title" @click="onActionClick(action, $event)">
             <i :class="getActionIconCssClass(action)"></i>
         </span>

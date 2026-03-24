@@ -36,5 +36,7 @@ export type PaymentDetailBag = {
 
     expirationDate?: string | null;
 
+    isCreditCard: boolean;
+
     nameOnCard?: string | null;
 };
