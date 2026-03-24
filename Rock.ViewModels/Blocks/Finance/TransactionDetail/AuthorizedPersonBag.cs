@@ -53,6 +53,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public string PrimaryAddressType { get; set; }
+        public string Campus { get; set; }
     }
 }

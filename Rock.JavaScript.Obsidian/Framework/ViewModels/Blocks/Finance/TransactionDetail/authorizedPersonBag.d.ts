@@ -26,6 +26,8 @@ import { AddressBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetai
 export type AuthorizedPersonBag = {
     addresses?: AddressBag[] | null;
 
+    campus?: string | null;
+
     email?: string | null;
 
     idKey?: string | null;
@@ -33,6 +35,4 @@ export type AuthorizedPersonBag = {
     name?: string | null;
 
     photoUrl?: string | null;
-
-    primaryAddressType?: string | null;
 };

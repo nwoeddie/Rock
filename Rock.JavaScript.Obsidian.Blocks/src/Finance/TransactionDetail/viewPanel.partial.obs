@@ -3,22 +3,42 @@
     <fieldset>
 
         <ContentSection>
-            <DisplayCard iconLabelType="default"
-                         :description="props.modelValue?.summary">
+            <DisplayCard>
 
                 <template #prepend>
-                    <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex align-items-center">
                         <PersonAvatar v-if="props.modelValue?.authorizedPerson?.photoUrl"
                                       :photoUrl="props.modelValue.authorizedPerson.photoUrl"
                                       :personName="props.modelValue.authorizedPerson.name"
+                                      :alwaysShowAvatar="true"
                                       size="md" />
                         <div>
-                            <h5 class="m-0"><a :href="`/Person/${props.modelValue?.authorizedPerson?.idKey}`">{{ props.modelValue?.authorizedPerson?.name }}</a></h5>
+                            <h4 class="m-0"><a :href="`/Person/${props.modelValue?.authorizedPerson?.idKey}`">{{ props.modelValue?.authorizedPerson?.name }}</a></h4>
                             <p class="m-0 text-muted">{{ props.modelValue?.authorizedPerson?.email }}</p>
                         </div>
                     </div>
                 </template>
+                <template #rightMiddleSection>
+                    <div v-for="(address, index) in modelValue?.authorizedPerson?.addresses" :key="index" class="d-flex address-block gap-2">
+                        <i class="ti ti-map-pin"></i>
+                        <div>
+                            <p class="m-0 text-semibold">{{ address.type }} Address</p>
+                            <p>{{ address.formattedAddress }}</p>
+                        </div>
+                    </div>
+                </template>
+                <template #actions>
+                    <div class="label label-campus">{{ modelValue?.authorizedPerson?.campus }}</div>
+                </template>
             </DisplayCard>
+            <div>
+                <label class="text-muted text-regular">Date/Time</label>
+                <p>{{ formattedDate }}</p>
+            </div>
+            <div>
+                <label class="text-muted text-regular">Comments</label>
+                <p>{{ modelValue?.summary }}</p>
+            </div>
         </ContentSection>
 
         <!-- <ValueDetailList :modelValue="topValues" />
@@ -49,6 +69,7 @@
     import ContentSection from "@Obsidian/Controls/contentSection.obs";
     import DisplayCard from "@Obsidian/Controls/displayCard.obs";
     import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
+    import { DateTimeFormat, RockDateTime } from "@Obsidian/Utility/rockDateTime";
 
     const props = defineProps({
         modelValue: {
@@ -62,6 +83,13 @@
         }
     });
 
+    const formattedDate = ref("");
+
+    if (props.modelValue?.transactionDateTime) {
+        formattedDate.value = RockDateTime
+            .parseISO(props.modelValue.transactionDateTime)
+            ?.toLocaleString(DateTimeFormat.DateTimeShort) ?? "";
+    }
     // #region Values
 
     const attributes = ref(props.modelValue?.attributes ?? {});
@@ -114,3 +142,19 @@
 
     // #endregion
 </script>
+
+<style scoped>
+:deep(.displaycard-heading) {
+    display: none;
+}
+
+:deep(.displaycard-content) {
+    gap: var(--spacing-large);
+    justify-content: flex-end;
+}
+
+.ti-map-pin {
+    padding-top: 5px;
+    font-size: 1.25rem;
+}
+</style>

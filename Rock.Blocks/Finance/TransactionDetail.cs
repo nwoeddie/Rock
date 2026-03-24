@@ -49,6 +49,16 @@ namespace Rock.Blocks.Finance
     [LinkedPage( "Scheduled Transaction Detail",
         Description = "The page that will show the scheduled transaction details.",
         Key = AttributeKey.ScheduledTransactionDetail )]
+
+    [DefinedValueField(
+        "Location Types",
+        Description = "The location types to display for the authorized person. If none are selected, all addresses will be shown.",
+        Key = AttributeKey.LocationTypes,
+        DefinedTypeGuid = Rock.SystemGuid.DefinedType.GROUP_LOCATION_TYPE,
+        AllowMultiple = true,
+        IsRequired = false,
+        Order = 5 )]
+
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "31989b35-624b-4529-bc55-bb251e7fb1da" )]
@@ -70,6 +80,7 @@ namespace Rock.Blocks.Finance
         private static class AttributeKey
         {
             public const string ScheduledTransactionDetail = "ScheduledTransactionDetail";
+            public const string LocationTypes = "LocationTypes";
         }
 
         #endregion Keys
@@ -608,29 +619,7 @@ namespace Rock.Blocks.Finance
                 return null;
             }
 
-            var addresses = new List<AddressBag>();
-
-            var groupLocations = person.PrimaryFamily?.GroupLocations;
-
-            if ( groupLocations != null )
-            {
-                foreach ( var gl in groupLocations )
-                {
-                    if ( gl.Location == null )
-                    {
-                        continue;
-                    }
-
-                    var type = gl.GroupLocationTypeValue?.Value ?? "Other";
-
-                    addresses.Add( new AddressBag
-                    {
-                        Type = type,
-                        FormattedAddress = gl.Location.ToString(),
-                        IsPrimary = gl.IsMailingLocation
-                    } );
-                }
-            }
+            var addresses = GetAuthorizedPersonAddresses( person );
 
             return new AuthorizedPersonBag
             {
@@ -639,8 +628,49 @@ namespace Rock.Blocks.Finance
                 Email = person.Email,
                 PhotoUrl = person.PhotoUrl,
                 Addresses = addresses,
-                PrimaryAddressType = addresses.FirstOrDefault( a => a.IsPrimary )?.Type
+                Campus = person.PrimaryCampus.Name
             };
+        }
+
+        private List<AddressBag> GetAuthorizedPersonAddresses( Person person )
+        {
+            var addresses = new List<AddressBag>();
+
+            var allowedLocationTypeIds = GetAttributeValue( AttributeKey.LocationTypes )
+                .SplitDelimitedValues()
+                .AsGuidList()
+                .Select( g => DefinedValueCache.Get( g ) )
+                .Where( dv => dv != null )
+                .Select( dv => dv.Id )
+                .ToList();
+
+            var groupLocations = person.GetFamilies()
+                .SelectMany( g => g.GroupLocations )
+                .Where( gl => gl.Location != null );
+
+            if ( allowedLocationTypeIds.Any() )
+            {
+                groupLocations = groupLocations
+                    .Where( gl => gl.GroupLocationTypeValueId.HasValue
+                        && allowedLocationTypeIds.Contains( gl.GroupLocationTypeValueId.Value ) );
+            }
+
+            var locationList = groupLocations
+                .OrderByDescending( gl => gl.IsMailingLocation )
+                .ThenByDescending( gl => gl.IsMappedLocation )
+                .ThenByDescending( gl => gl.CreatedDateTime )
+                .ToList();
+
+            addresses = locationList
+                .Select( gl => new AddressBag
+                {
+                    Type = gl.GroupLocationTypeValue.Value,
+                    FormattedAddress = gl.Location.ToString(),
+                    IsPrimary = gl.IsMailingLocation
+                } )
+                .ToList();
+
+            return addresses;
         }
 
         #endregion
