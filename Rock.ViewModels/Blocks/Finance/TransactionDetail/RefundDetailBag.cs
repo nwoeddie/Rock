@@ -43,5 +43,10 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public string RefundReasonSummary { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public decimal RefundAmount { get; set; }
     }
 }

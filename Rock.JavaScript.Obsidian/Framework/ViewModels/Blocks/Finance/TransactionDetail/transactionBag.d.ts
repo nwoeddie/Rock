@@ -24,6 +24,8 @@
 import { AuthorizedPersonBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/authorizedPersonBag";
 import { PaymentDetailBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/paymentDetailBag";
 import { RefundDetailBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/refundDetailBag";
+import { RefundTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/refundTransactionBag";
+import { RelatedTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/relatedTransactionBag";
 import { ScheduledTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/scheduledTransactionBag";
 import { TransactionImageBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionImageBag";
 import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
@@ -86,6 +88,11 @@ export type TransactionBag = {
     /** Gets or sets the refund details if this is a refund transaction. */
     refundDetails?: RefundDetailBag | null;
 
+    /** Gets refund info if any part of transaction has been refunded */
+    refunds?: RefundTransactionBag[] | null;
+
+    relatedTransactions?: RelatedTransactionBag[] | null;
+
     /** Gets or sets the scheduled transaction that initiated this transaction. */
     scheduledTransaction?: ScheduledTransactionBag | null;
 
@@ -133,4 +140,6 @@ export type TransactionBag = {
 
     /** Gets or sets the transaction type identifier. */
     transactionTypeValueId: number;
+
+    updates?: string[] | null;
 };

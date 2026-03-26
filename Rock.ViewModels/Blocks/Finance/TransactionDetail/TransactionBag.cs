@@ -97,10 +97,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// </summary>
         public ListItemBag ProcessedByPersonAlias { get; set; }
 
-        /// <summary>
-        /// Gets or sets the refund details if this is a refund transaction.
-        /// </summary>
-        public RefundDetailBag RefundDetails { get; set; }
 
         /// <summary>
         /// Gets or sets the scheduled transaction that initiated this transaction.
@@ -181,5 +177,25 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// Gets or sets the total foreign currency amount.
         /// </summary>
         public decimal? TotalForeignCurrencyAmount { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public List<string> Updates { get; set; }
+
+        /// <summary>
+        /// Gets or sets the refund details if this is a refund transaction.
+        /// </summary>
+        public RefundDetailBag RefundDetails { get; set; }
+
+        /// <summary>
+        /// Gets refund info if any part of transaction has been refunded
+        /// </summary>
+        public List<RefundTransactionBag> Refunds { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public List<RelatedTransactionBag> RelatedTransactions { get; set; }
     }
 }
