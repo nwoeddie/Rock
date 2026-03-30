@@ -37,7 +37,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public ListItemBag CreditCardType { get; set; }
+        public string CreditCardType { get; set; }
 
         /// <summary>
         /// 

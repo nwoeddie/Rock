@@ -28,14 +28,28 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     public class TransactionBag : EntityBagBase
     {
         /// <summary>
+        /// 
+        /// </summary>
+        public int Id { get; set; }
+        /// <summary>
         /// Gets or sets the authorized person alias.
         /// </summary>
         public AuthorizedPersonBag AuthorizedPerson { get; set; }
 
         /// <summary>
+        /// 
+        /// </summary>
+        public Boolean ShowAsAnonymous { get; set; }
+
+        /// <summary>
         /// Gets or sets the authorized person alias identifier.
         /// </summary>
         public int? AuthorizedPersonAliasId { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public int? SourceTypeValueId { get; set; }
 
         /// <summary>
         /// Gets or sets the financial batch containing this transaction.
@@ -50,7 +64,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// Gets or sets the financial gateway.
         /// </summary>
-        public ListItemBag FinancialGateway { get; set; }
+        public string FinancialGateway { get; set; }
 
         /// <summary>
         /// Gets or sets the financial gateway identifier.
@@ -109,14 +123,9 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public int? ScheduledTransactionId { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether the transaction should display as anonymous.
-        /// </summary>
-        public bool ShowAsAnonymous { get; set; }
-
-        /// <summary>
         /// Gets or sets the source type.
         /// </summary>
-        public ListItemBag SourceType { get; set; }
+        public string SourceType { get; set; }
 
         /// <summary>
         /// Gets or sets the status of the transaction.

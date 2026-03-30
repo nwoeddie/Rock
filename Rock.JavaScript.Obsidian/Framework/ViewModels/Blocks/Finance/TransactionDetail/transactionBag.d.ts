@@ -53,7 +53,7 @@ export type TransactionBag = {
     batchId?: number | null;
 
     /** Gets or sets the financial gateway. */
-    financialGateway?: ListItemBag | null;
+    financialGateway?: string | null;
 
     /** Gets or sets the financial gateway identifier. */
     financialGatewayId?: number | null;
@@ -66,6 +66,8 @@ export type TransactionBag = {
 
     /** Gets or sets the foreign currency symbol. */
     foreignCurrencySymbol?: string | null;
+
+    id: number;
 
     /** Gets or sets the identifier key of this entity. */
     idKey?: string | null;
@@ -99,11 +101,12 @@ export type TransactionBag = {
     /** Gets or sets the scheduled transaction identifier. */
     scheduledTransactionId?: number | null;
 
-    /** Gets or sets a value indicating whether the transaction should display as anonymous. */
     showAsAnonymous: boolean;
 
     /** Gets or sets the source type. */
-    sourceType?: ListItemBag | null;
+    sourceType?: string | null;
+
+    sourceTypeValueId?: number | null;
 
     /** Gets or sets the status of the transaction. */
     status?: string | null;

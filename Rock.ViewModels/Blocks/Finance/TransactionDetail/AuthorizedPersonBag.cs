@@ -29,7 +29,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public string IdKey { get; set; }
+        public int? Id { get; set; }
         /// <summary>
         /// 
         /// </summary>

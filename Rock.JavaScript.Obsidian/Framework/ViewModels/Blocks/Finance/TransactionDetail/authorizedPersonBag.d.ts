@@ -30,7 +30,7 @@ export type AuthorizedPersonBag = {
 
     email?: string | null;
 
-    idKey?: string | null;
+    id?: number | null;
 
     name?: string | null;
 
