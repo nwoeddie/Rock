@@ -8,7 +8,6 @@
                  :name="panelName"
                  :entityKey="entityKey"
                  :isAuditHidden="true"
-                 :isBadgesVisible="true"
                  :isDeleteVisible="false"
                  :isEditVisible="isEditable && options.canEdit"
                  :isSecurityHidden="true"
@@ -24,7 +23,7 @@
                 ${{ transactionViewBag?.totalAmount.toFixed(2) }}
             </span>
             <span class="label label-default">
-                {{ transactionViewBag?.transactionType?.text }}
+                {{ transactionViewBag?.transactionType }}
             </span>
         </template>
         <template #view>
@@ -199,22 +198,23 @@
     async function onSave(): Promise<boolean | string> {
         errorMessage.value = "";
 
-        const result = await invokeBlockAction<ValidPropertiesBox<TransactionBag> | string>("Save", {
-            box: transactionEditBag.value
-        });
+        console.log(transactionEditBag.value.bag);
+        // const result = await invokeBlockAction<ValidPropertiesBox<TransactionBag> | string>("Save", {
+        //     box: transactionEditBag.value
+        // });
 
-        if (result.isSuccess && result.data) {
-            if (result.statusCode === 200 && typeof result.data === "object") {
-                transactionViewBag.value = result.data.bag;
+        // if (result.isSuccess && result.data) {
+        //     if (result.statusCode === 200 && typeof result.data === "object") {
+        //         transactionViewBag.value = result.data.bag;
 
-                return true;
-            }
-            else if (result.statusCode === 201 && typeof result.data === "string") {
-                return result.data;
-            }
-        }
+        //         return true;
+        //     }
+        //     else if (result.statusCode === 201 && typeof result.data === "string") {
+        //         return result.data;
+        //     }
+        // }
 
-        errorMessage.value = result.errorMessage ?? "Unknown error while trying to save ttransaction.";
+        // errorMessage.value = result.errorMessage ?? "Unknown error while trying to save ttransaction.";
 
         return false;
     }

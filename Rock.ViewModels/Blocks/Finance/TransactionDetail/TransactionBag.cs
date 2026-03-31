@@ -160,7 +160,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// Gets or sets the transaction type.
         /// </summary>
-        public ListItemBag TransactionType { get; set; }
+        public string TransactionType { get; set; }
 
         /// <summary>
         /// Gets or sets the transaction type identifier.

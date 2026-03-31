@@ -24,6 +24,8 @@ using System.Transactions;
 
 using AngleSharp.Dom;
 
+using dotless.Core.Parser.Functions;
+
 using Rock.Attribute;
 using Rock.Constants;
 using Rock.Data;
@@ -31,6 +33,7 @@ using Rock.Model;
 using Rock.Security;
 using Rock.Utility;
 using Rock.ViewModels.Blocks;
+using Rock.ViewModels.Blocks.Event.EventItemDetail;
 using Rock.ViewModels.Blocks.Finance.TransactionDetail;
 using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
@@ -273,6 +276,8 @@ namespace Rock.Blocks.Finance
                 bag.SourceType = DefinedValueCache.GetName( bag.SourceTypeValueId.Value );
             }
 
+            bag.TransactionType = DefinedValueCache.GetName( bag.TransactionTypeValueId );
+
             bag.IdKey = bag.Id.AsIdKey();
 
             bag.TransactionDetails = GetTransactionLineItemBags( entity.Id );
@@ -316,140 +321,6 @@ namespace Rock.Blocks.Finance
         }
 
         /// <inheritdoc/>
-        protected override bool UpdateEntityFromBox( FinancialTransaction entity, ValidPropertiesBox<TransactionBag> box )
-        {
-            if ( box.ValidProperties == null )
-            {
-                return false;
-            }
-
-            //box.IfValidProperty( nameof( box.Bag.AuthorizedPersonAlias ),
-            //    () => entity.AuthorizedPersonAliasId = box.Bag.AuthorizedPersonAlias.GetEntityId<PersonAlias>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.AuthorizedPersonAliasId ),
-            //    () => entity.AuthorizedPersonAliasId = box.Bag.AuthorizedPersonAliasId );
-
-            //box.IfValidProperty( nameof( box.Bag.Batch ),
-            //    () => entity.BatchId = box.Bag.Batch.GetEntityId<Batch>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.BatchId ),
-            //    () => entity.BatchId = box.Bag.BatchId );
-
-            //box.IfValidProperty( nameof( box.Bag.CheckMicrEncrypted ),
-            //    () => entity.CheckMicrEncrypted = box.Bag.CheckMicrEncrypted );
-
-            //box.IfValidProperty( nameof( box.Bag.CheckMicrHash ),
-            //    () => entity.CheckMicrHash = box.Bag.CheckMicrHash );
-
-            //box.IfValidProperty( nameof( box.Bag.CheckMicrParts ),
-            //    () => entity.CheckMicrParts = box.Bag.CheckMicrParts );
-
-            //box.IfValidProperty( nameof( box.Bag.Gateway ),
-            //    () => entity.GatewayId = box.Bag.Gateway.GetEntityId<Gateway>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.GatewayId ),
-            //    () => entity.GatewayId = box.Bag.GatewayId );
-
-            //box.IfValidProperty( nameof( box.Bag.PaymentDetail ),
-            //    () => entity.PaymentDetailId = box.Bag.PaymentDetail.GetEntityId<PaymentDetail>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.PaymentDetailId ),
-            //    () => entity.PaymentDetailId = box.Bag.PaymentDetailId );
-
-            //box.IfValidProperty( nameof( box.Bag.ForeignCurrencyCodeValueId ),
-            //    () => entity.ForeignCurrencyCodeValueId = box.Bag.ForeignCurrencyCodeValueId );
-
-            //box.IfValidProperty( nameof( box.Bag.FutureProcessingDateTime ),
-            //    () => entity.FutureProcessingDateTime = box.Bag.FutureProcessingDateTime );
-
-            //box.IfValidProperty( nameof( box.Bag.Images ),
-            //    () => entity.Images = box.Bag./* TODO: Unknown property type 'ICollection<TransactionImage>' for conversion to bag. */ );
-
-            //box.IfValidProperty( nameof( box.Bag.IsReconciled ),
-            //    () => entity.IsReconciled = box.Bag.IsReconciled );
-
-            //box.IfValidProperty( nameof( box.Bag.IsSettled ),
-            //    () => entity.IsSettled = box.Bag.IsSettled );
-
-            //box.IfValidProperty( nameof( box.Bag.MICRStatus ),
-            //    () => entity.MICRStatus = box.Bag.MICRStatus );
-
-            //box.IfValidProperty( nameof( box.Bag.NonCashAssetTypeValue ),
-            //    () => entity.NonCashAssetTypeValueId = box.Bag.NonCashAssetTypeValue.GetEntityId<DefinedValue>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.NonCashAssetTypeValueId ),
-            //    () => entity.NonCashAssetTypeValueId = box.Bag.NonCashAssetTypeValueId );
-
-            //box.IfValidProperty( nameof( box.Bag.ProcessedByPersonAlias ),
-            //    () => entity.ProcessedByPersonAliasId = box.Bag.ProcessedByPersonAlias.GetEntityId<PersonAlias>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.RefundDetails ),
-            //    () => entity.RefundDetailsId = box.Bag.RefundDetails.GetEntityId<TransactionRefund>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.ScheduledTransaction ),
-            //    () => entity.ScheduledTransactionId = box.Bag.ScheduledTransaction.GetEntityId<ScheduledTransaction>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.ScheduledTransactionId ),
-            //    () => entity.ScheduledTransactionId = box.Bag.ScheduledTransactionId );
-
-            //box.IfValidProperty( nameof( box.Bag.SettledDate ),
-            //    () => entity.SettledDate = box.Bag.SettledDate );
-
-            //box.IfValidProperty( nameof( box.Bag.SettledDateKey ),
-            //    () => entity.SettledDateKey = box.Bag.SettledDateKey );
-
-            //box.IfValidProperty( nameof( box.Bag.SettledGroupId ),
-            //    () => entity.SettledGroupId = box.Bag.SettledGroupId );
-
-            //box.IfValidProperty( nameof( box.Bag.ShowAsAnonymous ),
-            //    () => entity.ShowAsAnonymous = box.Bag.ShowAsAnonymous );
-
-            //box.IfValidProperty( nameof( box.Bag.SourceTypeValue ),
-            //    () => entity.SourceTypeValueId = box.Bag.SourceTypeValue.GetEntityId<DefinedValue>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.SourceTypeValueId ),
-            //    () => entity.SourceTypeValueId = box.Bag.SourceTypeValueId );
-
-            //box.IfValidProperty( nameof( box.Bag.Status ),
-            //    () => entity.Status = box.Bag.Status );
-
-            //box.IfValidProperty( nameof( box.Bag.StatusMessage ),
-            //    () => entity.StatusMessage = box.Bag.StatusMessage );
-
-            //box.IfValidProperty( nameof( box.Bag.Summary ),
-            //    () => entity.Summary = box.Bag.Summary );
-
-            //box.IfValidProperty( nameof( box.Bag.SundayDate ),
-            //    () => entity.SundayDate = box.Bag.SundayDate );
-
-            //box.IfValidProperty( nameof( box.Bag.TransactionCode ),
-            //    () => entity.TransactionCode = box.Bag.TransactionCode );
-
-            //box.IfValidProperty( nameof( box.Bag.TransactionDateKey ),
-            //    () => entity.TransactionDateKey = box.Bag.TransactionDateKey );
-
-            //box.IfValidProperty( nameof( box.Bag.TransactionDateTime ),
-            //    () => entity.TransactionDateTime = box.Bag.TransactionDateTime );
-
-            //box.IfValidProperty( nameof( box.Bag.TransactionDetails ),
-            //    () => entity.TransactionDetails = box.Bag./* TODO: Unknown property type 'ICollection<TransactionDetail>' for conversion to bag. */ );
-
-            //box.IfValidProperty( nameof( box.Bag.TransactionTypeValue ),
-            //    () => entity.TransactionTypeValueId = box.Bag.TransactionTypeValue.GetEntityId<DefinedValue>( RockContext ) );
-
-            //box.IfValidProperty( nameof( box.Bag.TransactionTypeValueId ),
-            //    () => entity.TransactionTypeValueId = box.Bag.TransactionTypeValueId );
-
-            //box.IfValidProperty( nameof( box.Bag.AttributeValues ),
-            //    () =>
-            //    {
-            //        entity.LoadAttributes( RockContext );
-
-            //        entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: false );
-            //    } );
-
-            return true;
-        }
 
         /// <inheritdoc/>
         protected override FinancialTransaction GetInitialEntity()
@@ -687,6 +558,7 @@ namespace Rock.Blocks.Finance
 
             return new AuthorizedPersonBag
             {
+                Guid = person.Guid,
                 Id = person.Id,
                 Name = person.FullName,
                 Email = person.Email,
@@ -869,23 +741,245 @@ namespace Rock.Blocks.Finance
 
         private List<TransactionImageBag> GetImageBags( int transactionId )
         {
-            return new FinancialTransactionImageService( RockContext )
+            var imageBag = new FinancialTransactionImageService( RockContext )
                 .Queryable()
                 .AsNoTracking()
                 .Where( i => i.TransactionId == transactionId )
                 .OrderBy( i => i.Order )
                 .Select( ( i ) => new TransactionImageBag
                 {
+                    Guid = i.Guid,
                     BinaryFileId = i.BinaryFileId,
-                    Order = i.Order
-                } )
-                .ToList()
-                .Select( ( i, index ) =>
-                {
-                    i.IsPrimary = index == 0;
-                    return i;
                 } )
                 .ToList();
+
+            if(imageBag.Any())
+            {
+                foreach(var image in imageBag)
+                {
+                    image.ImageUrl = FileUrlHelper.GetImageUrl( image.BinaryFileId );
+                }
+            }
+
+            return imageBag;
+        }
+
+        protected  bool UpdateEntityFromBox( FinancialTransaction entity, DetailBlockBox<TransactionBag, TransactionDetailOptionsBag> box )
+        {
+            if ( box.ValidProperties == null )
+            {
+                return false;
+            }
+
+            SaveTransactionImages( box, entity );
+
+            //box.IfValidProperty( nameof( box.Bag.AuthorizedPersonAlias ),
+            //    () => entity.AuthorizedPersonAliasId = box.Bag.AuthorizedPersonAlias.GetEntityId<PersonAlias>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.AuthorizedPersonAliasId ),
+            //    () => entity.AuthorizedPersonAliasId = box.Bag.AuthorizedPersonAliasId );
+
+            //box.IfValidProperty( nameof( box.Bag.Batch ),
+            //    () => entity.BatchId = box.Bag.Batch.GetEntityId<Batch>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.BatchId ),
+            //    () => entity.BatchId = box.Bag.BatchId );
+
+            //box.IfValidProperty( nameof( box.Bag.CheckMicrEncrypted ),
+            //    () => entity.CheckMicrEncrypted = box.Bag.CheckMicrEncrypted );
+
+            //box.IfValidProperty( nameof( box.Bag.CheckMicrHash ),
+            //    () => entity.CheckMicrHash = box.Bag.CheckMicrHash );
+
+            //box.IfValidProperty( nameof( box.Bag.CheckMicrParts ),
+            //    () => entity.CheckMicrParts = box.Bag.CheckMicrParts );
+
+            //box.IfValidProperty( nameof( box.Bag.Gateway ),
+            //    () => entity.GatewayId = box.Bag.Gateway.GetEntityId<Gateway>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.GatewayId ),
+            //    () => entity.GatewayId = box.Bag.GatewayId );
+
+            //box.IfValidProperty( nameof( box.Bag.PaymentDetail ),
+            //    () => entity.PaymentDetailId = box.Bag.PaymentDetail.GetEntityId<PaymentDetail>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.PaymentDetailId ),
+            //    () => entity.PaymentDetailId = box.Bag.PaymentDetailId );
+
+            //box.IfValidProperty( nameof( box.Bag.ForeignCurrencyCodeValueId ),
+            //    () => entity.ForeignCurrencyCodeValueId = box.Bag.ForeignCurrencyCodeValueId );
+
+            //box.IfValidProperty( nameof( box.Bag.FutureProcessingDateTime ),
+            //    () => entity.FutureProcessingDateTime = box.Bag.FutureProcessingDateTime );
+
+            //box.IfValidProperty( nameof( box.Bag.Images ),
+            //    () => entity.Images = box.Bag./* TODO: Unknown property type 'ICollection<TransactionImage>' for conversion to bag. */ );
+
+            //box.IfValidProperty( nameof( box.Bag.IsReconciled ),
+            //    () => entity.IsReconciled = box.Bag.IsReconciled );
+
+            //box.IfValidProperty( nameof( box.Bag.IsSettled ),
+            //    () => entity.IsSettled = box.Bag.IsSettled );
+
+            //box.IfValidProperty( nameof( box.Bag.MICRStatus ),
+            //    () => entity.MICRStatus = box.Bag.MICRStatus );
+
+            //box.IfValidProperty( nameof( box.Bag.NonCashAssetTypeValue ),
+            //    () => entity.NonCashAssetTypeValueId = box.Bag.NonCashAssetTypeValue.GetEntityId<DefinedValue>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.NonCashAssetTypeValueId ),
+            //    () => entity.NonCashAssetTypeValueId = box.Bag.NonCashAssetTypeValueId );
+
+            //box.IfValidProperty( nameof( box.Bag.ProcessedByPersonAlias ),
+            //    () => entity.ProcessedByPersonAliasId = box.Bag.ProcessedByPersonAlias.GetEntityId<PersonAlias>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.RefundDetails ),
+            //    () => entity.RefundDetailsId = box.Bag.RefundDetails.GetEntityId<TransactionRefund>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.ScheduledTransaction ),
+            //    () => entity.ScheduledTransactionId = box.Bag.ScheduledTransaction.GetEntityId<ScheduledTransaction>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.ScheduledTransactionId ),
+            //    () => entity.ScheduledTransactionId = box.Bag.ScheduledTransactionId );
+
+            //box.IfValidProperty( nameof( box.Bag.SettledDate ),
+            //    () => entity.SettledDate = box.Bag.SettledDate );
+
+            //box.IfValidProperty( nameof( box.Bag.SettledDateKey ),
+            //    () => entity.SettledDateKey = box.Bag.SettledDateKey );
+
+            //box.IfValidProperty( nameof( box.Bag.SettledGroupId ),
+            //    () => entity.SettledGroupId = box.Bag.SettledGroupId );
+
+            //box.IfValidProperty( nameof( box.Bag.ShowAsAnonymous ),
+            //    () => entity.ShowAsAnonymous = box.Bag.ShowAsAnonymous );
+
+            //box.IfValidProperty( nameof( box.Bag.SourceTypeValue ),
+            //    () => entity.SourceTypeValueId = box.Bag.SourceTypeValue.GetEntityId<DefinedValue>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.SourceTypeValueId ),
+            //    () => entity.SourceTypeValueId = box.Bag.SourceTypeValueId );
+
+            //box.IfValidProperty( nameof( box.Bag.Status ),
+            //    () => entity.Status = box.Bag.Status );
+
+            //box.IfValidProperty( nameof( box.Bag.StatusMessage ),
+            //    () => entity.StatusMessage = box.Bag.StatusMessage );
+
+            //box.IfValidProperty( nameof( box.Bag.Summary ),
+            //    () => entity.Summary = box.Bag.Summary );
+
+            //box.IfValidProperty( nameof( box.Bag.SundayDate ),
+            //    () => entity.SundayDate = box.Bag.SundayDate );
+
+            //box.IfValidProperty( nameof( box.Bag.TransactionCode ),
+            //    () => entity.TransactionCode = box.Bag.TransactionCode );
+
+            //box.IfValidProperty( nameof( box.Bag.TransactionDateKey ),
+            //    () => entity.TransactionDateKey = box.Bag.TransactionDateKey );
+
+            //box.IfValidProperty( nameof( box.Bag.TransactionDateTime ),
+            //    () => entity.TransactionDateTime = box.Bag.TransactionDateTime );
+
+            //box.IfValidProperty( nameof( box.Bag.TransactionDetails ),
+            //    () => entity.TransactionDetails = box.Bag./* TODO: Unknown property type 'ICollection<TransactionDetail>' for conversion to bag. */ );
+
+            //box.IfValidProperty( nameof( box.Bag.TransactionTypeValue ),
+            //    () => entity.TransactionTypeValueId = box.Bag.TransactionTypeValue.GetEntityId<DefinedValue>( RockContext ) );
+
+            //box.IfValidProperty( nameof( box.Bag.TransactionTypeValueId ),
+            //    () => entity.TransactionTypeValueId = box.Bag.TransactionTypeValueId );
+
+            //box.IfValidProperty( nameof( box.Bag.AttributeValues ),
+            //    () =>
+            //    {
+            //        entity.LoadAttributes( RockContext );
+
+            //        entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: false );
+            //    } );
+
+            return true;
+        }
+
+
+        private void SaveTransactionImages( DetailBlockBox<TransactionBag, TransactionDetailOptionsBag> box, FinancialTransaction entity )
+        {
+            var images = box.Entity.Images;
+            if ( images.Any() )
+            {
+                foreach( var image in images)
+                {
+                    var binaryFileId = image.ImageItemBag.GetEntityId<BinaryFile>( RockContext );
+
+                    if ( binaryFileId != null )
+                    {
+                        if( image.IsMarkedForDeletion)
+                        {
+                            RemoveImageFromTransaction( binaryFileId.Value, box.Entity.Id );
+                        }
+                        else
+                        {
+                            MaintainOrAddImage( binaryFileId.Value, box.Entity.Id );
+                        }
+                    }
+                    
+                }
+            }
+        }
+
+        private void RemoveImageFromTransaction( int binaryFileId, int transactionId )
+        {
+
+            // First set the binary file to temporary so it is removed
+            var binaryFileService = new BinaryFileService( RockContext );
+
+            var imagePreview = binaryFileService.Get( binaryFileId );
+
+            if( imagePreview != null )
+            {
+                imagePreview.IsTemporary = true;
+            }
+
+            // Remove the transaction reference so it does not get pulled in while it is temporarily in db
+
+            var txnImageService = new FinancialTransactionImageService( RockContext );
+
+            var txnImageToRemove = txnImageService.Queryable().Where( i => i.BinaryFileId == binaryFileId && i.TransactionId == transactionId ).FirstOrDefault();
+
+            if( txnImageToRemove != null )
+            {
+                txnImageService.Delete( txnImageToRemove );
+            }
+
+        }
+
+        private void MaintainOrAddImage( int binaryFileId, int transactionId )
+        {
+            var txnImageService = new FinancialTransactionImageService( RockContext );
+            var binaryFileService = new BinaryFileService( RockContext );
+
+            // Check if the transaction image already exists
+            var existingTxnImage = txnImageService.Queryable()
+                .Where( i => i.BinaryFileId == binaryFileId && i.TransactionId == transactionId )
+                .FirstOrDefault();
+
+            if ( existingTxnImage == null )
+            {
+                // Add new transaction image
+                var newTxnImage = new FinancialTransactionImage
+                {
+                    BinaryFileId = binaryFileId,
+                    TransactionId = transactionId
+                };
+                txnImageService.Add( newTxnImage );
+
+                // Mark the binary file as not temporary so it is persisted
+                var binaryFile = binaryFileService.Get( binaryFileId );
+                if ( binaryFile != null )
+                {
+                    binaryFile.IsTemporary = false;
+                }
+            }
         }
 
         #endregion

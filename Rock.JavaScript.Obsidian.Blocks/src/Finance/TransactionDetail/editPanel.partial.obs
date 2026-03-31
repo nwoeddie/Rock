@@ -1,34 +1,92 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <fieldset>
-
+        <div class="row">
+            <div class="col-md-6">
+                <PersonPicker v-model="personOrBusiness"
+                              label="Person or Business"
+                              :includeBusinesses="true"
+                              help="Search for the person or business this transaction should be credited to."
+                              rules="required" />
+            </div>
+            <div class="col-md-6">
+                <CheckBox v-model="isAnonymous"
+                          label="Display As Anonymous" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <DateTimePicker :modelValue="transactionDateTime"
+                                @update:modelValue="onTransactionDateTimeChanged"
+                                label="Transaction Date"
+                                :displayCurrentOption="false"
+                                :isCurrentDateOffset="false"
+                                :disableForceParse="false"
+                                :disableShowOnFocus="false"
+                                :disableHighlightToday="false"
+                                :disallowFutureDateSelection="false"
+                                :disallowPastDateSelection="false"
+                                :startView="0"
+                                rules="required" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <TextBox v-model="summary"
+                         label="Comments"
+                         textMode="multiline" />
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="d-flex gap-3 flex-wrap w-100">
+                    <div v-for="(image, index) in imageListItems" :key="index" style="width: fit-content;">
+                        <ImageUploader
+                                       :modelValue="image"
+                                       @imageRemoved="onImageRemove(image)" />
+                    </div>
+                    <ImageUploader
+                                   :key="currentImageKey"
+                                   v-model="currentImage"
+                                   :uploadAsTemporary="true"
+                                   uploadButtonText="Add Image" />
+                </div>
+            </div>
+        </div>
         <AttributeValuesContainer v-model="attributeValues" :attributes="attributes" isEditMode :numberOfColumns="2" />
     </fieldset>
 </template>
 
 <script setup lang="ts">
-    import { PropType, ref, watch } from "vue";
+    import { computed, PropType, ref, watch } from "vue";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
+    import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import { setPropertiesBoxValue, watchPropertyChanges } from "@Obsidian/Utility/block";
     import { propertyRef, updateRefValue } from "@Obsidian/Utility/component";
-    import { FinancialTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/FinancialTransactionDetail/financialTransactionBag";
-    import { FinancialTransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/FinancialTransactionDetail/financialTransactionDetailOptionsBag";
+    import { TransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionBag";
+    import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
+    import PersonPicker from "@Obsidian/Controls/personPicker.obs";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import DateTimePicker from "@Obsidian/Controls/dateTimePicker.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import ImageUploader from "@Obsidian/Controls/imageUploader.obs";
+    import { TransactionImageBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionImageBag";
 
     const props = defineProps({
         modelValue: {
-            type: Object as PropType<ValidPropertiesBox<FinancialTransactionBag>>,
+            type: Object as PropType<ValidPropertiesBox<TransactionBag>>,
             required: true
         },
 
         options: {
-            type: Object as PropType<FinancialTransactionDetailOptionsBag>,
+            type: Object as PropType<TransactionDetailOptionsBag>,
             required: true
         }
     });
 
     const emit = defineEmits<{
-        (e: "update:modelValue", value: ValidPropertiesBox<FinancialTransactionBag>): void,
+        (e: "update:modelValue", value: ValidPropertiesBox<TransactionBag>): void,
         (e: "propertyChanged", value: string): void
     }>();
 
@@ -37,17 +95,94 @@
     const attributes = ref(props.modelValue.bag?.attributes ?? {});
     const attributeValues = ref(props.modelValue.bag?.attributeValues ?? {});
 
+    const personOrBusinessItemBag: ListItemBag | undefined = props.modelValue.bag?.authorizedPerson
+        ? {
+            text: props.modelValue.bag.authorizedPerson.name ?? "",
+            value: props.modelValue.bag.authorizedPerson.guid ?? ""
+        }
+        : undefined;
+
+    const personOrBusiness = propertyRef(personOrBusinessItemBag ?? undefined, "PersonOrBusiness");
+
+    const isAnonymous = propertyRef(props.modelValue.bag?.showAsAnonymous ?? false, "IsAnonymous");
+
+    const transactionDateTime = propertyRef(props.modelValue.bag?.transactionDateTime ?? new Date().toISOString(), "TransactionDateTime");
+
+    const summary = propertyRef(props.modelValue.bag?.summary ?? "", "Summary");
+
+    const images = propertyRef(props.modelValue.bag?.images ?? [], "TransactionImages");
+
+    const currentImage = ref<ListItemBag | null>(null);
+
+    if (!props.modelValue.bag?.idKey) {
+        // If this is a new request, set the request date to today by default
+        transactionDateTime.value = new Date().toISOString();
+    }
+
     // The properties that are being edited. This should only contain
     // objects returned by propertyRef().
-    const propRefs = [];
+    const propRefs = [personOrBusiness, isAnonymous, transactionDateTime, summary, images];
 
     // #endregion
 
     // #region Computed Values
 
+    const imageListItems = computed(() => {
+        return images.value
+            .filter(image => !image.isMarkedForDeletion)
+            .map(image => ({
+                text: image.fileName ?? "Transaction Image",
+                value: image.guid
+            } as ListItemBag));
+    });
+
     // #endregion
 
     // #region Functions
+
+    /**
+     * Handler for when the request date/time is changed.
+     * @param newDate The new date/time value.
+     */
+    function onTransactionDateTimeChanged(newDate: string | null): void {
+        transactionDateTime.value = newDate ?? new Date().toISOString();
+    }
+
+    const currentImageKey = ref(0);
+
+    function onImageAdd(image: ListItemBag | null): void {
+        if (!image?.value) {
+            return;
+        }
+
+        images.value = [
+            ...images.value,
+            {
+                binaryFileId: 0,
+                guid: "",
+                fileName: "",
+                isMarkedForDeletion: false,
+                imageItemBag: image
+            }
+        ];
+
+        currentImage.value = null;
+        currentImageKey.value++;
+    }
+
+    watch(currentImage, newImage => {
+        if (newImage?.value) {
+            onImageAdd(newImage);
+        }
+    });
+
+    function onImageRemove(image: ListItemBag): void {
+        const imageToRemove = images.value.find(i => i.guid === image.value);
+        if (imageToRemove) {
+            imageToRemove.isMarkedForDeletion = true;
+            images.value = [...images.value];
+        }
+    }
 
     // #endregion
 
@@ -59,16 +194,40 @@
     watch(() => props.modelValue, () => {
         updateRefValue(attributes, props.modelValue.bag?.attributes ?? {});
         updateRefValue(attributeValues, props.modelValue.bag?.attributeValues ?? {});
+
+        updateRefValue(isAnonymous, props.modelValue.bag?.showAsAnonymous ?? false);
+        updateRefValue(transactionDateTime, props.modelValue.bag?.transactionDateTime ?? new Date().toISOString());
+        updateRefValue(summary, props.modelValue.bag?.summary ?? "");
+        updateRefValue(images, props.modelValue.bag?.images ?? []);
+
+        const updatedPerson: ListItemBag | undefined = props.modelValue.bag?.authorizedPerson
+            ? {
+                text: props.modelValue.bag.authorizedPerson.name ?? "",
+                value: props.modelValue.bag.authorizedPerson.guid ?? ""
+            }
+            : undefined;
+
+
+        updateRefValue(personOrBusiness, updatedPerson);
     });
 
     // Determines which values we want to track changes on (defined in the
     // array) and then emit a new object defined as newValue.
-    watch([attributeValues, ...propRefs], () => {
-        const newValue: ValidPropertiesBox<FinancialTransactionBag> = {
-            bag: { ...props.modelValue.bag } as FinancialTransactionBag
+    watch([attributeValues, ...propRefs, personOrBusiness], () => {
+        const newValue: ValidPropertiesBox<TransactionBag> = {
+            bag: { ...props.modelValue.bag } as TransactionBag
         };
-        
-            setPropertiesBoxValue(newValue, "attributeValues", attributeValues.value);
+
+        setPropertiesBoxValue(newValue, "attributeValues", attributeValues.value);
+        setPropertiesBoxValue(newValue, "showAsAnonymous", isAnonymous.value);
+        setPropertiesBoxValue(newValue, "transactionDateTime", transactionDateTime.value ?? new Date().toISOString());
+        setPropertiesBoxValue(newValue, "summary", summary.value ?? "");
+        setPropertiesBoxValue(newValue, "images", images.value ?? []);
+        setPropertiesBoxValue(newValue, "authorizedPerson", {
+            ...props.modelValue.bag?.authorizedPerson,
+            name: personOrBusiness.value?.text ?? "",
+            guid: personOrBusiness.value?.value ?? ""
+        });
 
         emit("update:modelValue", newValue);
     });

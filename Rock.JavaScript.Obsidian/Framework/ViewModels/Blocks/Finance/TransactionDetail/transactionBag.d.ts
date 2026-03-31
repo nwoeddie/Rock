@@ -139,7 +139,7 @@ export type TransactionBag = {
     transactionDetails?: TransactionLineItemBag[] | null;
 
     /** Gets or sets the transaction type. */
-    transactionType?: ListItemBag | null;
+    transactionType?: string | null;
 
     /** Gets or sets the transaction type identifier. */
     transactionTypeValueId: number;

@@ -21,14 +21,22 @@
 // </copyright>
 //
 
+import { Guid } from "@Obsidian/Types";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+
 export type TransactionImageBag = {
     binaryFileId: number;
 
+    fileName?: string | null;
+
+    guid: Guid;
+
+    /** Gets or sets the Rock.Model.BinaryFile that contains the EventItem's photo. */
+    imageItemBag?: ListItemBag | null;
+
     imageUrl?: string | null;
 
-    isPrimary: boolean;
-
-    order: number;
+    isMarkedForDeletion: boolean;
 
     thumbnailUrl?: string | null;
 };

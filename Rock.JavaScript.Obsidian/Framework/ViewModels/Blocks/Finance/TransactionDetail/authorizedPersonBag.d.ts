@@ -21,6 +21,7 @@
 // </copyright>
 //
 
+import { Guid } from "@Obsidian/Types";
 import { AddressBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/addressBag";
 
 export type AuthorizedPersonBag = {
@@ -29,6 +30,8 @@ export type AuthorizedPersonBag = {
     campus?: string | null;
 
     email?: string | null;
+
+    guid: Guid;
 
     id?: number | null;
 

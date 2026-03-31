@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 
 using Rock.ViewModels.Utility;
@@ -26,6 +27,10 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     /// </summary>
     public class AuthorizedPersonBag
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        public Guid Guid { get; set; }
         /// <summary>
         /// 
         /// </summary>

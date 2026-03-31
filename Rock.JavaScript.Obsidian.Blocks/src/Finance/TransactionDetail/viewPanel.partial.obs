@@ -1,7 +1,6 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <fieldset>
-
         <ContentSection
                         icon="ti ti-user-check"
                         title="Authorized By:"
@@ -44,6 +43,11 @@
                 <label>Comments</label>
                 <p>{{ modelValue?.summary }}</p>
             </div>
+            <div class="image-container">
+                <div class="image-wrapper" v-for="(image, index) in modelValue?.images" :key="index">
+                    <img :src="image.imageUrl || ''" :alt="`Transaction Image ${index + 1}`" />
+                </div>
+            </div>
         </ContentSection>
 
         <ContentSection
@@ -53,8 +57,11 @@
 
             <div class="d-flex justify-content-between">
                 <div style="width: 50%;">
-                    <label>Transaction Source</label>
-                    <p>{{ modelValue?.sourceType }}</p>
+
+                    <div v-if="modelValue?.sourceType">
+                        <label>Transaction Source</label>
+                        <p>{{ modelValue?.sourceType }}</p>
+                    </div>
 
                     <label>Payment Method</label>
                     <div v-if="modelValue?.paymentDetail?.isCreditCard">
@@ -69,16 +76,20 @@
                         <p>{{ modelValue?.paymentDetail?.currencyType?.value }}</p>
                     </div>
 
-                    <label>Payment Gateway</label>
-                    <p>{{ modelValue?.financialGateway }}</p>
+                    <div v-if="modelValue?.financialGateway">
+                        <label>Payment Gateway</label>
+                        <p>{{ modelValue?.financialGateway }}</p>
+                    </div>
 
                     <div v-if="options.showForeignCurrencyFields">
                         <label>Foreign Currency</label>
                         <p>{{ modelValue?.foreignCurrencyDisplay }}</p>
                     </div>
 
-                    <label>Transaction Reference</label>
-                    <p>{{ modelValue?.transactionCode }}</p>
+                    <div v-if="modelValue?.transactionCode">
+                        <label>Transaction Reference</label>
+                        <p>{{ modelValue?.transactionCode }}</p>
+                    </div>
 
                     <div v-if="modelValue?.refundDetails">
                         <label>Refund Details</label>
@@ -341,5 +352,11 @@ label {
 
 .multi-line p {
     margin-bottom: 0;
+}
+
+.image-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 </style>

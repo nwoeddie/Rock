@@ -15,6 +15,10 @@
 // </copyright>
 //
 
+using System;
+
+using Rock.ViewModels.Utility;
+
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
@@ -25,17 +29,17 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
+        public Guid Guid { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public string FileName { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
         public int BinaryFileId { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public int Order { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public bool IsPrimary { get; set; }
 
         /// <summary>
         /// 
@@ -46,6 +50,16 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public string ThumbnailUrl { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool IsMarkedForDeletion { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Rock.Model.BinaryFile that contains the EventItem's photo.
+        /// </summary>
+        public ListItemBag ImageItemBag { get; set; }
 
     }
 }
