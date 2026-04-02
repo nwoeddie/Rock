@@ -11,7 +11,8 @@
             </div>
             <div class="col-md-6">
                 <CheckBox v-model="isAnonymous"
-                          label="Display As Anonymous" />
+                          label="Display As Anonymous"
+                          help="Hides the donor’s name anywhere this gift is shown publicly" />
             </div>
         </div>
         <div class="row">
@@ -27,6 +28,7 @@
                                 :disallowFutureDateSelection="false"
                                 :disallowPastDateSelection="false"
                                 :startView="0"
+                                help="Enter when this transaction was received or processed."
                                 rules="required" />
             </div>
         </div>
@@ -34,7 +36,8 @@
             <div class="col-md-12">
                 <TextBox v-model="summary"
                          label="Comments"
-                         textMode="multiline" />
+                         textMode="multiline"
+                         help="Add notes about this transaction for staff use only." />
             </div>
         </div>
         <div class="row">
@@ -159,7 +162,7 @@
             ...images.value,
             {
                 binaryFileId: 0,
-                guid: "",
+                guid: image.value,
                 fileName: "",
                 isMarkedForDeletion: false,
                 imageItemBag: image

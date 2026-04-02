@@ -34,6 +34,7 @@ using Rock.Security;
 using Rock.Utility;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Event.EventItemDetail;
+using Rock.ViewModels.Blocks.Finance.BenevolenceRequestDetail;
 using Rock.ViewModels.Blocks.Finance.TransactionDetail;
 using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
@@ -764,14 +765,14 @@ namespace Rock.Blocks.Finance
             return imageBag;
         }
 
-        protected  bool UpdateEntityFromBox( FinancialTransaction entity, DetailBlockBox<TransactionBag, TransactionDetailOptionsBag> box )
+        protected override bool UpdateEntityFromBox( FinancialTransaction entity, ValidPropertiesBox<TransactionBag> box )
         {
             if ( box.ValidProperties == null )
             {
                 return false;
             }
 
-            SaveTransactionImages( box, entity );
+            SaveTransactionImages( box.Bag, entity );
 
             //box.IfValidProperty( nameof( box.Bag.AuthorizedPersonAlias ),
             //    () => entity.AuthorizedPersonAliasId = box.Bag.AuthorizedPersonAlias.GetEntityId<PersonAlias>( RockContext ) );
@@ -902,9 +903,9 @@ namespace Rock.Blocks.Finance
         }
 
 
-        private void SaveTransactionImages( DetailBlockBox<TransactionBag, TransactionDetailOptionsBag> box, FinancialTransaction entity )
+        private void SaveTransactionImages(TransactionBag bag, FinancialTransaction entity )
         {
-            var images = box.Entity.Images;
+            var images = bag.Images;
             if ( images.Any() )
             {
                 foreach( var image in images)
@@ -915,11 +916,11 @@ namespace Rock.Blocks.Finance
                     {
                         if( image.IsMarkedForDeletion)
                         {
-                            RemoveImageFromTransaction( binaryFileId.Value, box.Entity.Id );
+                            RemoveImageFromTransaction( binaryFileId.Value, entity.Id );
                         }
                         else
                         {
-                            MaintainOrAddImage( binaryFileId.Value, box.Entity.Id );
+                            MaintainOrAddImage( binaryFileId.Value, entity.Id );
                         }
                     }
                     
@@ -1092,7 +1093,6 @@ namespace Rock.Blocks.Finance
 
             return ActionOk( this.GetParentPageUrl() );
         }
-
         #endregion
     }
 }
