@@ -21,14 +21,15 @@
 // </copyright>
 //
 
+import { Guid } from "@Obsidian/Types";
 import { AuthorizedPersonBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/authorizedPersonBag";
 import { PaymentDetailBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/paymentDetailBag";
 import { RefundDetailBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/refundDetailBag";
 import { RefundTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/refundTransactionBag";
 import { RelatedTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/relatedTransactionBag";
 import { ScheduledTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/scheduledTransactionBag";
+import { TransactionDetailsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailsBag";
 import { TransactionImageBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionImageBag";
-import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
@@ -52,14 +53,13 @@ export type TransactionBag = {
     /** Gets or sets the batch identifier. */
     batchId?: number | null;
 
+    currencyCode?: ListItemBag | null;
+
     /** Gets or sets the financial gateway. */
     financialGateway?: string | null;
 
     /** Gets or sets the financial gateway identifier. */
     financialGatewayId?: number | null;
-
-    /** Gets or sets the foreign currency code defined value identifier. */
-    foreignCurrencyCodeValueId?: number | null;
 
     /** Gets or sets the foreign currency display text. */
     foreignCurrencyDisplay?: string | null;
@@ -75,11 +75,10 @@ export type TransactionBag = {
     /** Gets or sets the images associated with this transaction. */
     images?: TransactionImageBag[] | null;
 
+    isRefund: boolean;
+
     /** Gets or sets the non-cash asset type. */
     nonCashAssetType?: ListItemBag | null;
-
-    /** Gets or sets the non-cash asset type identifier. */
-    nonCashAssetTypeValueId?: number | null;
 
     /** Gets or sets the payment detail information. */
     paymentDetail?: PaymentDetailBag | null;
@@ -103,10 +102,8 @@ export type TransactionBag = {
 
     showAsAnonymous: boolean;
 
-    /** Gets or sets the source type. */
-    sourceType?: string | null;
-
-    sourceTypeValueId?: number | null;
+    /** Gets or sets the transaction source type. */
+    sourceType?: ListItemBag | null;
 
     /** Gets or sets the status of the transaction. */
     status?: string | null;
@@ -136,13 +133,12 @@ export type TransactionBag = {
     transactionDateTime?: string | null;
 
     /** Gets or sets the transaction detail line items. */
-    transactionDetails?: TransactionLineItemBag[] | null;
+    transactionDetails?: TransactionDetailsBag | null;
+
+    transactionDetailsToDelete?: Guid[] | null;
 
     /** Gets or sets the transaction type. */
-    transactionType?: string | null;
-
-    /** Gets or sets the transaction type identifier. */
-    transactionTypeValueId: number;
+    transactionType?: ListItemBag | null;
 
     updates?: string[] | null;
 };

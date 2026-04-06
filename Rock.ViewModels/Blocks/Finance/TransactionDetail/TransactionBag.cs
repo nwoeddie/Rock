@@ -47,9 +47,9 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public int? AuthorizedPersonAliasId { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the transaction source type.
         /// </summary>
-        public int? SourceTypeValueId { get; set; }
+        public ListItemBag SourceType { get; set; }
 
         /// <summary>
         /// Gets or sets the financial batch containing this transaction.
@@ -77,10 +77,9 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public PaymentDetailBag PaymentDetail { get; set; }
 
         /// <summary>
-        /// Gets or sets the foreign currency code defined value identifier.
+        /// 
         /// </summary>
-        public int? ForeignCurrencyCodeValueId { get; set; }
-
+        public ListItemBag CurrencyCode { get; set; }
         /// <summary>
         /// Gets or sets the foreign currency display text.
         /// </summary>
@@ -102,11 +101,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public ListItemBag NonCashAssetType { get; set; }
 
         /// <summary>
-        /// Gets or sets the non-cash asset type identifier.
-        /// </summary>
-        public int? NonCashAssetTypeValueId { get; set; }
-
-        /// <summary>
         /// Gets or sets the person alias who processed the transaction.
         /// </summary>
         public ListItemBag ProcessedByPersonAlias { get; set; }
@@ -121,11 +115,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// Gets or sets the scheduled transaction identifier.
         /// </summary>
         public int? ScheduledTransactionId { get; set; }
-
-        /// <summary>
-        /// Gets or sets the source type.
-        /// </summary>
-        public string SourceType { get; set; }
 
         /// <summary>
         /// Gets or sets the status of the transaction.
@@ -155,17 +144,17 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// Gets or sets the transaction detail line items.
         /// </summary>
-        public List<TransactionLineItemBag> TransactionDetails { get; set; }
+        public TransactionDetailsBag TransactionDetails { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public List<Guid> TransactionDetailsToDelete { get; set; }
 
         /// <summary>
         /// Gets or sets the transaction type.
         /// </summary>
-        public string TransactionType { get; set; }
-
-        /// <summary>
-        /// Gets or sets the transaction type identifier.
-        /// </summary>
-        public int TransactionTypeValueId { get; set; }
+        public ListItemBag TransactionType { get; set; }
 
         /// <summary>
         /// Gets or sets the total amount of the transaction.
@@ -191,6 +180,11 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public List<string> Updates { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool IsRefund { get; set; }
 
         /// <summary>
         /// Gets or sets the refund details if this is a refund transaction.

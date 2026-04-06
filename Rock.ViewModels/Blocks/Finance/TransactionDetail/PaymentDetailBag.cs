@@ -32,17 +32,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public int? CurrencyTypeValueId { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public string CreditCardType { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public int? CreditCardTypeValueId { get; set; }
+        public ListItemBag CreditCardType { get; set; }
 
         /// <summary>
         /// 

@@ -58,22 +58,22 @@
             <div class="d-flex justify-content-between">
                 <div style="width: 50%;">
 
-                    <div v-if="modelValue?.sourceType">
+                    <div v-if="modelValue?.sourceType?.text">
                         <label>Transaction Source</label>
-                        <p>{{ modelValue?.sourceType }}</p>
+                        <p>{{ modelValue?.sourceType.text }}</p>
                     </div>
 
                     <label>Payment Method</label>
                     <div v-if="modelValue?.paymentDetail?.isCreditCard">
                         <div class="multi-line">
-                            <p>Credit Card - {{ modelValue?.paymentDetail?.creditCardType }}</p>
+                            <p>Credit Card - {{ modelValue?.paymentDetail?.creditCardType?.text }}</p>
                             <p v-if="modelValue?.paymentDetail?.accountNumberMasked">Account Number: {{ modelValue?.paymentDetail?.accountNumberMasked }}</p>
                             <p v-if="modelValue?.paymentDetail?.expirationDate">Expires: {{ modelValue?.paymentDetail?.expirationDate }}</p>
                         </div>
                     </div>
 
                     <div v-else>
-                        <p>{{ modelValue?.paymentDetail?.currencyType?.value }}</p>
+                        <p>{{ modelValue?.paymentDetail?.currencyType?.text }}</p>
                     </div>
 
                     <div v-if="modelValue?.financialGateway">
@@ -97,7 +97,7 @@
                         <p>Yes (<a :href='`` + modelValue?.refundDetails.originalTransactionId'>Original Transaction</a>)</p>
 
                         <label>Refund Reason</label>
-                        <p>{{ modelValue?.refundDetails.refundReason }}</p>
+                        <p>{{ modelValue?.refundDetails.refundReason?.text }}</p>
 
                         <label>Refund Summary</label>
                         <p>{{ modelValue?.refundDetails.refundReasonSummary }}</p>
@@ -126,8 +126,8 @@
                                   light
                                   :isFooterHidden="true"
                                   class="mb-0">
-                                <TextColumn name="account"
-                                            field="account"
+                                <TextColumn name="Name"
+                                            field="accountName"
                                             title="Account" />
                                 <TextColumn name="details"
                                             field="details"
@@ -215,6 +215,7 @@
     import { DateTimeFormat, RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import Grid, { Column, DateTimeColumn } from "@Obsidian/Controls/grid";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
+    import { toCurrencyOrNull } from "@Obsidian/Utility/numberUtils";
 
     const props = defineProps({
         modelValue: {
@@ -229,12 +230,12 @@
     });
 
     const allocationsGridData = computed(() => {
-        const rows = (props.modelValue?.transactionDetails ?? []).map(detail => ({
+        const rows = (props.modelValue?.transactionDetails?.rows ?? []).map(detail => ({
 
-            account: detail.account?.value ?? "",
+            accountName: detail.account?.text ?? "",
             details: detail.summary ?? "",
-            processingFees: formatCurrency(detail.feeAmount),
-            amount: formatCurrency(detail.amount)
+            processingFees: toCurrencyOrNull(detail.feeAmount),
+            amount: toCurrencyOrNull(detail.amount)
         }));
 
         return { rows };
@@ -246,7 +247,7 @@
             dateTime: RockDateTime.parseISO(refund.date ?? "")?.toLocaleString(DateTimeFormat.DateTimeShortWithSeconds) ?? "",
             transactionReference: refund.transactionCode,
             reason: refund.reason,
-            amount: `${formatCurrency(refund.amount)}`
+            amount: `${toCurrencyOrNull(refund.amount)}`
         }));
 
         return { rows };
@@ -257,22 +258,11 @@
             id: transaction.id,
             dateTime: RockDateTime.parseISO(transaction.transactionDateTime ?? "")?.toLocaleString(DateTimeFormat.DateTimeShortWithSeconds) ?? "",
             transactionReference: transaction.transactionReference,
-            amount: formatCurrency(transaction.amount)
+            amount: toCurrencyOrNull(transaction.amount)
         }));
 
         return { rows };
     });
-
-    function formatCurrency(value?: number | null): string {
-        if (value == null) {
-            return "";
-        }
-
-        return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD"
-        }).format(value);
-    }
 
     const formattedDate = ref("");
 

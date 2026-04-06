@@ -32,12 +32,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public string RefundReason { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public int? RefundReasonValueId { get; set; }
+        public ListItemBag RefundReason { get; set; }
 
         /// <summary>
         /// 

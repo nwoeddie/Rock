@@ -1,61 +1,231 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <fieldset>
-        <div class="row">
-            <div class="col-md-6">
-                <PersonPicker v-model="personOrBusiness"
-                              label="Person or Business"
-                              :includeBusinesses="true"
-                              help="Search for the person or business this transaction should be credited to."
-                              rules="required" />
-            </div>
-            <div class="col-md-6">
-                <CheckBox v-model="isAnonymous"
-                          label="Display As Anonymous"
-                          help="Hides the donor’s name anywhere this gift is shown publicly" />
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-3">
-                <DateTimePicker :modelValue="transactionDateTime"
-                                @update:modelValue="onTransactionDateTimeChanged"
-                                label="Transaction Date"
-                                :displayCurrentOption="false"
-                                :isCurrentDateOffset="false"
-                                :disableForceParse="false"
-                                :disableShowOnFocus="false"
-                                :disableHighlightToday="false"
-                                :disallowFutureDateSelection="false"
-                                :disallowPastDateSelection="false"
-                                :startView="0"
-                                help="Enter when this transaction was received or processed."
-                                rules="required" />
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
-                <TextBox v-model="summary"
-                         label="Comments"
-                         textMode="multiline"
-                         help="Add notes about this transaction for staff use only." />
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
-                <div class="d-flex gap-3 flex-wrap w-100">
-                    <div v-for="(image, index) in imageListItems" :key="index" style="width: fit-content;">
-                        <ImageUploader
-                                       :modelValue="image"
-                                       @imageRemoved="onImageRemove(image)" />
+        <ContentSectionContainer>
+            <ContentSection :light="true">
+                <div class="row">
+                    <div class="col-md-6">
+                        <PersonPicker v-model="personOrBusiness"
+                                      label="Person or Business"
+                                      :includeBusinesses="true"
+                                      help="Search for the person or business this transaction should be credited to."
+                                      rules="required" />
                     </div>
-                    <ImageUploader
-                                   :key="currentImageKey"
-                                   v-model="currentImage"
-                                   :uploadAsTemporary="true"
-                                   uploadButtonText="Add Image" />
+                    <div class="col-md-6">
+                        <CheckBox v-model="isAnonymous"
+                                  label="Display As Anonymous"
+                                  help="Hides the donor’s name anywhere this gift is shown publicly" />
+                    </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <DateTimePicker :modelValue="transactionDateTime"
+                                        @update:modelValue="onTransactionDateTimeChanged"
+                                        label="Transaction Date"
+                                        :displayCurrentOption="false"
+                                        :isCurrentDateOffset="false"
+                                        :disableForceParse="false"
+                                        :disableShowOnFocus="false"
+                                        :disableHighlightToday="false"
+                                        :disallowFutureDateSelection="false"
+                                        :disallowPastDateSelection="false"
+                                        :startView="0"
+                                        help="Enter when this transaction was received or processed."
+                                        rules="required" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <TextBox v-model="summary"
+                                 label="Comments"
+                                 textMode="multiline"
+                                 help="Add notes about this transaction for staff use only." />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="d-flex gap-3 flex-wrap w-100">
+                            <div v-for="(image, index) in imageListItems" :key="index" style="width: fit-content;">
+                                <ImageUploader
+                                               :modelValue="image"
+                                               @imageRemoved="onImageRemove(image)" />
+                            </div>
+                            <ImageUploader
+                                           :key="currentImageKey"
+                                           v-model="currentImage"
+                                           :uploadAsTemporary="true"
+                                           uploadButtonText="Add Image" />
+                        </div>
+                    </div>
+                </div>
+            </ContentSection>
+            <ContentSection
+                            icon="ti ti-pig-money"
+                            title="Account Allocation"
+                            :disableCollapse="true">
+                <template #headerActions>
+                    <span class="label label-default">
+                        {{ transactionDetails.length }} Allocations
+                    </span>
+                </template>
+                <ContentStack description="Distribute portions of this transaction to specific accounts and confirm fees and amounts."
+                              headerLocation="left"
+                              title="Account Distribution">
+                    <Grid :data="transactionDetailsGridData" keyField="guid" light liveUpdates>
+
+                        <Column name="accountName" title="Account">
+                            <template #format="{ row }">
+                                {{ row.account.text }}
+                            </template>
+                        </Column>
+
+                        <TextColumn name="summary"
+                                    title="Details"
+                                    field="summary" />
+
+                        <Column title="Processing Fees" name="feeAmount">
+                            <template #format="{ row }">
+                                {{ toCurrencyOrNull(row.feeAmount) }}
+                            </template>
+                        </Column>
+
+                        <Column title="Amount" name="amount">
+                            <template #format="{ row }">
+                                {{ toCurrencyOrNull(row.amount) }}
+                            </template>
+                        </Column>
+
+                        <EditColumn @click="onEditTransactionDetailClick" />
+                        <DeleteColumn @click="onDeleteTransactionDetailClick" />
+                    </Grid>
+
+                    <div class="text-right">
+                        <RockButton btnSize="sm"
+                                    isSquare
+                                    @click="onAddTransactionDetailClick">
+                            <i class="ti ti-plus"></i>
+                        </RockButton>
+                    </div>
+
+                </ContentStack>
+            </ContentSection>
+
+            <ContentSection
+                            icon="ti ti-file-description"
+                            title="Details"
+                            :disableCollapse="true">
+
+                <ContentStack description="Capture the transaction type and context so it’s recorded and handled correctly."
+                              headerLocation="left"
+                              title="Transaction Information">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <DefinedValuePicker v-model="transactionType"
+                                                label="Transaction Type"
+                                                :definedTypeGuid="options.transactionTypesGuid ?? ''"
+                                                :showBlankItem="false"
+                                                rules="required"
+                                                help="Choose the kind of transaction this is." />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <DefinedValuePicker v-model="sourceType"
+                                                label="Transaction Source"
+                                                :definedTypeGuid="options.transactionSourceTypesGuid ?? ''"
+                                                help="Choose how this transaction was received, such as online, check, or in person." />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <CheckBox v-model="isRefund"
+                                      label="Mark as Refund"
+                                      help="Designate this transaction as a refund rather than a payment." />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <ConditionalWell v-show="isRefund">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <DefinedValuePicker v-model="refundReason"
+                                                        label="Refund Reason"
+                                                        :definedTypeGuid="options.refundReasonTypesGuid ?? ''"
+                                                        :showBlankItem="false"
+                                                        help="Choose why this transaction was refunded." />
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <TextBox v-model="refundSummary"
+                                             label="Refund Details"
+                                             help="Add any details that explain the refund."
+                                             textMode="multiline" />
+                                </div>
+                            </div>
+
+                        </ConditionalWell>
+                    </div>
+
+                </ContentStack>
+
+                <ContentStack description="Capture the processing details needed for accurate settlement, traceability, and financial reconciliation."
+                              headerLocation="left"
+                              title="Payment Processing">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <DefinedValuePicker v-model="currencyType"
+                                                label="Payment Method"
+                                                :definedTypeGuid="options.currencyTypesGuid ?? ''"
+                                                :showBlankItem="false"
+                                                rules="required"
+                                                help="Choose how this transaction was paid." />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <ConditionalWell v-if="showWell">
+                            <div class="col-md-6">
+                                <DefinedValuePicker
+                                                    v-if="showCreditCard"
+                                                    v-model="creditCardType"
+                                                    label="Credit Card Type"
+                                                    :definedTypeGuid="options.creditCardTypesGuid ?? ''"
+                                                    :showBlankItem="false"
+                                                    help="Choose why this transaction was refunded." />
+                                <DefinedValuePicker
+                                                    v-if="showNonCash"
+                                                    v-model="nonCashAssetType"
+                                                    label="Non-Cash Asset Type"
+                                                    :definedTypeGuid="options.assetTypes ?? ''"
+                                                    :showBlankItem="false"
+                                                    help="Choose the type of non-cash asset received." />
+                            </div>
+                        </ConditionalWell>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <DefinedValuePicker v-model="foreignCurrencyCode"
+                                                label="Foreign Currency"
+                                                :definedTypeGuid="options.currencyCodesGuid ?? ''"
+                                                :showBlankItem="true"
+                                                rules="required"
+                                                help="Choose the foreign currency used by the person/business." />
+                        </div>
+                    </div>
+                </ContentStack>
+
+            </ContentSection>
+            <div v-if="isLoading"
+                 class="d-flex align-items-center justify-content-center p-4">
+                <i class="ti ti-loader-2 fa-spin" style="font-size: 2rem;" />
             </div>
-        </div>
+            <EditTransactionDetail v-else-if="isEditTransactionDetailVisible"
+                                   :modelValue="editTransactionDetail"
+                                   :foreignCurrencyCodeGuid="modelValue.bag?.currencyCode?.value ?? undefined"
+                                   @save="onTransactionDetailSave"
+                                   @close="onTransactionDetailClose" />
+
+        </ContentSectionContainer>
         <AttributeValuesContainer v-model="attributeValues" :attributes="attributes" isEditMode :numberOfColumns="2" />
     </fieldset>
 </template>
@@ -64,7 +234,7 @@
     import { computed, PropType, ref, watch } from "vue";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
-    import { setPropertiesBoxValue, watchPropertyChanges } from "@Obsidian/Utility/block";
+    import { setPropertiesBoxValue, useInvokeBlockAction, watchPropertyChanges } from "@Obsidian/Utility/block";
     import { propertyRef, updateRefValue } from "@Obsidian/Utility/component";
     import { TransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionBag";
     import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
@@ -74,7 +244,22 @@
     import DateTimePicker from "@Obsidian/Controls/dateTimePicker.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import ImageUploader from "@Obsidian/Controls/imageUploader.obs";
-    import { TransactionImageBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionImageBag";
+    import ContentSection from "@Obsidian/Controls/contentSection.obs";
+    import ContentStack from "@Obsidian/Controls/contentStack.obs";
+    import ContentSectionContainer from "@Obsidian/Controls/contentSectionContainer.obs";
+    import Grid, { TextColumn, EditColumn, DeleteColumn, Column } from "@Obsidian/Controls/grid";
+    import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
+    import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
+    import { toCurrencyOrNull } from "@Obsidian/Utility/numberUtils";
+    import EditTransactionDetail from "./editTransactionDetail.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import ConditionalWell from "@Obsidian/Controls/conditionalWell.obs";
+    import { newGuid } from "@Obsidian/Utility/guid";
+    import { TransactionDetailsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailsBag";
+    import DefinedValuePicker from "@Obsidian/Controls/definedValuePicker.obs";
+    import { DefinedValue } from "@Obsidian/SystemGuids/definedValue";
+
+    const invokeBlockAction = useInvokeBlockAction();
 
     const props = defineProps({
         modelValue: {
@@ -93,7 +278,11 @@
         (e: "propertyChanged", value: string): void
     }>();
 
+    const isLoading = ref(false);
+
     // #region Values
+    const isEditTransactionDetailVisible = ref(false);
+    const editTransactionDetail = ref<TransactionLineItemBag>({} as TransactionLineItemBag);
 
     const attributes = ref(props.modelValue.bag?.attributes ?? {});
     const attributeValues = ref(props.modelValue.bag?.attributeValues ?? {});
@@ -117,6 +306,34 @@
 
     const currentImage = ref<ListItemBag | null>(null);
 
+    const transactionDetails = ref<TransactionLineItemBag[]>(props.modelValue.bag?.transactionDetails?.rows
+        ?.map(td => ({
+            ...td
+        })) ?? []);
+
+    const transactionDetailsToDelete = propertyRef(props.modelValue.bag?.transactionDetailsToDelete ?? [] as string[], "TransactionDetailsToDelete");
+
+    const transactionDetailsGridData = ref<GridDataBag>({ rows: transactionDetails.value });
+
+    const transactionType = propertyRef(props.modelValue.bag?.transactionType ?? null, "TransactionType");
+
+    const foreignCurrencyCode = propertyRef(props.modelValue.bag?.currencyCode ?? null, "ForeignCurrencyCode");
+
+    const nonCashAssetType = propertyRef(props.modelValue.bag?.nonCashAssetType ?? null, "NonCashAssetType");
+
+    const sourceType = propertyRef(props.modelValue.bag?.sourceType ?? null, "SourceType");
+
+    const refundReason = propertyRef(props.modelValue.bag?.refundDetails?.refundReason ?? null, "RefundReason");
+
+    const currencyType = propertyRef(props.modelValue.bag?.paymentDetail?.currencyType ?? null, "CurrencyType");
+
+    const creditCardType = propertyRef(props.modelValue.bag?.paymentDetail?.creditCardType ?? null, "CreditCardType");
+
+    const isRefund = propertyRef(props.modelValue.bag?.isRefund ?? false, "IsRefund");
+
+    const refundSummary = propertyRef(props.modelValue.bag?.refundDetails?.refundReasonSummary ?? "", "RefundReasonSummary");
+
+
     if (!props.modelValue.bag?.idKey) {
         // If this is a new request, set the request date to today by default
         transactionDateTime.value = new Date().toISOString();
@@ -124,7 +341,8 @@
 
     // The properties that are being edited. This should only contain
     // objects returned by propertyRef().
-    const propRefs = [personOrBusiness, isAnonymous, transactionDateTime, summary, images];
+    const propRefs = [personOrBusiness, isAnonymous, transactionDateTime, summary, images, transactionDetailsToDelete, transactionType,
+        foreignCurrencyCode, nonCashAssetType, sourceType, refundReason, isRefund, currencyType, creditCardType];
 
     // #endregion
 
@@ -138,6 +356,16 @@
                 value: image.guid
             } as ListItemBag));
     });
+
+    const showCreditCard = computed(() =>
+        currencyType?.value?.value === DefinedValue.CurrencyTypeCreditCard.toLocaleLowerCase()
+    );
+
+    const showNonCash = computed(() =>
+        currencyType?.value?.value === DefinedValue.CurrencyTypeNoncash.toLocaleLowerCase()
+    );
+
+    const showWell = computed(() => showCreditCard.value || showNonCash.value);
 
     // #endregion
 
@@ -187,6 +415,101 @@
         }
     }
 
+    async function onEditTransactionDetailClick(guid: string): Promise<void> {
+        // First check if this is a client-side-only item (no server id yet)
+        const lineItem = transactionDetails.value.find(td => td.guid === guid);
+
+        if (lineItem && !lineItem.id) {
+            // New item — open directly, no server call needed
+            editTransactionDetail.value = JSON.parse(JSON.stringify(lineItem));
+            isEditTransactionDetailVisible.value = true;
+            return;
+        }
+
+        editTransactionDetail.value = JSON.parse(JSON.stringify(lineItem));
+        // Existing server-persisted item — fetch full detail from server
+        try {
+            const transactionDetailAttributes = await invokeBlockAction<TransactionDetailsBag>("GetTransactionDetailAttributes", {
+                guid: lineItem?.guid
+            });
+
+            if (transactionDetailAttributes) {
+                editTransactionDetail.value.attributes = transactionDetailAttributes.data?.attributes ?? {};
+                editTransactionDetail.value.attributeValues = transactionDetailAttributes.data?.attributeValues ?? {};
+            }
+
+            isEditTransactionDetailVisible.value = true;
+        }
+        catch (error) {
+            console.error("Error fetching transaction detail attributes:", error);
+        }
+    }
+
+    function onDeleteTransactionDetailClick(guid: string): void {
+        const index = transactionDetails.value.findIndex(td => td.guid === guid);
+
+        if (index >= 0) {
+            const item = transactionDetails.value[index];
+
+            // Remove from UI list
+            transactionDetails.value.splice(index, 1);
+            transactionDetailsGridData.value = { rows: [...transactionDetails.value] };
+
+            if (item.id) {
+                transactionDetailsToDelete.value = [
+                    ...transactionDetailsToDelete.value,
+                    guid
+                ];
+            }
+        }
+    }
+
+    /**
+     * Called when the transaction detail modal emits a save event.
+     * Updates the matching line item in transactionDetails.
+     */
+    function onTransactionDetailSave(updatedDetail: TransactionLineItemBag): void {
+        const index = transactionDetails.value.findIndex(td => td.guid === updatedDetail.guid);
+
+        if (index >= 0) {
+            transactionDetails.value.splice(index, 1, updatedDetail);
+        }
+        else {
+            transactionDetails.value.push({ ...updatedDetail });
+        }
+
+        transactionDetailsGridData.value = { rows: [...transactionDetails.value] };
+        isEditTransactionDetailVisible.value = false;
+    }
+
+    /**
+     * Called when the transaction detail modal is closed without saving.
+     */
+    function onTransactionDetailClose(): void {
+        isEditTransactionDetailVisible.value = false;
+    }
+
+    async function onAddTransactionDetailClick(): Promise<void> {
+        try {
+            const transactionDetailAttributes = await invokeBlockAction<TransactionDetailsBag>("GetTransactionDetailAttributes", {
+                guid: ""
+            });
+
+            if (transactionDetailAttributes) {
+                editTransactionDetail.value.attributes = transactionDetailAttributes.data?.attributes ?? {};
+            }
+
+            editTransactionDetail.value.guid = newGuid();
+
+            isEditTransactionDetailVisible.value = true;
+        }
+        catch (error) {
+            console.error("Error fetching transaction detail attributes:", error);
+        }
+
+        isEditTransactionDetailVisible.value = true;
+    }
+
     // #endregion
 
     // #region Event Handlers
@@ -202,6 +525,18 @@
         updateRefValue(transactionDateTime, props.modelValue.bag?.transactionDateTime ?? new Date().toISOString());
         updateRefValue(summary, props.modelValue.bag?.summary ?? "");
         updateRefValue(images, props.modelValue.bag?.images ?? []);
+        updateRefValue(transactionDetails, props.modelValue.bag?.transactionDetails?.rows ?? []);
+        updateRefValue(transactionDetailsToDelete, props.modelValue.bag?.transactionDetailsToDelete ?? []);
+        updateRefValue(transactionType, props.modelValue.bag?.transactionType ?? null);
+        updateRefValue(foreignCurrencyCode, props.modelValue.bag?.currencyCode ?? null);
+        updateRefValue(nonCashAssetType, props.modelValue.bag?.nonCashAssetType ?? null);
+        updateRefValue(sourceType, props.modelValue.bag?.sourceType ?? null);
+        updateRefValue(refundSummary, props.modelValue.bag?.refundDetails?.refundReasonSummary ?? "");
+        updateRefValue(currencyType, props.modelValue.bag?.paymentDetail?.currencyType ?? null);
+        updateRefValue(creditCardType, props.modelValue.bag?.paymentDetail?.creditCardType ?? null);
+
+        updateRefValue(refundReason, props.modelValue.bag?.refundDetails?.refundReason ?? null);
+        updateRefValue(isRefund, props.modelValue.bag?.isRefund ?? false);
 
         const updatedPerson: ListItemBag | undefined = props.modelValue.bag?.authorizedPerson
             ? {
@@ -211,12 +546,19 @@
             : undefined;
 
 
+        const newTransactionDetails = props.modelValue.bag?.transactionDetails
+            ?.rows?.map(td => ({
+                ...td
+            })) ?? [];
+
+        updateRefValue(transactionDetails, newTransactionDetails);
+
         updateRefValue(personOrBusiness, updatedPerson);
     });
 
     // Determines which values we want to track changes on (defined in the
     // array) and then emit a new object defined as newValue.
-    watch([attributeValues, ...propRefs, personOrBusiness], () => {
+    watch([attributeValues, ...propRefs, personOrBusiness, transactionDetails], () => {
         const newValue: ValidPropertiesBox<TransactionBag> = {
             bag: { ...props.modelValue.bag } as TransactionBag
         };
@@ -226,12 +568,48 @@
         setPropertiesBoxValue(newValue, "transactionDateTime", transactionDateTime.value ?? new Date().toISOString());
         setPropertiesBoxValue(newValue, "summary", summary.value ?? "");
         setPropertiesBoxValue(newValue, "images", images.value ?? []);
+        setPropertiesBoxValue(newValue, "transactionDetails", { rows: transactionDetails.value });
+
+        setPropertiesBoxValue(newValue, "transactionType", transactionType.value ?? null);
+
+        setPropertiesBoxValue(newValue, "currencyCode", foreignCurrencyCode.value ?? null);
+
+        setPropertiesBoxValue(newValue, "nonCashAssetType", nonCashAssetType.value ?? null);
+
+        setPropertiesBoxValue(newValue, "sourceType", sourceType.value ?? null);
+
+        setPropertiesBoxValue(newValue, "refundDetails", isRefund.value
+            ? {
+                ...props.modelValue.bag?.refundDetails,
+                refundReason: refundReason.value ?? null,
+                refundReasonSummary: refundSummary.value ?? "",
+                refundAmount: 0
+            }
+            : null
+        );
+
+        setPropertiesBoxValue(
+            newValue,
+            "paymentDetail",
+            currencyType.value
+                ? {
+                    ...props.modelValue.bag?.paymentDetail,
+                    currencyType: currencyType.value,
+                    isCreditCard: props.modelValue.bag?.paymentDetail?.isCreditCard ?? false,
+                    creditCardType: creditCardType.value
+                }
+                : null
+        );
+        setPropertiesBoxValue(newValue, "transactionDetailsToDelete", transactionDetailsToDelete.value ?? []);
+        setPropertiesBoxValue(newValue, "isRefund", isRefund.value);
+
         setPropertiesBoxValue(newValue, "authorizedPerson", {
             ...props.modelValue.bag?.authorizedPerson,
             name: personOrBusiness.value?.text ?? "",
             guid: personOrBusiness.value?.value ?? ""
         });
 
+        console.log("currency type", currencyType.value);
         emit("update:modelValue", newValue);
     });
 

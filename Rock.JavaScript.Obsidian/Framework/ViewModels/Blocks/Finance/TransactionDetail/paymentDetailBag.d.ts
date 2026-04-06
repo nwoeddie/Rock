@@ -26,13 +26,9 @@ import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 export type PaymentDetailBag = {
     accountNumberMasked?: string | null;
 
-    creditCardType?: string | null;
-
-    creditCardTypeValueId?: number | null;
+    creditCardType?: ListItemBag | null;
 
     currencyType?: ListItemBag | null;
-
-    currencyTypeValueId?: number | null;
 
     expirationDate?: string | null;
 

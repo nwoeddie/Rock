@@ -23,7 +23,7 @@
                 ${{ transactionViewBag?.totalAmount.toFixed(2) }}
             </span>
             <span class="label label-default">
-                {{ transactionViewBag?.transactionType }}
+                {{ transactionViewBag?.transactionType?.text }}
             </span>
         </template>
         <template #view>
@@ -131,14 +131,6 @@
      * @returns true if the panel should leave edit mode; false if it should stay in edit mode; or a string containing a redirect URL.
      */
     async function onCancelEdit(): Promise<boolean | string> {
-        if (!transactionEditBag.value.bag?.idKey) {
-            if (config.navigationUrls?.[NavigationUrlKey.ParentPage]) {
-                return config.navigationUrls[NavigationUrlKey.ParentPage];
-            }
-
-            return false;
-        }
-
         return true;
     }
 
@@ -177,8 +169,16 @@
         });
 
         if (result.isSuccess && result.data && result.data.bag) {
+            if (result.data.bag.attributes && transactionViewBag.value) {
+                transactionViewBag.value.attributes = result.data.bag.attributes;
+            }
+
+            if (result.data.bag.attributeValues && transactionViewBag.value) {
+                transactionViewBag.value.attributeValues = result.data.bag.attributeValues;
+            }
+
             transactionEditBag.value = {
-                bag: result.data.bag,
+                bag: transactionViewBag.value,
                 validProperties: result.data.validProperties ?? Object.keys(result.data.bag)
             };
 

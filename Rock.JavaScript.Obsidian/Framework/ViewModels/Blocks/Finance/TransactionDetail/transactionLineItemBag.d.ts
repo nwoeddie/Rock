@@ -22,20 +22,15 @@
 //
 
 import { Guid } from "@Obsidian/Types";
-import { AttributeValueBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/attributeValueBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
 export type TransactionLineItemBag = {
     account?: ListItemBag | null;
 
-    accountId: number;
-
     amount: number;
 
     amountMinusFeeCoverageAmount: number;
-
-    attributes?: AttributeValueBag[] | null;
 
     /** Gets or sets the attributes. */
     attributes?: Record<string, PublicAttributeBag> | null;
@@ -60,6 +55,8 @@ export type TransactionLineItemBag = {
     foreignCurrencyAmount?: number | null;
 
     guid: Guid;
+
+    id: number;
 
     /** Gets or sets the identifier key of this entity. */
     idKey?: string | null;

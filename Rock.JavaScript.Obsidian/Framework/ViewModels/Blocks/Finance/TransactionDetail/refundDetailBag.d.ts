@@ -21,14 +21,14 @@
 // </copyright>
 //
 
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+
 export type RefundDetailBag = {
     originalTransactionId?: number | null;
 
     refundAmount: number;
 
-    refundReason?: string | null;
+    refundReason?: ListItemBag | null;
 
     refundReasonSummary?: string | null;
-
-    refundReasonValueId?: number | null;
 };

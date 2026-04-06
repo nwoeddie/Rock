@@ -34,12 +34,12 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public ListItemBag Account { get; set; }
+        public int Id { get; set; }
 
         /// <summary>
         /// 
         /// </summary>
-        public int AccountId { get; set; }
+        public ListItemBag Account { get; set; }
 
         /// <summary>
         /// 
@@ -105,10 +105,5 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public bool IsTotalRow { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public List<AttributeValueBag> Attributes { get; set; }
     }
 }

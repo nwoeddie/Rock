@@ -27,6 +27,7 @@ using AngleSharp.Dom;
 using dotless.Core.Parser.Functions;
 
 using Rock.Attribute;
+using Rock.Blocks.Types.Mobile.Finance;
 using Rock.Constants;
 using Rock.Data;
 using Rock.Model;
@@ -126,6 +127,20 @@ namespace Rock.Blocks.Finance
         {
             var options = new TransactionDetailOptionsBag();
 
+            options.TransactionTypesGuid = SystemGuid.DefinedType.FINANCIAL_TRANSACTION_TYPE;
+
+            options.TransactionSourceTypesGuid = SystemGuid.DefinedType.FINANCIAL_SOURCE_TYPE;
+
+            options.RefundReasonTypesGuid = SystemGuid.DefinedType.FINANCIAL_TRANSACTION_REFUND_REASON;
+
+            options.CurrencyTypesGuid = SystemGuid.DefinedType.FINANCIAL_CURRENCY_TYPE;
+
+            options.CurrencyCodesGuid = SystemGuid.DefinedType.FINANCIAL_CURRENCY_CODE;
+
+            options.CreditCardTypesGuid = SystemGuid.DefinedType.FINANCIAL_CREDIT_CARD_TYPE;
+
+            options.AssetTypes = SystemGuid.DefinedType.FINANCIAL_NONCASH_ASSET_TYPE;
+
             return options;
         }
 
@@ -215,6 +230,14 @@ namespace Rock.Blocks.Finance
                 } )
                 .FirstOrDefault();
 
+            var transactionDefinedValue = DefinedValueCache.Get( transaction.TransactionTypeValueId );
+
+            var sourceDefinedValue = transaction.SourceTypeValueId.HasValue ? DefinedValueCache.Get( transaction.SourceTypeValueId.Value ) : null;
+
+            var currencyDefinedValue = transaction.SourceTypeValueId.HasValue ? DefinedValueCache.Get( transaction.ForeignCurrencyCodeValueId.Value ) : null;
+
+            var assetTypeDefinedValue = transaction.NonCashAssetTypeValueId.HasValue ? DefinedValueCache.Get( transaction.NonCashAssetTypeValueId.Value ) : null;
+
             return new TransactionBag
             {
                 Id = transaction.Id,
@@ -222,16 +245,31 @@ namespace Rock.Blocks.Finance
                 ScheduledTransactionId = transaction.ScheduledTransactionId,
                 AuthorizedPersonAliasId = transaction.AuthorizedPersonAliasId,
                 ShowAsAnonymous = transaction.ShowAsAnonymous,
-                TransactionDateTime = transaction.TransactionDateTime,
-                TransactionTypeValueId = transaction.TransactionTypeValueId,
-                SourceTypeValueId = transaction.SourceTypeValueId,
+                SourceType = sourceDefinedValue != null ? new ListItemBag {
+                    Value = sourceDefinedValue.Guid.ToString(),
+                    Text = sourceDefinedValue.Value
+                }
+                : null,
+                TransactionType = new ListItemBag {
+                    Value = transactionDefinedValue.Guid.ToString(),
+                    Text = transactionDefinedValue.Value
+                },
                 TransactionCode = transaction.TransactionCode,
                 Summary = transaction.Summary,
                 FinancialGatewayId = transaction.FinancialGatewayId,
                 FinancialGateway = transaction.FinancialGateway?.Name,
-                NonCashAssetTypeValueId = transaction.NonCashAssetTypeValueId,
-                ForeignCurrencyCodeValueId = transaction.ForeignCurrencyCodeValueId,
-
+                NonCashAssetType = assetTypeDefinedValue!= null ? new ListItemBag
+                {
+                    Text = assetTypeDefinedValue.Value,
+                    Value = assetTypeDefinedValue.Guid.ToString()
+                }
+                : null,
+                CurrencyCode = currencyDefinedValue != null ? new ListItemBag
+                {
+                    Text = currencyDefinedValue.Value,
+                    Value = currencyDefinedValue.Guid.ToString()
+                }
+                : null,
                 TotalAmount = aggregates?.TotalAmount ?? 0m,
                 TotalFeeAmount = aggregates?.TotalFeeAmount ?? 0m,
                 TotalFeeCoverageAmount = aggregates?.TotalFeeCoverageAmount ?? 0m,
@@ -272,13 +310,6 @@ namespace Rock.Blocks.Finance
                 return null;
             }
 
-            if( bag.SourceTypeValueId != null)
-            {
-                bag.SourceType = DefinedValueCache.GetName( bag.SourceTypeValueId.Value );
-            }
-
-            bag.TransactionType = DefinedValueCache.GetName( bag.TransactionTypeValueId );
-
             bag.IdKey = bag.Id.AsIdKey();
 
             bag.TransactionDetails = GetTransactionLineItemBags( entity.Id );
@@ -287,8 +318,11 @@ namespace Rock.Blocks.Finance
             bag.RelatedTransactions = GetRelatedTransactions( entity );
             bag.Refunds = GetRefundOverview( entity.Id );
 
-            var foreignCurrencyDisplay = GetForeignCurrencyDisplay( bag.ForeignCurrencyCodeValueId, out var foreignCurrencySymbol );
-            bag.ForeignCurrencyDisplay = foreignCurrencyDisplay;
+            bag.IsRefund = entity.RefundDetails != null;
+
+            var foreignCurrencySymbol = string.Empty;
+
+            bag.ForeignCurrencyDisplay = bag.CurrencyCode != null ? GetForeignCurrencyDisplay( bag.CurrencyCode.Value, out foreignCurrencySymbol ) : null;
             bag.ForeignCurrencySymbol = foreignCurrencySymbol;
 
             entity.LoadAttributes( RockContext );
@@ -304,20 +338,11 @@ namespace Rock.Blocks.Finance
             {
                 return null;
             }
-
-            var bag = entity.Id == 0
-                ? new TransactionBag()
-                : GetBaseTransactionBag( entity );
-
-            if ( entity.Id != 0 )
-            {
-                bag.TransactionDetails = GetTransactionLineItemBags( entity.Id );
-                bag.Images = GetImageBags( entity.Id );
-            }
+            var bag = new TransactionBag();
 
             entity.LoadAttributes( RockContext );
-            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: false );
 
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: false );
             return bag;
         }
 
@@ -408,14 +433,20 @@ namespace Rock.Blocks.Finance
             }
 
             var refundReason = refundDetails.RefundReasonValueId.HasValue
-                ? DefinedValueCache.GetName( refundDetails.RefundReasonValueId.Value )
+                ? DefinedValueCache.Get( refundDetails.RefundReasonValueId.Value )
                 : null;
+
+
+            var refundReasonDefinedValue = DefinedValueCache.Get( refundDetails.RefundReasonValueId.Value );
 
             return new RefundDetailBag
             {
                 OriginalTransactionId = refundDetails.OriginalTransactionId,
-                RefundReasonValueId = refundDetails.RefundReasonValueId,
-                RefundReason = refundReason,
+                RefundReason = new ListItemBag
+                {
+                    Value = refundReasonDefinedValue.Guid.ToString(),
+                    Text = refundReasonDefinedValue.Value
+                },
                 RefundReasonSummary = refundDetails.RefundReasonSummary
             };
         }
@@ -455,20 +486,29 @@ namespace Rock.Blocks.Finance
             };
         }
 
-        private List<TransactionLineItemBag> GetTransactionLineItemBags( int transactionId )
+        private TransactionDetailsBag GetTransactionLineItemBags( int transactionId )
         {
-            return new FinancialTransactionDetailService( RockContext )
+            var tempFinancialTransactionDetail = new FinancialTransactionDetail
+            {
+                TransactionId = transactionId
+            };
+
+            var attributes = tempFinancialTransactionDetail.GetPublicAttributesForEdit( RequestContext.CurrentPerson );
+            var attributeValues = tempFinancialTransactionDetail.GetPublicAttributeValuesForEdit( RequestContext.CurrentPerson );
+
+            var rows = new FinancialTransactionDetailService( RockContext )
                 .Queryable()
                 .AsNoTracking()
                 .Where( d => d.TransactionId == transactionId )
                 .Select( d => new TransactionLineItemBag
                 {
                     Guid = d.Guid,
-                    Account = d.Account == null ? null : new ListItemBag
+                    Id = d.Id,
+                    Account = new ListItemBag
                     {
-                        Value = d.Account.Name
+                        Text = d.Account.Name,
+                        Value = d.Account.Guid.ToString()
                     },
-                    AccountId = d.AccountId,
                     Amount = d.Amount,
                     AmountMinusFeeCoverageAmount = d.FeeCoverageAmount.HasValue
                         ? d.Amount - d.FeeCoverageAmount.Value
@@ -482,6 +522,7 @@ namespace Rock.Blocks.Finance
                     EntityTypeId = d.EntityTypeId,
                     EntityType = d.EntityType == null ? null : new ListItemBag
                     {
+                        Text = d.EntityType.FriendlyName,
                         Value = d.EntityType.Name
                     },
                     CanEdit = true,
@@ -489,6 +530,13 @@ namespace Rock.Blocks.Finance
                     IsTotalRow = false
                 } )
                 .ToList();
+
+            return new TransactionDetailsBag
+            {
+                Rows = rows,
+                Attributes = attributes,
+                AttributeValues = attributeValues
+            };
         }
 
         private PaymentDetailBag GetPaymentDetailBag( FinancialPaymentDetail paymentDetail, Guid creditCardGuid )
@@ -503,17 +551,25 @@ namespace Rock.Blocks.Finance
                 : null;
 
             var creditCardType = paymentDetail.CreditCardTypeValueId.HasValue
-                ? DefinedValueCache.GetName( paymentDetail.CreditCardTypeValueId.Value )
+                ? DefinedValueCache.Get( paymentDetail.CreditCardTypeValueId.Value )
                 : null;
+
 
             return new PaymentDetailBag
             {
-                CurrencyTypeValueId = paymentDetail.CurrencyTypeValueId,
                 CurrencyType = currencyType == null
                     ? null
-                    : new ListItemBag { Value = currencyType.Value },
-                CreditCardTypeValueId = paymentDetail.CreditCardTypeValueId,
-                CreditCardType = creditCardType,
+                    : new ListItemBag {
+                        Text = currencyType.Value,
+                        Value = currencyType.Guid.ToString()
+                    },
+                CreditCardType = creditCardType == null
+                    ? null
+                    : new ListItemBag
+                    {
+                        Text = creditCardType.Value,
+                        Value = creditCardType.Guid.ToString()
+                    },
                 NameOnCard = paymentDetail.NameOnCard,
                 AccountNumberMasked = paymentDetail.AccountNumberMasked,
                 ExpirationDate = paymentDetail.ExpirationDate,
@@ -521,7 +577,7 @@ namespace Rock.Blocks.Finance
             };
         }
 
-        private string GetForeignCurrencyDisplay( int? foreignCurrencyCodeValueId, out string symbol )
+        private string GetForeignCurrencyDisplay( string currencyCodeGuid, out string symbol )
         {
             if ( !GetAttributeValue( AttributeKey.EnableForeignCurrency ).AsBoolean() )
             {
@@ -532,12 +588,12 @@ namespace Rock.Blocks.Finance
             {
                 symbol = string.Empty;
 
-                if ( !foreignCurrencyCodeValueId.HasValue )
+                if ( !currencyCodeGuid.IsNotNullOrWhiteSpace() )
                 {
                     return string.Empty;
                 }
 
-                var definedValue = DefinedValueCache.Get( foreignCurrencyCodeValueId.Value );
+                var definedValue = DefinedValueCache.Get( currencyCodeGuid );
                 if ( definedValue == null )
                 {
                     return string.Empty;
@@ -745,11 +801,11 @@ namespace Rock.Blocks.Finance
             var imageBag = new FinancialTransactionImageService( RockContext )
                 .Queryable()
                 .AsNoTracking()
-                .Where( i => i.TransactionId == transactionId )
+                .Where( i => i.TransactionId == transactionId && i.BinaryFile != null)
                 .OrderBy( i => i.Order )
                 .Select( ( i ) => new TransactionImageBag
                 {
-                    Guid = i.Guid,
+                    Guid = i.BinaryFile.Guid,
                     BinaryFileId = i.BinaryFileId,
                 } )
                 .ToList();
@@ -1001,8 +1057,6 @@ namespace Rock.Blocks.Finance
                 return actionError;
             }
 
-            entity.LoadAttributes( RockContext );
-
             var bag = GetEntityBagForEdit( entity );
 
             return ActionOk( new ValidPropertiesBox<TransactionBag>
@@ -1092,6 +1146,30 @@ namespace Rock.Blocks.Finance
             RockContext.SaveChanges();
 
             return ActionOk( this.GetParentPageUrl() );
+        }
+
+        [BlockAction]
+        public BlockActionResult GetTransactionDetailAttributes( string guid )
+        {
+            var detailEntity = new FinancialTransactionDetail();
+
+            detailEntity.LoadAttributes( RockContext );
+
+            if( guid.IsNotNullOrWhiteSpace())
+            {
+                detailEntity = new FinancialTransactionDetailService( RockContext ).Get( guid.AsGuid() );
+            }
+
+            if(detailEntity == null)
+            {
+                return ActionBadRequest( $"{FinancialTransactionDetail.FriendlyTypeName} not found." );
+            }
+
+            var bag = new TransactionDetailsBag();
+
+            bag.LoadAttributesAndValuesForPublicEdit( detailEntity, RequestContext.CurrentPerson, enforceSecurity: false);
+
+            return ActionOk( bag );
         }
         #endregion
     }

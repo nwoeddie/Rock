@@ -15,6 +15,11 @@
 // </copyright>
 //
 
+using System;
+using System.Collections.Generic;
+
+using Rock.ViewModels.Utility;
+
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
@@ -22,6 +27,42 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     /// </summary>
     public class TransactionDetailOptionsBag
     {
+
+        /// <summary>
+        /// The transaction types that can be used to filter the results.
+        /// </summary>
+        public string TransactionTypesGuid { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public string TransactionSourceTypesGuid { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public string RefundReasonTypesGuid { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public string CurrencyTypesGuid {  get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public string CurrencyCodesGuid { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public string CreditCardTypesGuid { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public string AssetTypes { get; set; }
+
         /// <summary>
         /// 
         /// </summary>

@@ -23,6 +23,8 @@
 
 /** The additional configuration options for the Transaction Detail block. */
 export type TransactionDetailOptionsBag = {
+    assetTypes?: string | null;
+
     batchEditAllowed: boolean;
 
     canAddTransaction: boolean;
@@ -31,9 +33,22 @@ export type TransactionDetailOptionsBag = {
 
     canRefund: boolean;
 
+    creditCardTypesGuid?: string | null;
+
+    currencyCodesGuid?: string | null;
+
+    currencyTypesGuid?: string | null;
+
     isReadOnly: boolean;
 
+    refundReasonTypesGuid?: string | null;
+
     showForeignCurrencyFields: boolean;
+
+    transactionSourceTypesGuid?: string | null;
+
+    /** The transaction types that can be used to filter the results. */
+    transactionTypesGuid?: string | null;
 
     useSimpleAccountMode: boolean;
 };
