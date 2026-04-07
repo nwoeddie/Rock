@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 
 using Rock.ViewModels.Utility;
@@ -30,5 +31,10 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public List<TransactionLineItemBag> Rows { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public List<Guid> RowsToDelete { get; set; }
     }
 }

@@ -21,7 +21,6 @@
 // </copyright>
 //
 
-import { Guid } from "@Obsidian/Types";
 import { AuthorizedPersonBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/authorizedPersonBag";
 import { PaymentDetailBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/paymentDetailBag";
 import { RefundDetailBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/refundDetailBag";
@@ -56,10 +55,7 @@ export type TransactionBag = {
     currencyCode?: ListItemBag | null;
 
     /** Gets or sets the financial gateway. */
-    financialGateway?: string | null;
-
-    /** Gets or sets the financial gateway identifier. */
-    financialGatewayId?: number | null;
+    financialGateway?: ListItemBag | null;
 
     /** Gets or sets the foreign currency display text. */
     foreignCurrencyDisplay?: string | null;
@@ -134,8 +130,6 @@ export type TransactionBag = {
 
     /** Gets or sets the transaction detail line items. */
     transactionDetails?: TransactionDetailsBag | null;
-
-    transactionDetailsToDelete?: Guid[] | null;
 
     /** Gets or sets the transaction type. */
     transactionType?: ListItemBag | null;

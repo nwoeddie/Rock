@@ -131,9 +131,16 @@
      * @returns true if the panel should leave edit mode; false if it should stay in edit mode; or a string containing a redirect URL.
      */
     async function onCancelEdit(): Promise<boolean | string> {
+        if (!transactionEditBag.value.bag?.idKey) {
+            if (config.navigationUrls?.[NavigationUrlKey.ParentPage]) {
+                return config.navigationUrls[NavigationUrlKey.ParentPage];
+            }
+
+            return false;
+        }
+
         return true;
     }
-
     /**
      * Event handler for the Delete button being clicked. Sends the
      * delete request to the server and then redirects to the target page.
@@ -199,22 +206,22 @@
         errorMessage.value = "";
 
         console.log(transactionEditBag.value.bag);
-        // const result = await invokeBlockAction<ValidPropertiesBox<TransactionBag> | string>("Save", {
-        //     box: transactionEditBag.value
-        // });
+        const result = await invokeBlockAction<ValidPropertiesBox<TransactionBag> | string>("Save", {
+            box: transactionEditBag.value
+        });
 
-        // if (result.isSuccess && result.data) {
-        //     if (result.statusCode === 200 && typeof result.data === "object") {
-        //         transactionViewBag.value = result.data.bag;
+        if (result.isSuccess && result.data) {
+            if (result.statusCode === 200 && typeof result.data === "object") {
+                transactionViewBag.value = result.data.bag;
 
-        //         return true;
-        //     }
-        //     else if (result.statusCode === 201 && typeof result.data === "string") {
-        //         return result.data;
-        //     }
-        // }
+                return true;
+            }
+            else if (result.statusCode === 201 && typeof result.data === "string") {
+                return result.data;
+            }
+        }
 
-        // errorMessage.value = result.errorMessage ?? "Unknown error while trying to save ttransaction.";
+        errorMessage.value = result.errorMessage ?? "Unknown error while trying to save ttransaction.";
 
         return false;
     }

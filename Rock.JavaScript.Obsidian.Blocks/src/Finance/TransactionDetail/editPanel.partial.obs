@@ -1,7 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <fieldset>
-        <ContentSectionContainer>
+        <ContentSectionContainer :sidebar="false">
             <ContentSection :light="true">
                 <div class="row">
                     <div class="col-md-6">
@@ -18,7 +18,7 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-6">
                         <DateTimePicker :modelValue="transactionDateTime"
                                         @update:modelValue="onTransactionDateTimeChanged"
                                         label="Transaction Date"
@@ -71,41 +71,44 @@
                 <ContentStack description="Distribute portions of this transaction to specific accounts and confirm fees and amounts."
                               headerLocation="left"
                               title="Account Distribution">
-                    <Grid :data="transactionDetailsGridData" keyField="guid" light liveUpdates>
+                    <Grid
+                          :data="transactionDetailsGridData"
+                          keyField="guid" light liveUpdates
+                          @addItem="onAddTransactionDetailClick">
 
                         <Column name="accountName" title="Account">
                             <template #format="{ row }">
-                                {{ row.account.text }}
+                                <strong v-if="row.isTotalRow">Total</strong>
+                                <template v-else>
+                                    {{ row.account.text }}
+                                </template>
                             </template>
                         </Column>
 
-                        <TextColumn name="summary"
-                                    title="Details"
-                                    field="summary" />
+                        <TextColumn name="summary" title="Details" field="summary" />
 
                         <Column title="Processing Fees" name="feeAmount">
                             <template #format="{ row }">
-                                {{ toCurrencyOrNull(row.feeAmount) }}
+                                <strong v-if="row.isTotalRow">{{ toCurrencyOrNull(row.feeAmount) }}</strong>
+                                <template v-else>
+                                    {{ toCurrencyOrNull(row.feeAmount) }}
+                                </template>
                             </template>
                         </Column>
 
                         <Column title="Amount" name="amount">
                             <template #format="{ row }">
-                                {{ toCurrencyOrNull(row.amount) }}
+                                <strong v-if="row.isTotalRow">{{ toCurrencyOrNull(row.amount) }}</strong>
+                                <template v-else>
+                                    {{ toCurrencyOrNull(row.amount) }}
+                                </template>
                             </template>
                         </Column>
 
-                        <EditColumn @click="onEditTransactionDetailClick" />
-                        <DeleteColumn @click="onDeleteTransactionDetailClick" />
+                        <EditColumn @click="onEditTransactionDetailClick" :rowDisabled="isTotalRow" />
+                        <DeleteColumn @click="onDeleteTransactionDetailClick" :rowDisabled="isTotalRow" />
                     </Grid>
 
-                    <div class="text-right">
-                        <RockButton btnSize="sm"
-                                    isSquare
-                                    @click="onAddTransactionDetailClick">
-                            <i class="ti ti-plus"></i>
-                        </RockButton>
-                    </div>
 
                 </ContentStack>
             </ContentSection>
@@ -202,8 +205,8 @@
                             </div>
                         </ConditionalWell>
                     </div>
-                    <div class="row">
-                        <div class="col-md-4">
+                    <div class="row" v-if="options.showForeignCurrencyFields">
+                        <div class="col-md-3">
                             <DefinedValuePicker v-model="foreignCurrencyCode"
                                                 label="Foreign Currency"
                                                 :definedTypeGuid="options.currencyCodesGuid ?? ''"
@@ -211,6 +214,32 @@
                                                 rules="required"
                                                 help="Choose the foreign currency used by the person/business." />
                         </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <FinancialGatewayPicker label="Payment Gateway"
+                                                    v-model="financialGateway"
+                                                    :showBlankItem="true"
+                                                    :showAllGatewayComponents="true"
+                                                    :disabled="!!props.modelValue.bag?.idKey" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <TextBox v-model="transactionCode" label="Transaction Reference" help="	Enter a code to reference this transaction." />
+                        </div>
+                    </div>
+                </ContentStack>
+
+                <ContentStack
+                              v-if="hasAttributes"
+                              description="Set values for these additional fields and settings for this transaction."
+                              headerLocation="left"
+                              title="Attributes">
+                    <div class="col-md-6">
+                        <AttributeValuesContainer v-model="attributeValues" :attributes="attributes" isEditMode :numberOfColumns="1" />
                     </div>
                 </ContentStack>
 
@@ -226,7 +255,6 @@
                                    @close="onTransactionDetailClose" />
 
         </ContentSectionContainer>
-        <AttributeValuesContainer v-model="attributeValues" :attributes="attributes" isEditMode :numberOfColumns="2" />
     </fieldset>
 </template>
 
@@ -252,12 +280,12 @@
     import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
     import { toCurrencyOrNull } from "@Obsidian/Utility/numberUtils";
     import EditTransactionDetail from "./editTransactionDetail.obs";
-    import RockButton from "@Obsidian/Controls/rockButton.obs";
     import ConditionalWell from "@Obsidian/Controls/conditionalWell.obs";
     import { newGuid } from "@Obsidian/Utility/guid";
     import { TransactionDetailsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailsBag";
     import DefinedValuePicker from "@Obsidian/Controls/definedValuePicker.obs";
     import { DefinedValue } from "@Obsidian/SystemGuids/definedValue";
+    import FinancialGatewayPicker from "@Obsidian/Controls/financialGatewayPicker.obs";
 
     const invokeBlockAction = useInvokeBlockAction();
 
@@ -311,9 +339,7 @@
             ...td
         })) ?? []);
 
-    const transactionDetailsToDelete = propertyRef(props.modelValue.bag?.transactionDetailsToDelete ?? [] as string[], "TransactionDetailsToDelete");
-
-    const transactionDetailsGridData = ref<GridDataBag>({ rows: transactionDetails.value });
+    const transactionDetailsToDelete = propertyRef(props.modelValue.bag?.transactionDetails?.rowsToDelete ?? [] as string[], "TransactionDetailsToDelete");
 
     const transactionType = propertyRef(props.modelValue.bag?.transactionType ?? null, "TransactionType");
 
@@ -323,16 +349,20 @@
 
     const sourceType = propertyRef(props.modelValue.bag?.sourceType ?? null, "SourceType");
 
+    const financialGateway = propertyRef(props.modelValue.bag?.financialGateway ?? null, "FinancialGateway");
+
     const refundReason = propertyRef(props.modelValue.bag?.refundDetails?.refundReason ?? null, "RefundReason");
 
     const currencyType = propertyRef(props.modelValue.bag?.paymentDetail?.currencyType ?? null, "CurrencyType");
 
     const creditCardType = propertyRef(props.modelValue.bag?.paymentDetail?.creditCardType ?? null, "CreditCardType");
 
+
     const isRefund = propertyRef(props.modelValue.bag?.isRefund ?? false, "IsRefund");
 
     const refundSummary = propertyRef(props.modelValue.bag?.refundDetails?.refundReasonSummary ?? "", "RefundReasonSummary");
 
+    const transactionCode = propertyRef(props.modelValue.bag?.transactionCode ?? "", "TransactionCode");
 
     if (!props.modelValue.bag?.idKey) {
         // If this is a new request, set the request date to today by default
@@ -342,7 +372,7 @@
     // The properties that are being edited. This should only contain
     // objects returned by propertyRef().
     const propRefs = [personOrBusiness, isAnonymous, transactionDateTime, summary, images, transactionDetailsToDelete, transactionType,
-        foreignCurrencyCode, nonCashAssetType, sourceType, refundReason, isRefund, currencyType, creditCardType];
+        foreignCurrencyCode, nonCashAssetType, sourceType, refundReason, isRefund, currencyType, creditCardType, financialGateway, transactionCode];
 
     // #endregion
 
@@ -357,6 +387,29 @@
             } as ListItemBag));
     });
 
+    const totalRowGuid = "00000000-0000-0000-0000-000000000001";
+
+    const transactionDetailsGridData = computed<GridDataBag>(() => {
+        const rows = [...transactionDetails.value];
+
+        const feeTotal = rows.reduce((sum, row) => sum + (row.feeAmount ?? 0), 0);
+        const amountTotal = rows.reduce((sum, row) => sum + (row.amount ?? 0), 0);
+
+        return {
+            rows: [
+                ...rows,
+                {
+                    guid: totalRowGuid,
+                    isTotalRow: true,
+                    account: { text: "Total", value: "" },
+                    summary: "",
+                    feeAmount: feeTotal,
+                    amount: amountTotal
+                }
+            ]
+        };
+    });
+
     const showCreditCard = computed(() =>
         currencyType?.value?.value === DefinedValue.CurrencyTypeCreditCard.toLocaleLowerCase()
     );
@@ -367,9 +420,15 @@
 
     const showWell = computed(() => showCreditCard.value || showNonCash.value);
 
+    const hasAttributes = computed(() => Object.keys(attributes.value).length > 0);
+
     // #endregion
 
     // #region Functions
+
+    function isTotalRow(row: Record<string, unknown>): boolean {
+        return row.guid === totalRowGuid;
+    }
 
     /**
      * Handler for when the request date/time is changed.
@@ -453,7 +512,6 @@
 
             // Remove from UI list
             transactionDetails.value.splice(index, 1);
-            transactionDetailsGridData.value = { rows: [...transactionDetails.value] };
 
             if (item.id) {
                 transactionDetailsToDelete.value = [
@@ -478,7 +536,6 @@
             transactionDetails.value.push({ ...updatedDetail });
         }
 
-        transactionDetailsGridData.value = { rows: [...transactionDetails.value] };
         isEditTransactionDetailVisible.value = false;
     }
 
@@ -495,19 +552,17 @@
                 guid: ""
             });
 
-            if (transactionDetailAttributes) {
-                editTransactionDetail.value.attributes = transactionDetailAttributes.data?.attributes ?? {};
-            }
-
-            editTransactionDetail.value.guid = newGuid();
+            editTransactionDetail.value = {
+                guid: newGuid(),
+                attributes: transactionDetailAttributes.data?.attributes ?? {},
+                attributeValues: {}
+            } as TransactionLineItemBag;
 
             isEditTransactionDetailVisible.value = true;
         }
         catch (error) {
             console.error("Error fetching transaction detail attributes:", error);
         }
-
-        isEditTransactionDetailVisible.value = true;
     }
 
     // #endregion
@@ -526,14 +581,16 @@
         updateRefValue(summary, props.modelValue.bag?.summary ?? "");
         updateRefValue(images, props.modelValue.bag?.images ?? []);
         updateRefValue(transactionDetails, props.modelValue.bag?.transactionDetails?.rows ?? []);
-        updateRefValue(transactionDetailsToDelete, props.modelValue.bag?.transactionDetailsToDelete ?? []);
+        updateRefValue(transactionDetailsToDelete, props.modelValue.bag?.transactionDetails?.rowsToDelete ?? []);
         updateRefValue(transactionType, props.modelValue.bag?.transactionType ?? null);
         updateRefValue(foreignCurrencyCode, props.modelValue.bag?.currencyCode ?? null);
         updateRefValue(nonCashAssetType, props.modelValue.bag?.nonCashAssetType ?? null);
         updateRefValue(sourceType, props.modelValue.bag?.sourceType ?? null);
+        updateRefValue(financialGateway, props.modelValue.bag?.financialGateway ?? null);
         updateRefValue(refundSummary, props.modelValue.bag?.refundDetails?.refundReasonSummary ?? "");
         updateRefValue(currencyType, props.modelValue.bag?.paymentDetail?.currencyType ?? null);
         updateRefValue(creditCardType, props.modelValue.bag?.paymentDetail?.creditCardType ?? null);
+        updateRefValue(transactionCode, props.modelValue.bag?.transactionCode ?? "");
 
         updateRefValue(refundReason, props.modelValue.bag?.refundDetails?.refundReason ?? null);
         updateRefValue(isRefund, props.modelValue.bag?.isRefund ?? false);
@@ -567,8 +624,9 @@
         setPropertiesBoxValue(newValue, "showAsAnonymous", isAnonymous.value);
         setPropertiesBoxValue(newValue, "transactionDateTime", transactionDateTime.value ?? new Date().toISOString());
         setPropertiesBoxValue(newValue, "summary", summary.value ?? "");
+        setPropertiesBoxValue(newValue, "transactionCode", transactionCode.value ?? "");
         setPropertiesBoxValue(newValue, "images", images.value ?? []);
-        setPropertiesBoxValue(newValue, "transactionDetails", { rows: transactionDetails.value });
+        setPropertiesBoxValue(newValue, "transactionDetails", { rows: transactionDetails.value, rowsToDelete: transactionDetailsToDelete.value });
 
         setPropertiesBoxValue(newValue, "transactionType", transactionType.value ?? null);
 
@@ -577,6 +635,7 @@
         setPropertiesBoxValue(newValue, "nonCashAssetType", nonCashAssetType.value ?? null);
 
         setPropertiesBoxValue(newValue, "sourceType", sourceType.value ?? null);
+        setPropertiesBoxValue(newValue, "financialGateway", financialGateway.value ?? null);
 
         setPropertiesBoxValue(newValue, "refundDetails", isRefund.value
             ? {
@@ -596,11 +655,10 @@
                     ...props.modelValue.bag?.paymentDetail,
                     currencyType: currencyType.value,
                     isCreditCard: props.modelValue.bag?.paymentDetail?.isCreditCard ?? false,
-                    creditCardType: creditCardType.value
+                    creditCardType: creditCardType.value,
                 }
                 : null
         );
-        setPropertiesBoxValue(newValue, "transactionDetailsToDelete", transactionDetailsToDelete.value ?? []);
         setPropertiesBoxValue(newValue, "isRefund", isRefund.value);
 
         setPropertiesBoxValue(newValue, "authorizedPerson", {
@@ -609,7 +667,6 @@
             guid: personOrBusiness.value?.value ?? ""
         });
 
-        console.log("currency type", currencyType.value);
         emit("update:modelValue", newValue);
     });
 
@@ -617,3 +674,9 @@
     // automatically emit which property changed.
     watchPropertyChanges(propRefs, emit);
 </script>
+
+<style scoped>
+strong {
+    font-weight: var(--font-weight-semibold);
+}
+</style>

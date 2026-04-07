@@ -78,7 +78,7 @@
 
                     <div v-if="modelValue?.financialGateway">
                         <label>Payment Gateway</label>
-                        <p>{{ modelValue?.financialGateway }}</p>
+                        <p>{{ modelValue?.financialGateway?.text }}</p>
                     </div>
 
                     <div v-if="options.showForeignCurrencyFields">

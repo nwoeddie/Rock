@@ -64,12 +64,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// Gets or sets the financial gateway.
         /// </summary>
-        public string FinancialGateway { get; set; }
-
-        /// <summary>
-        /// Gets or sets the financial gateway identifier.
-        /// </summary>
-        public int? FinancialGatewayId { get; set; }
+        public ListItemBag FinancialGateway { get; set; }
 
         /// <summary>
         /// Gets or sets the payment detail information.
@@ -145,11 +140,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// Gets or sets the transaction detail line items.
         /// </summary>
         public TransactionDetailsBag TransactionDetails { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public List<Guid> TransactionDetailsToDelete { get; set; }
 
         /// <summary>
         /// Gets or sets the transaction type.

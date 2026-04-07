@@ -21,6 +21,7 @@
 // </copyright>
 //
 
+import { Guid } from "@Obsidian/Types";
 import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
@@ -35,4 +36,6 @@ export type TransactionDetailsBag = {
     idKey?: string | null;
 
     rows?: TransactionLineItemBag[] | null;
+
+    rowsToDelete?: Guid[] | null;
 };

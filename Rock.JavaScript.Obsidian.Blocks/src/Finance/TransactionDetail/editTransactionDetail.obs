@@ -1,6 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <Modal :modelValue="true"
+    <Modal
+           v-model="isOpen"
            title="Distribute to Account"
            saveText="Save"
            @save="onSave"
@@ -72,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-    import { computed, PropType, ref, watch } from "vue";
+    import { computed, nextTick, PropType, ref, watch } from "vue";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
     import AccountPicker from "@Obsidian/Controls/accountPicker.obs";
     import CurrencyBox from "@Obsidian/Controls/currencyBox.obs";
@@ -113,7 +114,7 @@
             : emptyAccount
     );
 
-    console.log("TransactionDetails", props.modelValue);
+    const isOpen = ref(true);
 
     const amount = ref<number | null>(props.modelValue.amount ?? null);
     const foreignCurrencyAmount = ref<number | null>(props.modelValue.foreignCurrencyAmount ?? null);
@@ -138,7 +139,9 @@
     /**
      * Called when the individual manually closes the modal.
      */
-    function onClose(): void {
+    async function onClose(): Promise<void> {
+        isOpen.value = false;
+        await nextTick();
         emit("close");
     }
 
