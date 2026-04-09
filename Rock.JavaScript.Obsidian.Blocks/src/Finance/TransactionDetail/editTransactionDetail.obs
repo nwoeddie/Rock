@@ -24,7 +24,7 @@
             </div>
         </div>
 
-        <div class="row">
+        <div class="row" v-if="foreignCurrencyCodeGuid">
             <div class="col-md-6">
                 <CurrencyBox v-model="foreignCurrencyAmount"
                              label="Foreign Currency Amount"
@@ -83,7 +83,6 @@
     import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import ContentSection from "@Obsidian/Controls/contentSection.obs";
-    import DefinedValuePicker from "@Obsidian/Controls/definedValuePicker.obs";
 
     const props = defineProps({
         modelValue: {

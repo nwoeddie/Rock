@@ -71,11 +71,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public bool CanRefund { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
         public bool CanAddTransaction { get; set; }
 
         /// <summary>

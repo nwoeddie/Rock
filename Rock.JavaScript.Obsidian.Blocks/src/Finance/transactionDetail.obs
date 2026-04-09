@@ -36,7 +36,56 @@
         <template #edit>
             <EditPanel v-model="transactionEditBag" :options="options" @propertyChanged="baseBlock.onPropertyChanged" />
         </template>
+        <template #footerSecondaryActions v-if="transactionViewBag?.canRefund">
+            <RockButton
+                        btnType="default"
+                        @click="onRefundOpen">Refund</RockButton>
+        </template>
     </DetailBlock>
+    <Modal
+           v-model="isRefundOpen"
+           title="Refund"
+           saveText="Save"
+           @save="onRefundSave"
+           @closeModal="onRefundClose">
+
+        <div class="row">
+            <div class="col-md-6">
+                <CurrencyBox v-model="refundAmount"
+                             label="Amount"
+                             :maximumValue="maximumRefundAmount"
+                             rules="required" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <DefinedValuePicker v-model="refundReason"
+                                    label="Refund Reason"
+                                    :definedTypeGuid="options.refundReasonTypesGuid ?? ''"
+                                    :showBlankItem="false"
+                                    help="Choose why this transaction was refunded."
+                                    rules="required" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <TextBox v-model="refundReasonSummary"
+                         label="Refund Details"
+                         textMode="multiline"
+                         help="Add any details that explain the refund." />
+            </div>
+        </div>
+
+        <div class="row" v-if="canProcess">
+            <div class="col-md-6">
+                <CheckBox v-model="processThroughGateway"
+                          label="Process Refund Through Financial Gateway." />
+            </div>
+        </div>
+    </Modal>
+
 </template>
 
 <script setup lang="ts">
@@ -44,7 +93,6 @@
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import DetailBlock from "@Obsidian/Templates/detailBlock";
     import { DetailPanelMode } from "@Obsidian/Enums/Controls/detailPanelMode";
-    import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
     import EditPanel from "./TransactionDetail/editPanel.partial.obs";
     import ViewPanel from "./TransactionDetail/viewPanel.partial.obs";
     import { onConfigurationValuesChanged, useConfigurationValues, useEntityDetailBlock, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
@@ -53,6 +101,14 @@
     import { TransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionBag";
     import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import CurrencyBox from "@Obsidian/Controls/currencyBox.obs";
+    import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
+    import DefinedValuePicker from "@Obsidian/Controls/definedValuePicker.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import CheckBox from "@Obsidian/Controls/checkBox.obs";
 
     const config = useConfigurationValues<DetailBlockBox<TransactionBag, TransactionDetailOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
@@ -67,11 +123,22 @@
     const blockError = ref("");
     const errorMessage = ref("");
 
+    const isRefundOpen = ref(false);
+    const canProcess = ref(false);
+
+    const maximumRefundAmount = ref(0);
+
+    const refundAmount = ref(0);
+    const refundReason = ref<ListItemBag | null>(null);
+    const refundReasonSummary = ref("");
+    const processThroughGateway = ref(false);
+
     const transactionViewBag = ref(config.entity);
-    console.log("ENTITY", config.entity);
     const transactionEditBag = ref<ValidPropertiesBox<TransactionBag>>({
         bag: {} as TransactionBag
     });
+
+    console.log(transactionViewBag.value);
 
     const panelMode = ref<DetailPanelMode>(DetailPanelMode.View);
 
@@ -107,7 +174,6 @@
             batchEditAllowed: false,
             canAddTransaction: false,
             canEdit: false,
-            canRefund: false,
             isReadOnly: !isEditable.value,
             showForeignCurrencyFields: false,
             useSimpleAccountMode: false
@@ -205,7 +271,6 @@
     async function onSave(): Promise<boolean | string> {
         errorMessage.value = "";
 
-        console.log(transactionEditBag.value.bag);
         const result = await invokeBlockAction<ValidPropertiesBox<TransactionBag> | string>("Save", {
             box: transactionEditBag.value
         });
@@ -224,6 +289,50 @@
         errorMessage.value = result.errorMessage ?? "Unknown error while trying to save ttransaction.";
 
         return false;
+    }
+
+    async function onRefundSave(): Promise<void> {
+        errorMessage.value = "";
+
+        const result = await invokeBlockAction<TransactionBag>("Refund", {
+            key: transactionViewBag.value?.idKey,
+            bag: {
+                amount: refundAmount.value,
+                process: processThroughGateway.value,
+                refundReason: refundReason.value,
+                refundReasonSummary: refundReasonSummary.value
+            }
+        });
+
+        if (result.isSuccess) {
+            isRefundOpen.value = false;
+
+            // Refresh the block to show the new transaction line item.
+            transactionViewBag.value = result.data;
+        }
+        else {
+            errorMessage.value = result.errorMessage ?? "Unknown error while trying to refund.";
+        }
+    }
+
+    async function onRefundOpen(): Promise<void> {
+        canProcess.value = !isNullOrWhiteSpace(transactionViewBag.value?.transactionCode) && !isNullOrWhiteSpace(transactionViewBag.value?.transactionCode);
+
+        if (!canProcess.value) {
+            processThroughGateway.value = true;
+        }
+        const result = await invokeBlockAction<number>("GetMaxRefundAmount", {
+            key: transactionViewBag.value?.idKey
+        });
+        maximumRefundAmount.value = result.data ?? 0;
+
+        refundAmount.value = maximumRefundAmount.value;
+
+        isRefundOpen.value = true;
+    }
+
+    async function onRefundClose(): Promise<void> {
+        isRefundOpen.value = false;
     }
 
     // #endregion

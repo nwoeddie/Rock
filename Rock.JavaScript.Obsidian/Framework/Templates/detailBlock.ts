@@ -923,7 +923,7 @@ export default defineComponent({
 
     <template #headerActions>
         <div v-if="showExperienceMode" class="panel-experience-mode">
-        <ExperienceModePicker />
+            <ExperienceModePicker />
         </div>
 
         <slot name="headerActions" />
@@ -976,6 +976,7 @@ export default defineComponent({
     </template>
 
     <template #footerSecondaryActions>
+        <slot name="footerSecondaryActions" />
         <RockButton v-for="action in internalFooterSecondaryActions" :btnType="action.type" btnSize="sm" :title="action.title" @click="onActionClick(action, $event)" :disabled="action.disabled" :key="action.title+action.iconCssClass">
             <i :class="getActionIconCssClass(action)"></i>
         </RockButton>

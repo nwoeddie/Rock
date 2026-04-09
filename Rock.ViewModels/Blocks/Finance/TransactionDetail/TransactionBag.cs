@@ -190,5 +190,10 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public List<RelatedTransactionBag> RelatedTransactions { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool CanRefund { get; set; }
     }
 }

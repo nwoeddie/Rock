@@ -28,12 +28,14 @@ using dotless.Core.Parser.Functions;
 
 using Rock.Attribute;
 using Rock.Blocks.Types.Mobile.Finance;
+using Rock.CheckIn.v2;
 using Rock.Constants;
 using Rock.Data;
 using Rock.Model;
 using Rock.Security;
 using Rock.Utility;
 using Rock.ViewModels.Blocks;
+using Rock.ViewModels.Blocks.Engagement.SignUp.SignUpFinder;
 using Rock.ViewModels.Blocks.Event.EventItemDetail;
 using Rock.ViewModels.Blocks.Finance.BenevolenceRequestDetail;
 using Rock.ViewModels.Blocks.Finance.TransactionDetail;
@@ -53,27 +55,68 @@ namespace Rock.Blocks.Finance
     [Category( "Finance" )]
     [Description( "Displays the details of a particular financial transaction." )]
     [IconCssClass( "fa fa-question" )]
-    // [SupportedSiteTypes( Model.SiteType.Web )]
+     [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
-    [LinkedPage( "Scheduled Transaction Detail",
-        Description = "The page that will show the scheduled transaction details.",
-        Key = AttributeKey.ScheduledTransactionDetail )]
+
+    [LinkedPage(
+    "Batch Detail Page",
+    Description = "Page used to view batch.",
+    IsRequired = true,
+    Order = 0,
+    Key = AttributeKey.BatchDetailPage )]
+
+    [LinkedPage(
+    "Scheduled Transaction Detail Page",
+    Description = "Page used to view scheduled transaction detail.",
+    IsRequired = true,
+    Order = 1,
+    Key = AttributeKey.ScheduledTransactionDetailPage )]
+
+    [LinkedPage(
+    "Registration Detail Page",
+    Description = "Page used to view an event registration.",
+    IsRequired = true,
+    Order = 2,
+    Key = AttributeKey.RegistrationDetailPage )]
+
+    [TextField(
+    "Refund Batch Name Suffix",
+    Description = "The suffix to append to new batch name when refunding transactions. If left blank, the batch name will be the same as the original transaction's batch name.",
+    IsRequired = false,
+    DefaultValue = " - Refund",
+    Order = 3,
+    Key = AttributeKey.RefundBatchNameSuffix )]
+
+    [BooleanField(
+    "Carry Over Account",
+    Description = "Keep Last Used Account when adding multiple transactions in the same session.",
+    DefaultBooleanValue = true,
+    Order = 4,
+    Key = AttributeKey.CarryOverAccount )]
 
     [DefinedValueField(
-        "Location Types",
-        Description = "The location types to display for the authorized person. If none are selected, all addresses will be shown.",
-        Key = AttributeKey.LocationTypes,
-        DefinedTypeGuid = Rock.SystemGuid.DefinedType.GROUP_LOCATION_TYPE,
-        AllowMultiple = true,
-        IsRequired = false,
-        Order = 5 )]
+    Rock.SystemGuid.DefinedType.GROUP_LOCATION_TYPE,
+    "Location Types",
+    Description = "The type of location type to display for person (if none are selected all addresses will be included ).",
+    IsRequired = false,
+    AllowMultiple = true,
+    Order = 5,
+    Key = AttributeKey.LocationTypes )]
 
-    [BooleanField( "Enable Foreign Currency",
-        Description = "Shows the transaction's currency code field if enabled.",
-        DefaultBooleanValue = false,
-        Order = 6,
-        Key = AttributeKey.EnableForeignCurrency )]
+    [BooleanField(
+    "Transaction Source Required",
+    Description = "Determine if Transaction Source should be required.",
+    DefaultBooleanValue = false,
+    Order = 6,
+    Key = AttributeKey.TransactionSourceRequired )]
+
+    [BooleanField(
+    "Enable Foreign Currency",
+    Description = "Shows the transaction's currency code field if enabled.",
+    DefaultBooleanValue = false,
+    Order = 7,
+    Key = AttributeKey.EnableForeignCurrency )]
 
     #endregion
 
@@ -96,8 +139,13 @@ namespace Rock.Blocks.Finance
 
         private static class AttributeKey
         {
-            public const string ScheduledTransactionDetail = "ScheduledTransactionDetail";
+            public const string BatchDetailPage = "BatchDetailPage";
+            public const string ScheduledTransactionDetailPage = "ScheduledTransactionDetailPage";
+            public const string RegistrationDetailPage = "RegistrationDetailPage";
+            public const string RefundBatchNameSuffix = "RefundBatchNameSuffix";
+            public const string CarryOverAccount = "CarryOverAccount";
             public const string LocationTypes = "LocationTypes";
+            public const string TransactionSourceRequired = "TransactionSourceRequired";
             public const string EnableForeignCurrency = "EnableForeignCurrency";
         }
 
@@ -172,6 +220,17 @@ namespace Rock.Blocks.Finance
             {
                 errorMessage = "Payment detail is required.";
                 return false;
+            }
+
+            if ( financialTransaction.RefundDetails != null )
+            {
+                var totalAmount = financialTransaction.TransactionDetails?.Sum( d => d.Amount ) ?? 0m;
+
+                if ( totalAmount > 0 )
+                {
+                    errorMessage = "A refund should have a negative amount. Please unselect the refund option, or change amounts to be negative values.";
+                    return false;
+                }
             }
 
             return true;
@@ -298,7 +357,7 @@ namespace Rock.Blocks.Finance
                 TotalAmount = aggregates?.TotalAmount ?? 0m,
                 TotalFeeAmount = aggregates?.TotalFeeAmount ?? 0m,
                 TotalFeeCoverageAmount = aggregates?.TotalFeeCoverageAmount ?? 0m,
-
+                TransactionDateTime = transaction.TransactionDateTime,
                 Batch = transaction.Batch == null
                     ? null
                     : new ListItemBag
@@ -349,6 +408,13 @@ namespace Rock.Blocks.Finance
 
             bag.ForeignCurrencyDisplay = bag.CurrencyCode != null ? GetForeignCurrencyDisplay( bag.CurrencyCode.Value, out foreignCurrencySymbol ) : null;
             bag.ForeignCurrencySymbol = foreignCurrencySymbol;
+
+            bag.CanRefund =
+                entity != null
+                && entity.Id > 0
+                && entity.RefundDetails == null
+                && IsOrganizationCurrency( entity.ForeignCurrencyCodeValueId )
+                && entity.IsAuthorized( Authorization.REFUND, RequestContext.CurrentPerson );
 
             entity.LoadAttributes( RockContext );
             bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: false );
@@ -461,21 +527,20 @@ namespace Rock.Blocks.Finance
                 return null;
             }
 
-            var refundReason = refundDetails.RefundReasonValueId.HasValue
+            var refundReasonDefinedValue = refundDetails.RefundReasonValueId.HasValue
                 ? DefinedValueCache.Get( refundDetails.RefundReasonValueId.Value )
                 : null;
-
-
-            var refundReasonDefinedValue = DefinedValueCache.Get( refundDetails.RefundReasonValueId.Value );
 
             return new RefundDetailBag
             {
                 OriginalTransactionId = refundDetails.OriginalTransactionId,
-                RefundReason = new ListItemBag
-                {
-                    Value = refundReasonDefinedValue.Guid.ToString(),
-                    Text = refundReasonDefinedValue.Value
-                },
+                RefundReason = refundReasonDefinedValue == null
+                    ? null
+                    : new ListItemBag
+                    {
+                        Value = refundReasonDefinedValue.Guid.ToString(),
+                        Text = refundReasonDefinedValue.Value
+                    },
                 RefundReasonSummary = refundDetails.RefundReasonSummary
             };
         }
@@ -511,7 +576,7 @@ namespace Rock.Blocks.Finance
                 DisplayText = scheduledTransaction.GatewayScheduleId.IsNotNullOrWhiteSpace()
                     ? scheduledTransaction.GatewayScheduleId
                     : scheduledTransaction.Id.ToString(),
-                Url = this.GetLinkedPageUrl( AttributeKey.ScheduledTransactionDetail, "ScheduledTransactionId", scheduledTransaction.Id.ToString() )
+                Url = this.GetLinkedPageUrl( AttributeKey.ScheduledTransactionDetailPage, "ScheduledTransactionId", scheduledTransaction.Id.ToString() )
             };
         }
 
@@ -892,18 +957,18 @@ namespace Rock.Blocks.Finance
                 () => entity.Summary = box.Bag.Summary );
 
             box.IfValidProperty( nameof( box.Bag.SourceType ),
-                () => entity.SourceTypeValueId = DefinedValueCache.GetId( box.Bag.SourceType.Value.AsGuid() ) );
+                () => entity.SourceTypeValueId = box.Bag.SourceType?.GetEntityId<DefinedValue>( RockContext ) );
 
             // New transactions can set gateway; existing ones should not change it.
             if ( entity.Id == 0 )
             {
                 box.IfValidProperty( nameof( box.Bag.FinancialGateway ),
-                () => entity.FinancialGatewayId = new FinancialGatewayService( RockContext ).GetId( box.Bag.FinancialGateway.Value.AsGuid() ) );
+                    () => entity.FinancialGatewayId = box.Bag.FinancialGateway?.GetEntityId<FinancialGateway>( RockContext ) );
             }
 
             // Defined values coming from ListItemBag selections.
             box.IfValidProperty( nameof( box.Bag.TransactionType ),
-                () => entity.TransactionTypeValueId = box.Bag.TransactionType.GetEntityId<DefinedValue>( RockContext ) ?? 0 );
+                () => entity.TransactionTypeValueId = box.Bag.TransactionType?.GetEntityId<DefinedValue>( RockContext ) ?? 0 );
 
 
             box.IfValidProperty( nameof( box.Bag.NonCashAssetType ),
@@ -958,6 +1023,12 @@ namespace Rock.Blocks.Finance
                 {
                     SaveTransactionDetails( entity, box.Bag.TransactionDetails );
                 } );
+
+            if ( box.IsValidProperty( nameof( box.Bag.IsRefund ) )
+                || box.IsValidProperty( nameof( box.Bag.RefundDetails ) ) )
+            {
+                ApplyRefundState( entity, box.Bag );
+            }
 
             SaveTransactionImages( box.Bag, entity );
 
@@ -1100,6 +1171,61 @@ namespace Rock.Blocks.Finance
             }
         }
 
+        private void ApplyRefundState( FinancialTransaction entity, TransactionBag bag )
+        {
+            var isRefund = bag.IsRefund;
+
+            if ( isRefund )
+            {
+                if ( entity.RefundDetails == null )
+                {
+                    entity.RefundDetails = new FinancialTransactionRefund();
+                }
+
+                entity.RefundDetails.RefundReasonValueId =
+                    bag.RefundDetails?.RefundReason?.GetEntityId<DefinedValue>( RockContext );
+
+                entity.RefundDetails.RefundReasonSummary =
+                    bag.RefundDetails?.RefundReasonSummary;
+            }
+            else if ( entity.RefundDetails != null )
+            {
+                new FinancialTransactionRefundService( RockContext ).Delete( entity.RefundDetails );
+                entity.RefundDetails = null;
+            }
+        }
+
+        private bool IsOrganizationCurrency( int? foreignCurrencyValueId )
+        {
+            // If no foreign currency is set, it's organization currency.
+            if ( !foreignCurrencyValueId.HasValue )
+            {
+                return true;
+            }
+
+            // Get the organization's configured currency code (global attribute).
+            var organizationCurrencyGuid = GlobalAttributesCache.Get()
+                .GetValue( Rock.SystemKey.SystemSetting.ORGANIZATION_CURRENCY_CODE )
+                .AsGuidOrNull();
+
+            // If not configured, default to allowing.
+            if ( !organizationCurrencyGuid.HasValue )
+            {
+                return true;
+            }
+
+            // Resolve the defined value for the organization currency.
+            var organizationCurrencyDefinedValue = DefinedValueCache.Get( organizationCurrencyGuid.Value );
+
+            if ( organizationCurrencyDefinedValue == null )
+            {
+                return true;
+            }
+
+            // Compare IDs
+            return organizationCurrencyDefinedValue.Id == foreignCurrencyValueId.Value;
+        }
+
         #endregion
 
         #region Block Actions
@@ -1179,7 +1305,7 @@ namespace Rock.Blocks.Finance
             entity = entityService.Get( entity.Id );
             entity.LoadAttributes( RockContext );
 
-            var bag = GetEntityBagForEdit( entity );
+            var bag = GetEntityBagForView( entity );
 
             return ActionOk( new ValidPropertiesBox<TransactionBag>
             {
@@ -1240,6 +1366,134 @@ namespace Rock.Blocks.Finance
             bag.LoadAttributesAndValuesForPublicEdit( detailEntity, RequestContext.CurrentPerson, enforceSecurity: false );
 
             return ActionOk( bag );
+        }
+
+        [BlockAction]
+        public BlockActionResult GetMaxRefundAmount( string key )
+        {
+            var transactionService = new FinancialTransactionService( RockContext );
+            var transactionQry = transactionService.GetQueryableByKey( key );
+
+            var transaction = transactionQry.Include( t => t.RefundDetails ).FirstOrDefault();
+
+            var totalAmount = transaction.TotalAmount;
+
+            var hasTransactionCode = !string.IsNullOrWhiteSpace( transaction.TransactionCode );
+
+            var otherAmounts = new FinancialTransactionDetailService( RockContext )
+                .Queryable()
+                .AsNoTracking()
+                .Where( d =>
+                    d.Transaction != null &&
+                    (
+                        (
+                            transaction.FinancialGatewayId.HasValue &&
+                            hasTransactionCode &&
+                            d.Transaction.FinancialGatewayId.HasValue &&
+                            d.Transaction.FinancialGatewayId.Value == transaction.FinancialGatewayId.Value &&
+                            d.Transaction.TransactionCode == transaction.TransactionCode &&
+                            d.TransactionId != transaction.Id
+                        )
+                        ||
+                        (
+                            d.Transaction.RefundDetails != null &&
+                            d.Transaction.RefundDetails.OriginalTransactionId == transaction.Id
+                        )
+                    ) )
+                .Select( d => d.Amount )
+                .ToList()
+                .Sum();
+
+            totalAmount += otherAmounts;
+
+            return ActionOk( totalAmount );
+        }
+
+        [BlockAction]
+        public BlockActionResult Refund( string key, RefundRequestBag bag )
+        {
+            if ( bag == null )
+            {
+                return ActionBadRequest( "Refund information is required." );
+            }
+
+            if ( bag.Amount <= 0 )
+            {
+                return ActionBadRequest( "Refund amount must be greater than zero." );
+            }
+
+            var transactionService = new FinancialTransactionService( RockContext );
+
+            var transactionQry = transactionService.GetQueryableByKey(key);
+
+            var transaction = transactionQry
+                .Include( t => t.Batch )
+                .Include( t => t.FinancialGateway )
+                .Include( t => t.FinancialPaymentDetail )
+                .Include( t => t.RefundDetails )
+                .Include( t => t.ProcessedByPersonAlias.Person )
+                .Include( t => t.AuthorizedPersonAlias.Person )
+                .FirstOrDefault();
+
+            if ( transaction == null )
+            {
+                return ActionBadRequest( $"{FinancialTransaction.FriendlyTypeName} not found." );
+            }
+
+            if ( !transaction.IsAuthorized( Authorization.REFUND, RequestContext.CurrentPerson ) )
+            {
+                return ActionForbidden();
+            }
+
+            if ( transaction.RefundDetails != null )
+            {
+                return ActionBadRequest( "This transaction cannot be refunded." );
+            }
+
+            if ( !IsOrganizationCurrency( transaction.ForeignCurrencyCodeValueId ) )
+            {
+                return ActionBadRequest( "Refunds are not supported for transactions in foreign currencies." );
+            }
+
+            if ( transaction.Batch != null && ( transaction.Batch.Status == BatchStatus.Closed || transaction.Batch.IsAutomated ) )
+            {
+                return ActionBadRequest( "Refunds are not allowed for transactions in a closed or automated batch." );
+            }
+
+            var canProcess = !string.IsNullOrWhiteSpace( transaction.TransactionCode ) && transaction.FinancialGateway != null;
+            var process = canProcess && bag.Process;
+
+            var refundReasonValueId = bag.RefundReason?.GetEntityId<DefinedValue>( RockContext );
+
+            string errorMessage;
+            var refundTransaction = transactionService.ProcessRefund(
+                transaction,
+                bag.Amount,
+                refundReasonValueId,
+                bag.RefundReasonSummary,
+                process,
+                GetAttributeValue( AttributeKey.RefundBatchNameSuffix ),
+                out errorMessage );
+
+            if ( refundTransaction == null )
+            {
+                return ActionBadRequest( errorMessage ?? "Unable to process refund." );
+            }
+
+            RockContext.SaveChanges();
+
+            var updatedEntity = new FinancialTransactionService( RockContext )
+                .Queryable()
+                .Include( t => t.Batch )
+                .Include( t => t.FinancialPaymentDetail )
+                .Include( t => t.RefundDetails )
+                .Include( t => t.ProcessedByPersonAlias.Person )
+                .Include( t => t.AuthorizedPersonAlias.Person )
+                .Include( t => t.FinancialGateway )
+                .FirstOrDefault( t => t.Id == transaction.Id );
+
+
+            return ActionOk( GetEntityBagForView( updatedEntity ) );
         }
         #endregion
     }

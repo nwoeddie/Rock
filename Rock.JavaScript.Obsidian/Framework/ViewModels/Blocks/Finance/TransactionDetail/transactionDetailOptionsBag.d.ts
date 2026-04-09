@@ -31,8 +31,6 @@ export type TransactionDetailOptionsBag = {
 
     canEdit: boolean;
 
-    canRefund: boolean;
-
     creditCardTypesGuid?: string | null;
 
     currencyCodesGuid?: string | null;

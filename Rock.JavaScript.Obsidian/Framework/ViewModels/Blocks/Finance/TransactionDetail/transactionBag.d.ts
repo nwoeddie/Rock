@@ -52,6 +52,8 @@ export type TransactionBag = {
     /** Gets or sets the batch identifier. */
     batchId?: number | null;
 
+    canRefund: boolean;
+
     currencyCode?: ListItemBag | null;
 
     /** Gets or sets the financial gateway. */
