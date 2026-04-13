@@ -213,7 +213,9 @@
             canEdit: false,
             isReadOnly: !isEditable.value,
             showForeignCurrencyFields: false,
-            useSimpleAccountMode: false
+            useSimpleAccountMode: false,
+            transactionSourceRequired: false,
+            carryOverAccount: false
         };
     });
 

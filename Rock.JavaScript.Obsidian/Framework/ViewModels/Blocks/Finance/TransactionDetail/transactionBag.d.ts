@@ -25,6 +25,7 @@ import { AuthorizedPersonBag } from "@Obsidian/ViewModels/Blocks/Finance/Transac
 import { PaymentDetailBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/paymentDetailBag";
 import { RefundDetailBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/refundDetailBag";
 import { RefundTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/refundTransactionBag";
+import { RegistrationLinkBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/registrationLinkBag";
 import { RelatedTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/relatedTransactionBag";
 import { ScheduledTransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/scheduledTransactionBag";
 import { TransactionDetailsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailsBag";
@@ -89,6 +90,9 @@ export type TransactionBag = {
 
     /** Gets refund info if any part of transaction has been refunded */
     refunds?: RefundTransactionBag[] | null;
+
+    /** Gets or sets the registrations linked to this transaction's detail line items. */
+    registrations?: RegistrationLinkBag[] | null;
 
     relatedTransactions?: RelatedTransactionBag[] | null;
 

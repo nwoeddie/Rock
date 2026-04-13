@@ -45,7 +45,7 @@
             </div>
             <div class="image-container">
                 <div class="image-wrapper" v-for="(image, index) in modelValue?.images" :key="index">
-                    <img :src="image.imageUrl || ''" :alt="`Transaction Image ${index + 1}`" />
+                    <img :src="image.imageUrl || ''" :alt="`Transaction Image ${index + 1}`" @click.prevent="openImage(image.imageUrl || '')" class="cursor-pointer" />
                 </div>
             </div>
         </ContentSection>
@@ -119,6 +119,12 @@
                         <p>{{ modelValue?.status }}</p>
                         <p><small>{{ modelValue?.statusMessage }}</small></p>
                     </div>
+
+                    <div class="multi-line" v-if="(modelValue?.registrations && modelValue.registrations.length > 0)">
+                        <label>Registrations</label>
+                        <div v-for="(registration, index) in modelValue.registrations" :key="index"><a :href="registration.url ?? ''" target="_blank">{{ registration.text }}</a></div>
+                    </div>
+
                     <div class="multi-line" v-if="(modelValue?.updates && modelValue.updates.length > 0)">
                         <label>Updates</label>
                         <div v-for="(update, index) in modelValue.updates" :key="index" v-html="update"></div>
@@ -209,14 +215,19 @@
             </div>
         </ContentSection>
     </fieldset>
+    <transition name="img-zoom">
+        <div
+             v-if="zoomedImage"
+             class="image-zoom-overlay"
+             @click="closeImage">
+            <img :src="zoomedImage" />
+        </div>
+    </transition>
 </template>
 
 <script setup lang="ts">
     import { computed, PropType, ref } from "vue";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
-    import ValueDetailList from "@Obsidian/Controls/valueDetailList.obs";
-    import { ValueDetailListItemBuilder } from "@Obsidian/Core/Controls/valueDetailListItemBuilder";
-    import { ValueDetailListItem } from "@Obsidian/Types/Controls/valueDetailListItem";
     import { TransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionBag";
     import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
     import ContentSection from "@Obsidian/Controls/contentSection.obs";
@@ -224,8 +235,7 @@
     import DisplayCard from "@Obsidian/Controls/displayCard.obs";
     import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
     import { DateTimeFormat, RockDateTime } from "@Obsidian/Utility/rockDateTime";
-    import Grid, { Column, DateTimeColumn } from "@Obsidian/Controls/grid";
-    import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
+    import Grid, { Column } from "@Obsidian/Controls/grid";
     import { toCurrencyOrNull } from "@Obsidian/Utility/numberUtils";
 
     const props = defineProps({
@@ -291,17 +301,6 @@
 
     // #region Computed Values
 
-    /** The values to display full-width at the top of the block. */
-    const topValues = computed((): ValueDetailListItem[] => {
-        const valueBuilder = new ValueDetailListItemBuilder();
-
-        if (!props.modelValue) {
-            return valueBuilder.build();
-        }
-
-        return valueBuilder.build();
-    });
-
     // #endregion
 
     // #region Functions
@@ -314,6 +313,17 @@
     // #endregion
 
     // #region Event Handlers
+
+    const zoomedImage = ref<string | null>(null);
+
+    // Handle zooming of images on click
+    function openImage(image: string): void {
+        zoomedImage.value = image;
+    }
+
+    function closeImage(): void {
+        zoomedImage.value = null;
+    }
 
     // #endregion
 </script>

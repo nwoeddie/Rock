@@ -137,6 +137,7 @@
                                                 label="Transaction Source"
                                                 :definedTypeGuid="options.transactionSourceTypesGuid ?? ''"
                                                 :showBlankValues="true"
+                                                :rules="options.transactionSourceRequired ? 'required' : ''"
                                                 help="Choose how this transaction was received, such as online, check, or in person." />
                         </div>
                     </div>

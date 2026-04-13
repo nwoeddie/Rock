@@ -195,5 +195,10 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public bool CanRefund { get; set; }
+
+        /// <summary>
+        /// Gets or sets the registrations linked to this transaction's detail line items.
+        /// </summary>
+        public List<RegistrationLinkBag> Registrations { get; set; }
     }
 }

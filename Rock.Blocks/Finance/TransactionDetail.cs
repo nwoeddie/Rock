@@ -20,30 +20,19 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Entity;
 using System.Linq;
-using System.Transactions;
 
-using AngleSharp.Dom;
-
-using dotless.Core.Parser.Functions;
 
 using Rock.Attribute;
-using Rock.Blocks.Types.Mobile.Finance;
-using Rock.CheckIn.v2;
 using Rock.Constants;
 using Rock.Data;
 using Rock.Model;
 using Rock.Security;
 using Rock.Utility;
 using Rock.ViewModels.Blocks;
-using Rock.ViewModels.Blocks.Engagement.SignUp.SignUpFinder;
-using Rock.ViewModels.Blocks.Event.EventItemDetail;
-using Rock.ViewModels.Blocks.Finance.BenevolenceRequestDetail;
 using Rock.ViewModels.Blocks.Finance.TransactionDetail;
 using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
 
-using static System.Data.Entity.Infrastructure.Design.Executor;
-using static Humanizer.In;
 
 namespace Rock.Blocks.Finance
 {
@@ -162,7 +151,6 @@ namespace Rock.Blocks.Finance
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions( box.IsEditable );
             SetBoxInitialEntityState( box );
-            box.Options.ShowForeignCurrencyFields = GetAttributeValue( AttributeKey.EnableForeignCurrency ).AsBoolean();
             return box;
         }
 
@@ -189,6 +177,12 @@ namespace Rock.Blocks.Finance
             options.CreditCardTypesGuid = SystemGuid.DefinedType.FINANCIAL_CREDIT_CARD_TYPE;
 
             options.AssetTypes = SystemGuid.DefinedType.FINANCIAL_NONCASH_ASSET_TYPE;
+
+            options.ShowForeignCurrencyFields = GetAttributeValue( AttributeKey.EnableForeignCurrency ).AsBoolean();
+
+            options.TransactionSourceRequired = GetAttributeValue( AttributeKey.TransactionSourceRequired ).AsBoolean();
+
+            options.CarryOverAccount = GetAttributeValue( AttributeKey.CarryOverAccount ).AsBoolean();
 
             return options;
         }
@@ -407,6 +401,8 @@ namespace Rock.Blocks.Finance
             bag.RelatedTransactions = GetRelatedTransactions( entity );
             bag.Refunds = GetRefundOverview( entity.Id );
 
+            bag.Registrations = GetRegistrations( entity );
+
             bag.IsRefund = entity.RefundDetails != null;
 
             var foreignCurrencySymbol = string.Empty;
@@ -470,6 +466,7 @@ namespace Rock.Blocks.Finance
                 .Include( t => t.AuthorizedPersonAlias.Person )
                 .Include(t => t.FinancialGateway)
                 .Include( t => t.ScheduledTransaction )
+                .Include( t=> t.TransactionDetails )
                 .Where( t => t.Id == id )
                 .FirstOrDefault();
         }
@@ -840,6 +837,51 @@ namespace Rock.Blocks.Finance
             }
 
             return updates;
+        }
+
+        private List<RegistrationLinkBag> GetRegistrations( FinancialTransaction transaction )
+        {
+            var registrationEntityTypeId = EntityTypeCache.Get( typeof( Rock.Model.Registration ) )?.Id;
+
+            if ( registrationEntityTypeId == null )
+            {
+                return new List<RegistrationLinkBag>();
+            }
+
+            var registrationIds = transaction.TransactionDetails
+                .Where( d => d.EntityTypeId == registrationEntityTypeId )
+                .Select( d => d.EntityId )
+                .Where( id => id.HasValue )
+                .Select( id => id.Value )
+                .Distinct()
+                .ToList();
+
+            if ( !registrationIds.Any() )
+            {
+                return new List<RegistrationLinkBag>();
+            }
+
+            return new RegistrationService( RockContext )
+                .Queryable()
+                .AsNoTracking()
+                .Where( r =>
+                    r.RegistrationInstance != null &&
+                    r.RegistrationInstance.RegistrationTemplate != null &&
+                    registrationIds.Contains( r.Id ) )
+                .Select( r => new
+                {
+                    r.Id,
+                    TemplateName = r.RegistrationInstance.RegistrationTemplate.Name,
+                    InstanceName = r.RegistrationInstance.Name
+                } )
+                .ToList()
+                .Select( r => new RegistrationLinkBag
+                {
+                    Id = r.Id,
+                    Text = $"{r.TemplateName} - {r.InstanceName}",
+                    Url = this.GetLinkedPageUrl( AttributeKey.RegistrationDetailPage, "RegistrationId", r.Id.ToString() )
+                } )
+                .ToList();
         }
 
         /// <summary>
@@ -1508,6 +1550,7 @@ namespace Rock.Blocks.Finance
                 .Include( t => t.ProcessedByPersonAlias.Person )
                 .Include( t => t.AuthorizedPersonAlias.Person )
                 .Include( t => t.FinancialGateway )
+                .Include( t => t.TransactionDetails )
                 .FirstOrDefault( t => t.Id == transaction.Id );
 
 

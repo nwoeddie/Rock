@@ -92,5 +92,15 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public bool ShowForeignCurrencyFields { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool TransactionSourceRequired { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool CarryOverAccount { get; set; }
     }
 }

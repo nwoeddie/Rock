@@ -31,6 +31,8 @@ export type TransactionDetailOptionsBag = {
 
     canEdit: boolean;
 
+    carryOverAccount: boolean;
+
     creditCardTypesGuid?: string | null;
 
     currencyCodesGuid?: string | null;
@@ -42,6 +44,8 @@ export type TransactionDetailOptionsBag = {
     refundReasonTypesGuid?: string | null;
 
     showForeignCurrencyFields: boolean;
+
+    transactionSourceRequired: boolean;
 
     transactionSourceTypesGuid?: string | null;
 
