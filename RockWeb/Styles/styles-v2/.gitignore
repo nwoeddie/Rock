@@ -1,1 +1,5 @@
-*.map
+# Ignore everything in this folder
+*
+
+# But keep this .gitignore file
+!.gitignore
