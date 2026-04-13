@@ -36,10 +36,41 @@
         <template #edit>
             <EditPanel v-model="transactionEditBag" :options="options" @propertyChanged="baseBlock.onPropertyChanged" />
         </template>
+
+        <template #footerActions>
+            <div class="d-flex gap-2 mt-3">
+                <RockButton
+                            btnType="primary">
+                    Save Then Add
+                </RockButton>
+            </div>
+        </template>
         <template #footerSecondaryActions v-if="transactionViewBag?.canRefund">
-            <RockButton
-                        btnType="default"
-                        @click="onRefundOpen">Refund</RockButton>
+            <div class="d-flex gap-2">
+                <RockButton
+                            btnType="default"
+                            @click="onRefundOpen">Refund</RockButton>
+
+                <div v-if="transactionViewBag.batchId" class="d-flex gap-2">
+                    <a v-if="previousTransactionUrl"
+                       :href="previousTransactionUrl"
+                       class="btn btn-default btn-sm">
+                        <i class="fa fa-chevron-left"></i> Back
+                    </a>
+                    <span v-else class="btn btn-default btn-sm disabled">
+                        <i class="fa fa-chevron-left"></i> Back
+                    </span>
+
+                    <a v-if="nextTransactionUrl"
+                       :href="nextTransactionUrl"
+                       class="btn btn-default btn-sm">
+                        Next <i class="fa fa-chevron-right"></i>
+                    </a>
+                    <span v-else class="btn btn-default btn-sm disabled">
+                        Next <i class="fa fa-chevron-right"></i>
+                    </span>
+                </div>
+            </div>
         </template>
     </DetailBlock>
     <Modal
@@ -89,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-    import { computed, ref } from "vue";
+    import { computed, onMounted, ref } from "vue";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import DetailBlock from "@Obsidian/Templates/detailBlock";
     import { DetailPanelMode } from "@Obsidian/Enums/Controls/detailPanelMode";
@@ -99,6 +130,7 @@
     import { NavigationUrlKey } from "./TransactionDetail/types.partial";
     import { DetailBlockBox } from "@Obsidian/ViewModels/Blocks/detailBlockBox";
     import { TransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionBag";
+    import { BatchNavigationBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/batchNavigationBag";
     import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
@@ -110,8 +142,13 @@
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
 
+
     const config = useConfigurationValues<DetailBlockBox<TransactionBag, TransactionDetailOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
+
+    const previousTransactionUrl = ref<string | null>(null);
+    const nextTransactionUrl = ref<string | null>(null);
+
 
     // All blocks auto reload when changing block settings unless there is an
     // explicit reason not to (like using a custom reload function instead),
@@ -189,6 +226,27 @@
     // #endregion
 
     // #region Event Handlers
+
+    onMounted(async () => {
+        const result = await invokeBlockAction<BatchNavigationBag>("GetBatchNavigation", {
+            key: transactionViewBag.value?.id
+        });
+
+        if (result.isSuccess && result.data) {
+            const base = window.location.pathname.replace(/\/\d+$/, "");
+            const batchId = transactionViewBag.value?.batchId;
+
+            if (result.data.previousTransactionId) {
+                previousTransactionUrl.value =
+                    `${base}/${result.data.previousTransactionId}`;
+            }
+
+            if (result.data.nextTransactionId) {
+                nextTransactionUrl.value =
+                    `${base}/${result.data.nextTransactionId}`;
+            }
+        }
+    });
 
     /**
      * Event handler for the Cancel button being clicked while in Edit mode.

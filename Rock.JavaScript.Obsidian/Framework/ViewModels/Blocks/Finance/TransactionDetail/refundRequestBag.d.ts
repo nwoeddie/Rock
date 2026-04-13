@@ -26,6 +26,8 @@ import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 export type RefundRequestBag = {
     amount: number;
 
+    maximumAmount: number;
+
     process: boolean;
 
     refundReason?: ListItemBag | null;

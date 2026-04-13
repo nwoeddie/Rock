@@ -304,7 +304,9 @@
 
     const emit = defineEmits<{
         (e: "update:modelValue", value: ValidPropertiesBox<TransactionBag>): void,
-        (e: "propertyChanged", value: string): void
+        (e: "propertyChanged", value: string): void,
+        (e: "saveThenAdd"): void, // TODO
+        (e: "saveThenViewBatch"): void // TODO
     }>();
 
     const isLoading = ref(false);
@@ -380,7 +382,20 @@
     // #region Computed Values
 
     const isAddingTransaction = computed(() => !props.modelValue.bag?.id);
-    const showForeignCurrencyFields = computed(() => props.options.showForeignCurrencyFields ?? false);
+
+    const showForeignCurrencyFields = computed(() => {
+        if (!props.options.showForeignCurrencyFields) {
+            return false;
+        }
+
+        // New transaction — always show the field so user can set it
+        if (!props.modelValue.bag?.id) {
+            return true;
+        }
+
+        // Existing transaction — only show if it already has a foreign currency set
+        return props.modelValue.bag?.currencyCode != null;
+    });
 
     const imageListItems = computed(() => {
         return images.value

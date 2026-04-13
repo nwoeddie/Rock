@@ -81,7 +81,7 @@
                         <p>{{ modelValue?.financialGateway?.text }}</p>
                     </div>
 
-                    <div v-if="options.showForeignCurrencyFields">
+                    <div v-if="options.showForeignCurrencyFields && modelValue?.foreignCurrencyDisplay">
                         <label>Foreign Currency</label>
                         <p>{{ modelValue?.foreignCurrencyDisplay }}</p>
                     </div>
@@ -89,6 +89,17 @@
                     <div v-if="modelValue?.transactionCode">
                         <label>Transaction Reference</label>
                         <p>{{ modelValue?.transactionCode }}</p>
+                    </div>
+
+                    <div v-if="modelValue?.scheduledTransaction">
+                        <label>Scheduled Transaction Id</label>
+                        <p>
+                            <a v-if="modelValue.scheduledTransaction.url"
+                               :href="modelValue.scheduledTransaction.url">
+                                {{ modelValue.scheduledTransaction.displayText }}
+                            </a>
+                            <span v-else>{{ modelValue.scheduledTransaction.displayText }}</span>
+                        </p>
                     </div>
 
                     <div v-if="modelValue?.refundDetails">
@@ -296,7 +307,8 @@
     // #region Functions
 
     function getTransactionLink(transactionId: number): string {
-        return `/finance/transactions/${transactionId}`;
+        const basePath = window.location.pathname.replace(/\/\d+$/, "");
+        return `${basePath}/${transactionId}`;
     }
 
     // #endregion

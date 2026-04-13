@@ -325,12 +325,14 @@ namespace Rock.Blocks.Finance
                 ScheduledTransactionId = transaction.ScheduledTransactionId,
                 AuthorizedPersonAliasId = transaction.AuthorizedPersonAliasId,
                 ShowAsAnonymous = transaction.ShowAsAnonymous,
-                SourceType = sourceDefinedValue != null ? new ListItemBag {
+                SourceType = sourceDefinedValue != null ? new ListItemBag
+                {
                     Value = sourceDefinedValue.Guid.ToString(),
                     Text = sourceDefinedValue.Value
                 }
                 : null,
-                TransactionType = new ListItemBag {
+                TransactionType = new ListItemBag
+                {
                     Value = transactionDefinedValue.Guid.ToString(),
                     Text = transactionDefinedValue.Value
                 },
@@ -342,7 +344,7 @@ namespace Rock.Blocks.Finance
                     Text = financialGatewayDefinedValue.Name
                 }
                 : null,
-                NonCashAssetType = assetTypeDefinedValue!= null ? new ListItemBag
+                NonCashAssetType = assetTypeDefinedValue != null ? new ListItemBag
                 {
                     Text = assetTypeDefinedValue.Value,
                     Value = assetTypeDefinedValue.Guid.ToString()
@@ -375,7 +377,10 @@ namespace Rock.Blocks.Finance
 
                 PaymentDetail = GetPaymentDetailBag( transaction.FinancialPaymentDetail, creditCardGuid ),
                 RefundDetails = GetRefundDetailBag( transaction.RefundDetails ),
-                AuthorizedPerson = GetAuthorizedPersonBag( transaction.AuthorizedPersonAlias?.Person )
+                AuthorizedPerson = GetAuthorizedPersonBag( transaction.AuthorizedPersonAlias?.Person ),
+                ScheduledTransaction = transaction.ScheduledTransaction != null
+                    ? GetScheduledTransactionBag( transaction.ScheduledTransaction )
+                    : null,
             };
         }
 
@@ -464,6 +469,7 @@ namespace Rock.Blocks.Finance
                 .Include( t => t.ProcessedByPersonAlias.Person )
                 .Include( t => t.AuthorizedPersonAlias.Person )
                 .Include(t => t.FinancialGateway)
+                .Include( t => t.ScheduledTransaction )
                 .Where( t => t.Id == id )
                 .FirstOrDefault();
         }
@@ -818,7 +824,7 @@ namespace Rock.Blocks.Finance
                     LastName = transactionUpdatePeople.ProcessedByPersonLastName
                 };
 
-                updates.Add( $"Created by {person.GetAnchorTag( rootUrl )} on {transaction.ProcessedDateTime.Value.ToShortDateString()} at {transaction.ProcessedDateTime.Value.ToShortTimeString()}" );
+                updates.Add( $"Processed by {person.GetAnchorTag( rootUrl )} on {transaction.ProcessedDateTime.Value.ToShortDateString()} at {transaction.ProcessedDateTime.Value.ToShortTimeString()}" );
             }
 
             if ( transactionUpdatePeople.ModifiedByPersonId.HasValue && transaction.ModifiedDateTime.HasValue )
@@ -830,7 +836,7 @@ namespace Rock.Blocks.Finance
                     LastName = transactionUpdatePeople.ModifiedByPersonLastName
                 };
 
-                updates.Add( $"Created by {person.GetAnchorTag( rootUrl )} on {transaction.ModifiedDateTime.Value.ToShortDateString()} at {transaction.ModifiedDateTime.Value.ToShortTimeString()}" );
+                updates.Add( $"Modified by {person.GetAnchorTag( rootUrl )} on {transaction.ModifiedDateTime.Value.ToShortDateString()} at {transaction.ModifiedDateTime.Value.ToShortTimeString()}" );
             }
 
             return updates;
@@ -1226,6 +1232,37 @@ namespace Rock.Blocks.Finance
             return organizationCurrencyDefinedValue.Id == foreignCurrencyValueId.Value;
         }
 
+        private decimal GetMaxRefundAmountForTransaction( FinancialTransaction transaction )
+        {
+            var hasTransactionCode = !string.IsNullOrWhiteSpace( transaction.TransactionCode );
+
+            var otherAmounts = new FinancialTransactionDetailService( RockContext )
+                .Queryable()
+                .AsNoTracking()
+                .Where( d =>
+                    d.Transaction != null &&
+                    (
+                        (
+                            transaction.FinancialGatewayId.HasValue &&
+                            hasTransactionCode &&
+                            d.Transaction.FinancialGatewayId.HasValue &&
+                            d.Transaction.FinancialGatewayId.Value == transaction.FinancialGatewayId.Value &&
+                            d.Transaction.TransactionCode == transaction.TransactionCode &&
+                            d.TransactionId != transaction.Id
+                        )
+                        ||
+                        (
+                            d.Transaction.RefundDetails != null &&
+                            d.Transaction.RefundDetails.OriginalTransactionId == transaction.Id
+                        )
+                    ) )
+                .Select( d => d.Amount )
+                .ToList()
+                .Sum();
+
+            return transaction.TotalAmount + otherAmounts;
+        }
+
         #endregion
 
         #region Block Actions
@@ -1371,43 +1408,18 @@ namespace Rock.Blocks.Finance
         [BlockAction]
         public BlockActionResult GetMaxRefundAmount( string key )
         {
-            var transactionService = new FinancialTransactionService( RockContext );
-            var transactionQry = transactionService.GetQueryableByKey( key );
+            var transaction = new FinancialTransactionService( RockContext )
+                .GetQueryableByKey( key )
+                .FirstOrDefault();
 
-            var transaction = transactionQry.Include( t => t.RefundDetails ).FirstOrDefault();
+            if ( transaction == null )
+            {
+                return ActionBadRequest( $"{FinancialTransaction.FriendlyTypeName} not found." );
+            }
 
-            var totalAmount = transaction.TotalAmount;
-
-            var hasTransactionCode = !string.IsNullOrWhiteSpace( transaction.TransactionCode );
-
-            var otherAmounts = new FinancialTransactionDetailService( RockContext )
-                .Queryable()
-                .AsNoTracking()
-                .Where( d =>
-                    d.Transaction != null &&
-                    (
-                        (
-                            transaction.FinancialGatewayId.HasValue &&
-                            hasTransactionCode &&
-                            d.Transaction.FinancialGatewayId.HasValue &&
-                            d.Transaction.FinancialGatewayId.Value == transaction.FinancialGatewayId.Value &&
-                            d.Transaction.TransactionCode == transaction.TransactionCode &&
-                            d.TransactionId != transaction.Id
-                        )
-                        ||
-                        (
-                            d.Transaction.RefundDetails != null &&
-                            d.Transaction.RefundDetails.OriginalTransactionId == transaction.Id
-                        )
-                    ) )
-                .Select( d => d.Amount )
-                .ToList()
-                .Sum();
-
-            totalAmount += otherAmounts;
-
-            return ActionOk( totalAmount );
+            return ActionOk( GetMaxRefundAmountForTransaction( transaction ) );
         }
+
 
         [BlockAction]
         public BlockActionResult Refund( string key, RefundRequestBag bag )
@@ -1434,6 +1446,12 @@ namespace Rock.Blocks.Finance
                 .Include( t => t.ProcessedByPersonAlias.Person )
                 .Include( t => t.AuthorizedPersonAlias.Person )
                 .FirstOrDefault();
+
+            var maximumRefundAmount = GetMaxRefundAmountForTransaction( transaction );
+            if ( bag.Amount > maximumRefundAmount )
+            {
+                return ActionBadRequest( $"Refund amount cannot exceed {maximumRefundAmount.FormatAsCurrency()}." );
+            }
 
             if ( transaction == null )
             {
@@ -1494,6 +1512,118 @@ namespace Rock.Blocks.Finance
 
 
             return ActionOk( GetEntityBagForView( updatedEntity ) );
+        }
+
+        [BlockAction]
+        public BlockActionResult GetBatchNavigation( string key )
+        {
+            var transactionId = RequestContext.PageParameters
+                .GetValueOrNull( PageParameterKey.TransactionId )
+                .AsInteger();
+
+            var batchId = RequestContext.PageParameters
+                .GetValueOrNull( PageParameterKey.BatchId )
+                .AsInteger();
+
+            if ( batchId == 0 )
+            {
+                return ActionOk( new BatchNavigationBag() );
+            }
+
+            var transactionIds = new FinancialTransactionService( RockContext )
+                .Queryable()
+                .Where( t => t.BatchId == batchId )
+                .OrderBy( t => t.Id )
+                .Select( t => t.Id )
+                .ToList();
+
+            var nextId = transactionIds.FirstOrDefault( id => id > transactionId );
+            var prevId = transactionIds.LastOrDefault( id => id < transactionId );
+
+            return ActionOk( new BatchNavigationBag
+            {
+                PreviousTransactionId = prevId == default( int ) ? ( int? ) null : prevId,
+                NextTransactionId = nextId == default( int ) ? ( int? ) null : nextId
+            } );
+        }
+
+        [BlockAction]
+        public BlockActionResult SaveThenAdd( ValidPropertiesBox<TransactionBag> box )
+        {
+            var entityService = new FinancialTransactionService( RockContext );
+
+            if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
+            {
+                return actionError;
+            }
+
+            if ( !UpdateEntityFromBox( entity, box ) )
+            {
+                return ActionBadRequest( "Invalid data." );
+            }
+
+            if ( !ValidateTransaction( entity, out var validationMessage ) )
+            {
+                return ActionBadRequest( validationMessage );
+            }
+
+            RockContext.WrapTransaction( () =>
+            {
+                RockContext.SaveChanges();
+                entity.SaveAttributeValues( RockContext );
+
+                foreach ( var detail in entity.TransactionDetails )
+                {
+                    detail.SaveAttributeValues( RockContext );
+                }
+            } );
+
+            // Return URL for a new transaction in the same batch
+            return ActionContent( System.Net.HttpStatusCode.Created, this.GetCurrentPageUrl( new Dictionary<string, string>
+            {
+                [PageParameterKey.BatchId] = entity.BatchId.ToString()
+            } ) );
+        }
+
+        [BlockAction]
+        public BlockActionResult SaveThenViewBatch( ValidPropertiesBox<TransactionBag> box )
+        {
+            var entityService = new FinancialTransactionService( RockContext );
+
+            if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
+            {
+                return actionError;
+            }
+
+            if ( !UpdateEntityFromBox( entity, box ) )
+            {
+                return ActionBadRequest( "Invalid data." );
+            }
+
+            if ( !ValidateTransaction( entity, out var validationMessage ) )
+            {
+                return ActionBadRequest( validationMessage );
+            }
+
+            RockContext.WrapTransaction( () =>
+            {
+                RockContext.SaveChanges();
+                entity.SaveAttributeValues( RockContext );
+
+                foreach ( var detail in entity.TransactionDetails )
+                {
+                    detail.SaveAttributeValues( RockContext );
+                }
+            } );
+
+            // Return URL for the batch detail page
+            var batchPageUrl = this.GetLinkedPageUrl( AttributeKey.BatchDetailPage,
+                new Dictionary<string, string>
+                {
+                    ["BatchId"] = entity.BatchId.ToString()
+                } );
+
+            return ActionOk( batchPageUrl );
         }
         #endregion
     }
