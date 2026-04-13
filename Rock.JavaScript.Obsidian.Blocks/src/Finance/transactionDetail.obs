@@ -11,11 +11,12 @@
                  :isDeleteVisible="false"
                  :isEditVisible="isEditable && options.canEdit"
                  :isSecurityHidden="true"
+                 :editFooterActions="editFooterActions"
                  @cancelEdit="onCancelEdit"
                  @delete="onDelete"
                  @edit="onEdit"
                  @save="onSave">
-        <template #headerActions>
+        <template v-if="panelMode === DetailPanelMode.View" #headerActions>
             <span class="label label-info">
                 Batch: #{{ transactionViewBag?.batchId }}
             </span>
@@ -141,6 +142,10 @@
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
+    import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
+    import { TransactionDetailsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailsBag";
 
 
     const config = useConfigurationValues<DetailBlockBox<TransactionBag, TransactionDetailOptionsBag>>();
@@ -175,8 +180,6 @@
         bag: {} as TransactionBag
     });
 
-    console.log(transactionViewBag.value);
-
     const panelMode = ref<DetailPanelMode>(DetailPanelMode.View);
 
     const baseBlock = useEntityDetailBlock({
@@ -187,6 +190,30 @@
     // #endregion
 
     // #region Computed Values
+
+    const isNewTransaction = computed((): boolean => {
+        return panelMode.value === DetailPanelMode.Add;
+    });
+
+    /** Footer actions shown in the panel. "Save & Add Another" is only available when adding a new step with a selectable person. */
+    const editFooterActions = computed((): PanelAction[] => {
+        if (panelMode.value !== DetailPanelMode.Add || !transactionViewBag.value?.batchId || !isNewTransaction.value) {
+            return [];
+        }
+
+        return [
+            {
+                title: "Save Then Add",
+                type: BtnType.Default,
+                handler: () => onSpecificAdd("add")
+            },
+            {
+                title: "Save Then View Batch",
+                type: BtnType.Default,
+                handler: () => onSpecificAdd("batch")
+            }
+        ];
+    });
 
     /**
      * The entity name to display in the block panel.
@@ -219,8 +246,6 @@
         };
     });
 
-
-
     // #endregion
 
     // #region Functions
@@ -236,7 +261,6 @@
 
         if (result.isSuccess && result.data) {
             const base = window.location.pathname.replace(/\/\d+$/, "");
-            const batchId = transactionViewBag.value?.batchId;
 
             if (result.data.previousTransactionId) {
                 previousTransactionUrl.value =
@@ -393,6 +417,62 @@
 
     async function onRefundClose(): Promise<void> {
         isRefundOpen.value = false;
+    }
+
+    async function onSpecificAdd(reloadAction: "add" | "batch"): Promise<void> {
+        if (transactionEditBag.value.bag == null) {
+            return;
+        }
+
+        const result = await invokeBlockAction<ValidPropertiesBox<TransactionBag>>("Save", {
+            box: transactionEditBag.value
+        });
+
+        if (!result.isSuccess || !result.data) {
+            errorMessage.value = result.errorMessage ?? "Unknown error while trying to save transaction.";
+            return;
+        }
+
+        if (result.statusCode === 201) {
+            if (reloadAction === "batch") {
+                const batchUrl = options.value.batchDetailPageUrl;
+                if (batchUrl && transactionViewBag?.value?.batchId != null) {
+                    window.location.href = `${batchUrl}?BatchId=${transactionViewBag.value.batchId}`;
+                }
+                return;
+            }
+
+            const persistedDefaults: TransactionBag = {
+                batchId: transactionEditBag.value?.bag.batchId,
+                transactionDateTime: transactionEditBag.value?.bag.transactionDateTime,
+                transactionType: transactionEditBag.value?.bag.transactionType,
+                sourceType: transactionEditBag.value?.bag.sourceType,
+                paymentDetail: transactionEditBag.value?.bag.paymentDetail,
+                nonCashAssetType: transactionEditBag.value?.bag.nonCashAssetType,
+                transactionDetails: options.value.carryOverAccount && transactionEditBag.value?.bag?.transactionDetails?.rows?.length === 1
+                    ? {
+                        ...transactionEditBag.value.bag.transactionDetails,
+                        rows: transactionEditBag.value.bag.transactionDetails.rows?.map(row => ({
+                            ...row,
+                            amount: 0
+                        }))
+                    }
+                    : {} as TransactionDetailsBag,
+                canRefund: false,
+                id: 0,
+                idKey: "",
+                isRefund: false,
+                showAsAnonymous: false,
+                totalAmount: 0
+            };
+
+            // Wipe the view bag clean, then apply persisted defaults for next add
+            transactionEditBag.value.bag = {} as TransactionBag;
+            transactionEditBag.value = {
+                ...transactionEditBag.value,
+                bag: { ...persistedDefaults }
+            };
+        }
     }
 
     // #endregion

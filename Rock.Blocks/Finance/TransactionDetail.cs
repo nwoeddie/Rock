@@ -21,6 +21,7 @@ using System.ComponentModel;
 using System.Data.Entity;
 using System.Linq;
 
+using Nest;
 
 using Rock.Attribute;
 using Rock.Constants;
@@ -147,7 +148,6 @@ namespace Rock.Blocks.Finance
         {
             var box = new DetailBlockBox<TransactionBag, TransactionDetailOptionsBag>();
 
-
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions( box.IsEditable );
             SetBoxInitialEntityState( box );
@@ -183,6 +183,8 @@ namespace Rock.Blocks.Finance
             options.TransactionSourceRequired = GetAttributeValue( AttributeKey.TransactionSourceRequired ).AsBoolean();
 
             options.CarryOverAccount = GetAttributeValue( AttributeKey.CarryOverAccount ).AsBoolean();
+
+            options.BatchDetailPageUrl = this.GetLinkedPageUrl( AttributeKey.BatchDetailPage );
 
             return options;
         }
@@ -447,9 +449,15 @@ namespace Rock.Blocks.Finance
         /// <inheritdoc/>
         protected override FinancialTransaction GetInitialEntity()
         {
-            var id = PageParameter( PageParameterKey.TransactionId ).AsInteger();
+            var parameter = PageParameter( PageParameterKey.TransactionId );
 
-            if ( id == 0 )
+            var service = new FinancialTransactionService( RockContext );
+
+            var id = new FinancialTransactionService( RockContext ).Get( parameter );
+
+            var entity = service.Get( parameter );
+
+            if ( entity == null )
             {
                 return new FinancialTransaction
                 {
@@ -457,18 +465,18 @@ namespace Rock.Blocks.Finance
                 };
             }
 
-            return new FinancialTransactionService( RockContext )
+            // Now load full entity with includes using the numeric Id
+            return service
                 .Queryable()
                 .Include( t => t.Batch )
                 .Include( t => t.FinancialPaymentDetail )
                 .Include( t => t.RefundDetails )
                 .Include( t => t.ProcessedByPersonAlias.Person )
                 .Include( t => t.AuthorizedPersonAlias.Person )
-                .Include(t => t.FinancialGateway)
+                .Include( t => t.FinancialGateway )
                 .Include( t => t.ScheduledTransaction )
-                .Include( t=> t.TransactionDetails )
-                .Where( t => t.Id == id )
-                .FirstOrDefault();
+                .Include( t => t.TransactionDetails )
+                .FirstOrDefault( t => t.Id == entity.Id );
         }
 
         /// <summary>
@@ -1342,6 +1350,7 @@ namespace Rock.Blocks.Finance
         {
             var entityService = new FinancialTransactionService( RockContext );
 
+
             if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
             {
                 return actionError;
@@ -1590,84 +1599,6 @@ namespace Rock.Blocks.Finance
             } );
         }
 
-        [BlockAction]
-        public BlockActionResult SaveThenAdd( ValidPropertiesBox<TransactionBag> box )
-        {
-            var entityService = new FinancialTransactionService( RockContext );
-
-            if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
-            {
-                return actionError;
-            }
-
-            if ( !UpdateEntityFromBox( entity, box ) )
-            {
-                return ActionBadRequest( "Invalid data." );
-            }
-
-            if ( !ValidateTransaction( entity, out var validationMessage ) )
-            {
-                return ActionBadRequest( validationMessage );
-            }
-
-            RockContext.WrapTransaction( () =>
-            {
-                RockContext.SaveChanges();
-                entity.SaveAttributeValues( RockContext );
-
-                foreach ( var detail in entity.TransactionDetails )
-                {
-                    detail.SaveAttributeValues( RockContext );
-                }
-            } );
-
-            // Return URL for a new transaction in the same batch
-            return ActionContent( System.Net.HttpStatusCode.Created, this.GetCurrentPageUrl( new Dictionary<string, string>
-            {
-                [PageParameterKey.BatchId] = entity.BatchId.ToString()
-            } ) );
-        }
-
-        [BlockAction]
-        public BlockActionResult SaveThenViewBatch( ValidPropertiesBox<TransactionBag> box )
-        {
-            var entityService = new FinancialTransactionService( RockContext );
-
-            if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
-            {
-                return actionError;
-            }
-
-            if ( !UpdateEntityFromBox( entity, box ) )
-            {
-                return ActionBadRequest( "Invalid data." );
-            }
-
-            if ( !ValidateTransaction( entity, out var validationMessage ) )
-            {
-                return ActionBadRequest( validationMessage );
-            }
-
-            RockContext.WrapTransaction( () =>
-            {
-                RockContext.SaveChanges();
-                entity.SaveAttributeValues( RockContext );
-
-                foreach ( var detail in entity.TransactionDetails )
-                {
-                    detail.SaveAttributeValues( RockContext );
-                }
-            } );
-
-            // Return URL for the batch detail page
-            var batchPageUrl = this.GetLinkedPageUrl( AttributeKey.BatchDetailPage,
-                new Dictionary<string, string>
-                {
-                    ["BatchId"] = entity.BatchId.ToString()
-                } );
-
-            return ActionOk( batchPageUrl );
-        }
         #endregion
     }
 }

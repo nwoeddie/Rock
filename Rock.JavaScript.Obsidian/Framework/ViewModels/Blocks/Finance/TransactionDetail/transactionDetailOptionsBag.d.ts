@@ -25,6 +25,8 @@
 export type TransactionDetailOptionsBag = {
     assetTypes?: string | null;
 
+    batchDetailPageUrl?: string | null;
+
     batchEditAllowed: boolean;
 
     canAddTransaction: boolean;

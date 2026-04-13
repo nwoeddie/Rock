@@ -17,6 +17,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Policy;
 
 using Rock.ViewModels.Utility;
 
@@ -102,5 +103,10 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public bool CarryOverAccount { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public string BatchDetailPageUrl { get; set; }
     }
 }
