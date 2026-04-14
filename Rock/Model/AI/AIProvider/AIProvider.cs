@@ -14,10 +14,12 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
+
 using Rock.AI.Provider;
 using Rock.Data;
 using Rock.Web.Cache;
@@ -31,6 +33,8 @@ namespace Rock.Model
     [Table( "AIProvider" )]
     [DataContract]
     [CodeGenerateRest( DisableEntitySecurity = true )]
+    [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+    [RockObsolete( "20.0" )]
     [Rock.SystemGuid.EntityTypeGuid( "945A994F-F15E-43AC-B503-A54BDE70F77F" )]
     public partial class AIProvider : Model<AIProvider>, IHasActiveFlag, ICacheable
     {
@@ -149,6 +153,8 @@ namespace Rock.Model
     /// <summary>
     /// 
     /// </summary>
+    [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+    [RockObsolete( "20.0" )]
     public partial class AIServiceConfiguration : EntityTypeConfiguration<AIProvider>
     {
         /// <summary>
