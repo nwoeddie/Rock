@@ -176,6 +176,8 @@
     const processThroughGateway = ref(false);
 
     const transactionViewBag = ref(config.entity);
+
+    console.log("Transaction View Bag:", transactionViewBag.value);
     const transactionEditBag = ref<ValidPropertiesBox<TransactionBag>>({
         bag: {} as TransactionBag
     });
@@ -242,7 +244,6 @@
             showForeignCurrencyFields: false,
             useSimpleAccountMode: false,
             transactionSourceRequired: false,
-            carryOverAccount: false
         };
     });
 
@@ -449,15 +450,6 @@
                 sourceType: transactionEditBag.value?.bag.sourceType,
                 paymentDetail: transactionEditBag.value?.bag.paymentDetail,
                 nonCashAssetType: transactionEditBag.value?.bag.nonCashAssetType,
-                transactionDetails: options.value.carryOverAccount && transactionEditBag.value?.bag?.transactionDetails?.rows?.length === 1
-                    ? {
-                        ...transactionEditBag.value.bag.transactionDetails,
-                        rows: transactionEditBag.value.bag.transactionDetails.rows?.map(row => ({
-                            ...row,
-                            amount: 0
-                        }))
-                    }
-                    : {} as TransactionDetailsBag,
                 canRefund: false,
                 id: 0,
                 idKey: "",

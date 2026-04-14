@@ -33,8 +33,6 @@ export type TransactionDetailOptionsBag = {
 
     canEdit: boolean;
 
-    carryOverAccount: boolean;
-
     creditCardTypesGuid?: string | null;
 
     currencyCodesGuid?: string | null;

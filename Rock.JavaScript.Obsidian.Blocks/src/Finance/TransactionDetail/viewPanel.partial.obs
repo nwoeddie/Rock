@@ -135,7 +135,7 @@
                 </div>
                 <div class="w-100">
                     <ContentStack v-if="allocationsGridData">
-                        <div>
+                        <div class="mb-4">
                             <h6>Transaction Allocations</h6>
                             <Grid :data="allocationsGridData"
                                   keyField="idKey"
@@ -157,7 +157,7 @@
                                             title="Amount" />
                             </Grid>
                         </div>
-                        <div v-if="modelValue?.refunds">
+                        <div v-if="modelValue?.refunds?.length && modelValue.refunds.length > 0" class="mb-4">
                             <h6>Refunds</h6>
                             <Grid :data="refundsGridData"
                                   keyField="id"
@@ -184,31 +184,31 @@
                                             field="amount"
                                             title="Amount" />
                             </Grid>
-                            <div v-if="modelValue?.relatedTransactions">
-                                <h6>Related Transactions</h6>
-                                <Grid :data="relatedTransactionsGridData"
-                                      keyField="id"
-                                      liveUpdates
-                                      light
-                                      :isFooterHidden="true"
-                                      class="mb-0">
+                        </div>
+                        <div v-if="modelValue?.relatedTransactions?.length && modelValue.relatedTransactions.length > 0">
+                            <h6>Related Transactions</h6>
+                            <Grid :data="relatedTransactionsGridData"
+                                  keyField="id"
+                                  liveUpdates
+                                  light
+                                  :isFooterHidden="true"
+                                  class="mb-0">
 
-                                    <Column name="dateTime"
-                                            title="Date/Time">
-                                        <template #format="{ row }">
-                                            <div>
-                                                <a :href='getTransactionLink(row.id)'>{{ row.dateTime }}</a>
-                                            </div>
-                                        </template>
-                                    </Column>
-                                    <TextColumn name="transactionReference"
-                                                field="transactionReference"
-                                                title="Transaction Reference" />
-                                    <TextColumn name="amount"
-                                                field="amount"
-                                                title="Amount" />
-                                </Grid>
-                            </div>
+                                <Column name="dateTime"
+                                        title="Date/Time">
+                                    <template #format="{ row }">
+                                        <div>
+                                            <a :href='getTransactionLink(row.id)'>{{ row.dateTime }}</a>
+                                        </div>
+                                    </template>
+                                </Column>
+                                <TextColumn name="transactionReference"
+                                            field="transactionReference"
+                                            title="Transaction Reference" />
+                                <TextColumn name="amount"
+                                            field="amount"
+                                            title="Amount" />
+                            </Grid>
                         </div>
                     </ContentStack>
                 </div>

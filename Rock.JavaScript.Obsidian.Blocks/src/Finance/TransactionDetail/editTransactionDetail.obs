@@ -42,7 +42,8 @@
 
         <div class="row">
             <div class="col-md-6">
-                <CurrencyBox v-model="feeCoverageAmount"
+                <CurrencyBox
+                             v-model="feeCoverageAmount"
                              label="Fee Amount Covered"
                              help="Enter the amount the person/business chose to cover toward processing fees." />
             </div>
@@ -130,6 +131,9 @@
     // #region Computed Values
 
     const hasAttributes = computed(() => Object.keys(attributes.value).length > 0);
+
+    const showFeeCoverage =
+        props.modelValue?.feeCoverageAmount != null;
 
     // #endregion
 

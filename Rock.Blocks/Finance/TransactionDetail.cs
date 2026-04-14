@@ -78,13 +78,6 @@ namespace Rock.Blocks.Finance
     Order = 3,
     Key = AttributeKey.RefundBatchNameSuffix )]
 
-    [BooleanField(
-    "Carry Over Account",
-    Description = "Keep Last Used Account when adding multiple transactions in the same session.",
-    DefaultBooleanValue = true,
-    Order = 4,
-    Key = AttributeKey.CarryOverAccount )]
-
     [DefinedValueField(
     Rock.SystemGuid.DefinedType.GROUP_LOCATION_TYPE,
     "Location Types",
@@ -133,7 +126,6 @@ namespace Rock.Blocks.Finance
             public const string ScheduledTransactionDetailPage = "ScheduledTransactionDetailPage";
             public const string RegistrationDetailPage = "RegistrationDetailPage";
             public const string RefundBatchNameSuffix = "RefundBatchNameSuffix";
-            public const string CarryOverAccount = "CarryOverAccount";
             public const string LocationTypes = "LocationTypes";
             public const string TransactionSourceRequired = "TransactionSourceRequired";
             public const string EnableForeignCurrency = "EnableForeignCurrency";
@@ -181,8 +173,6 @@ namespace Rock.Blocks.Finance
             options.ShowForeignCurrencyFields = GetAttributeValue( AttributeKey.EnableForeignCurrency ).AsBoolean();
 
             options.TransactionSourceRequired = GetAttributeValue( AttributeKey.TransactionSourceRequired ).AsBoolean();
-
-            options.CarryOverAccount = GetAttributeValue( AttributeKey.CarryOverAccount ).AsBoolean();
 
             options.BatchDetailPageUrl = this.GetLinkedPageUrl( AttributeKey.BatchDetailPage );
 
@@ -292,17 +282,21 @@ namespace Rock.Blocks.Finance
             var creditCardGuid = Rock.SystemGuid.DefinedValue.CURRENCY_TYPE_CREDIT_CARD.AsGuid();
 
             // Only query for the aggregate sums — everything else comes from the already-loaded entity
-            var aggregates = new FinancialTransactionDetailService( RockContext )
-                .Queryable()
-                .Where( d => d.TransactionId == transaction.Id )
-                .GroupBy( d => d.TransactionId )
-                .Select( g => new
-                {
-                    TotalAmount = g.Sum( d => ( decimal? ) d.Amount ) ?? 0m,
-                    TotalFeeAmount = g.Sum( d => ( decimal? ) d.FeeAmount ) ?? 0m,
-                    TotalFeeCoverageAmount = g.Sum( d => ( decimal? ) d.FeeCoverageAmount ) ?? 0m
-                } )
-                .FirstOrDefault();
+            //var aggregates = new FinancialTransactionDetailService( RockContext )
+            //    .Queryable()
+            //    .Where( d => d.TransactionId == transaction.Id )
+            //    .GroupBy( d => d.TransactionId )
+            //    .Select( g => new
+            //    {
+            //        TotalAmount = g.Sum( d => ( decimal? ) d.Amount - ( d.FeeCoverageAmount ?? 0 ) ) ?? 0m,
+            //        TotalFeeAmount = g.Sum( d => ( decimal? ) d.FeeAmount ) ?? 0m,
+            //        TotalFeeCoverageAmount = g.Sum( d => ( decimal? ) d.FeeCoverageAmount ) ?? 0m
+            //    } )
+            //    .FirstOrDefault();
+
+            var totalAmount = transaction.TransactionDetails?.Sum( d => d.Amount - ( d.FeeCoverageAmount ?? 0 ) ) ?? 0m;
+            var totalFeeAmount = transaction.TransactionDetails?.Sum( d => d.FeeAmount ) ?? 0m;
+            var totalFeeCoverageAmount = transaction.TransactionDetails?.Sum( d => d.FeeCoverageAmount ) ?? 0m;
 
             var transactionDefinedValue = DefinedValueCache.Get( transaction.TransactionTypeValueId );
 
@@ -352,9 +346,9 @@ namespace Rock.Blocks.Finance
                     Value = currencyDefinedValue.Guid.ToString()
                 }
                 : null,
-                TotalAmount = aggregates?.TotalAmount ?? 0m,
-                TotalFeeAmount = aggregates?.TotalFeeAmount ?? 0m,
-                TotalFeeCoverageAmount = aggregates?.TotalFeeCoverageAmount ?? 0m,
+                TotalAmount = totalAmount,
+                TotalFeeAmount = totalFeeAmount,
+                TotalFeeCoverageAmount = totalFeeCoverageAmount,
                 TransactionDateTime = transaction.TransactionDateTime,
                 Batch = transaction.Batch == null
                     ? null
@@ -370,7 +364,8 @@ namespace Rock.Blocks.Finance
                         Value = transaction.ProcessedByPersonAlias.Person.NickName + " " +
                                 transaction.ProcessedByPersonAlias.Person.LastName
                     },
-
+                Status = transaction.Status,
+                StatusMessage = transaction.StatusMessage,
                 PaymentDetail = GetPaymentDetailBag( transaction.FinancialPaymentDetail, creditCardGuid ),
                 RefundDetails = GetRefundDetailBag( transaction.RefundDetails ),
                 AuthorizedPerson = GetAuthorizedPersonBag( transaction.AuthorizedPersonAlias?.Person ),
@@ -397,7 +392,7 @@ namespace Rock.Blocks.Finance
 
             bag.IdKey = bag.Id.AsIdKey();
 
-            bag.TransactionDetails = GetTransactionLineItemBags( entity.Id );
+            bag.TransactionDetails = GetTransactionLineItemBags( entity.Id, entity.TransactionDetails );
             bag.Images = GetImageBags( entity.Id );
             bag.Updates = GetTransactionUpdates( entity );
             bag.RelatedTransactions = GetRelatedTransactions( entity );
@@ -453,8 +448,6 @@ namespace Rock.Blocks.Finance
 
             var service = new FinancialTransactionService( RockContext );
 
-            var id = new FinancialTransactionService( RockContext ).Get( parameter );
-
             var entity = service.Get( parameter );
 
             if ( entity == null )
@@ -473,9 +466,12 @@ namespace Rock.Blocks.Finance
                 .Include( t => t.RefundDetails )
                 .Include( t => t.ProcessedByPersonAlias.Person )
                 .Include( t => t.AuthorizedPersonAlias.Person )
-                .Include( t => t.FinancialGateway )
+                .Include( t => t.CreatedByPersonAlias.Person )
+                .Include( t => t.ModifiedByPersonAlias.Person )
                 .Include( t => t.ScheduledTransaction )
                 .Include( t => t.TransactionDetails )
+                .Include( t => t.TransactionDetails.Select( d => d.Account ) )
+                .Include( t => t.TransactionDetails.Select( d => d.EntityType ) )
                 .FirstOrDefault( t => t.Id == entity.Id );
         }
 
@@ -591,7 +587,7 @@ namespace Rock.Blocks.Finance
             };
         }
 
-        private TransactionDetailsBag GetTransactionLineItemBags( int transactionId )
+        private TransactionDetailsBag GetTransactionLineItemBags( int transactionId, ICollection<FinancialTransactionDetail> transactionDetails )
         {
             var tempFinancialTransactionDetail = new FinancialTransactionDetail
             {
@@ -601,21 +597,17 @@ namespace Rock.Blocks.Finance
             var attributes = tempFinancialTransactionDetail.GetPublicAttributesForEdit( RequestContext.CurrentPerson );
             var attributeValues = tempFinancialTransactionDetail.GetPublicAttributeValuesForEdit( RequestContext.CurrentPerson );
 
-            var rows = new FinancialTransactionDetailService( RockContext )
-                .Queryable()
-                .AsNoTracking()
-                .Where( d => d.TransactionId == transactionId )
+            var rows = ( transactionDetails ?? Enumerable.Empty<FinancialTransactionDetail>() )
                 .Select( d => new TransactionLineItemBag
                 {
                     Guid = d.Guid,
                     Id = d.Id,
-                    Account = new ListItemBag
+                    Account = d.Account == null ? null : new ListItemBag
                     {
                         Text = d.Account.Name,
                         Value = d.Account.Guid.ToString()
                     },
-                    Amount = d.Amount,
-                    AmountMinusFeeCoverageAmount = d.FeeCoverageAmount.HasValue
+                    Amount = d.FeeCoverageAmount.HasValue
                         ? d.Amount - d.FeeCoverageAmount.Value
                         : d.Amount,
                     FeeAmount = d.FeeAmount,
@@ -780,68 +772,21 @@ namespace Rock.Blocks.Finance
         public List<string> GetTransactionUpdates( FinancialTransaction transaction )
         {
             var updates = new List<string>();
-
             var rootUrl = ResolveRockUrlIncludeRoot( "/" );
 
-            var transactionUpdatePeople = new FinancialTransactionService( RockContext )
-                .Queryable()
-                .AsNoTracking()
-                .Where( t => t.Id == transaction.Id )
-                .Select( t => new
-                {
-                    CreatedByPersonId = ( int? ) t.CreatedByPersonAlias.Person.Id,
-                    CreatedByPersonNickName = t.CreatedByPersonAlias.Person.NickName,
-                    CreatedByPersonLastName = t.CreatedByPersonAlias.Person.LastName,
-
-                    ProcessedByPersonId = ( int? ) t.ProcessedByPersonAlias.Person.Id,
-                    ProcessedByPersonNickName = t.ProcessedByPersonAlias.Person.NickName,
-                    ProcessedByPersonLastName = t.ProcessedByPersonAlias.Person.LastName,
-
-                    ModifiedByPersonId = ( int? ) t.ModifiedByPersonAlias.Person.Id,
-                    ModifiedByPersonNickName = t.ModifiedByPersonAlias.Person.NickName,
-                    ModifiedByPersonLastName = t.ModifiedByPersonAlias.Person.LastName,
-                } )
-                .FirstOrDefault();
-
-            if ( transactionUpdatePeople == null )
+            if ( transaction.CreatedByPersonAlias?.Person != null && transaction.CreatedDateTime.HasValue )
             {
-                return updates;
+                updates.Add( $"Created by {transaction.CreatedByPersonAlias.Person.GetAnchorTag( rootUrl )} on {transaction.CreatedDateTime.Value.ToShortDateString()} at {transaction.CreatedDateTime.Value.ToShortTimeString()}" );
             }
 
-            if ( transactionUpdatePeople.CreatedByPersonId.HasValue && transaction.CreatedDateTime.HasValue )
+            if ( transaction.ProcessedByPersonAlias?.Person != null && transaction.ProcessedDateTime.HasValue )
             {
-                var person = new Person
-                {
-                    Id = transactionUpdatePeople.CreatedByPersonId.Value,
-                    NickName = transactionUpdatePeople.CreatedByPersonNickName,
-                    LastName = transactionUpdatePeople.CreatedByPersonLastName
-                };
-
-                updates.Add( $"Created by {person.GetAnchorTag( rootUrl )} on {transaction.CreatedDateTime.Value.ToShortDateString()} at {transaction.CreatedDateTime.Value.ToShortTimeString()}" );
+                updates.Add( $"Processed by {transaction.ProcessedByPersonAlias.Person.GetAnchorTag( rootUrl )} on {transaction.ProcessedDateTime.Value.ToShortDateString()} at {transaction.ProcessedDateTime.Value.ToShortTimeString()}" );
             }
 
-            if ( transactionUpdatePeople.ProcessedByPersonId.HasValue && transaction.ProcessedDateTime.HasValue )
+            if ( transaction.ModifiedByPersonAlias?.Person != null && transaction.ModifiedDateTime.HasValue )
             {
-                var person = new Person
-                {
-                    Id = transactionUpdatePeople.ProcessedByPersonId.Value,
-                    NickName = transactionUpdatePeople.ProcessedByPersonNickName,
-                    LastName = transactionUpdatePeople.ProcessedByPersonLastName
-                };
-
-                updates.Add( $"Processed by {person.GetAnchorTag( rootUrl )} on {transaction.ProcessedDateTime.Value.ToShortDateString()} at {transaction.ProcessedDateTime.Value.ToShortTimeString()}" );
-            }
-
-            if ( transactionUpdatePeople.ModifiedByPersonId.HasValue && transaction.ModifiedDateTime.HasValue )
-            {
-                var person = new Person
-                {
-                    Id = transactionUpdatePeople.ModifiedByPersonId.Value,
-                    NickName = transactionUpdatePeople.ModifiedByPersonNickName,
-                    LastName = transactionUpdatePeople.ModifiedByPersonLastName
-                };
-
-                updates.Add( $"Modified by {person.GetAnchorTag( rootUrl )} on {transaction.ModifiedDateTime.Value.ToShortDateString()} at {transaction.ModifiedDateTime.Value.ToShortTimeString()}" );
+                updates.Add( $"Modified by {transaction.ModifiedByPersonAlias.Person.GetAnchorTag( rootUrl )} on {transaction.ModifiedDateTime.Value.ToShortDateString()} at {transaction.ModifiedDateTime.Value.ToShortTimeString()}" );
             }
 
             return updates;
@@ -1132,7 +1077,7 @@ namespace Rock.Blocks.Finance
                 }
 
                 detail.AccountId = row.Account?.GetEntityId<FinancialAccount>( RockContext ) ?? 0;
-                detail.Amount = row.Amount;
+                detail.Amount = row.Amount + ( row.FeeCoverageAmount ?? 0 );
                 detail.FeeAmount = row.FeeAmount;
                 detail.FeeCoverageAmount = row.FeeCoverageAmount;
                 detail.ForeignCurrencyAmount = row.ForeignCurrencyAmount;

@@ -189,21 +189,23 @@
                     </div>
                     <div class="row">
                         <ConditionalWell v-if="showWell">
-                            <div class="col-md-6">
-                                <DefinedValuePicker
-                                                    v-if="showCreditCard"
-                                                    v-model="creditCardType"
-                                                    label="Credit Card Type"
-                                                    :definedTypeGuid="options.creditCardTypesGuid ?? ''"
-                                                    :showBlankItem="false"
-                                                    help="Choose why this transaction was refunded." />
-                                <DefinedValuePicker
-                                                    v-if="showNonCash"
-                                                    v-model="nonCashAssetType"
-                                                    label="Non-Cash Asset Type"
-                                                    :definedTypeGuid="options.assetTypes ?? ''"
-                                                    :showBlankItem="false"
-                                                    help="Choose the type of non-cash asset received." />
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <DefinedValuePicker
+                                                        v-if="showCreditCard"
+                                                        v-model="creditCardType"
+                                                        label="Credit Card Type"
+                                                        :definedTypeGuid="options.creditCardTypesGuid ?? ''"
+                                                        :showBlankItem="false"
+                                                        help="Choose why this transaction was refunded." />
+                                    <DefinedValuePicker
+                                                        v-if="showNonCash"
+                                                        v-model="nonCashAssetType"
+                                                        label="Non-Cash Asset Type"
+                                                        :definedTypeGuid="options.assetTypes ?? ''"
+                                                        :showBlankItem="false"
+                                                        help="Choose the type of non-cash asset received." />
+                                </div>
                             </div>
                         </ConditionalWell>
                     </div>

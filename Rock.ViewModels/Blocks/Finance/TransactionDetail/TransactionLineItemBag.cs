@@ -49,11 +49,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public decimal AmountMinusFeeCoverageAmount { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
         public decimal? FeeAmount { get; set; }
 
         /// <summary>

@@ -102,11 +102,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public bool CarryOverAccount { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
         public string BatchDetailPageUrl { get; set; }
     }
 }

@@ -30,8 +30,6 @@ export type TransactionLineItemBag = {
 
     amount: number;
 
-    amountMinusFeeCoverageAmount: number;
-
     /** Gets or sets the attributes. */
     attributes?: Record<string, PublicAttributeBag> | null;
 

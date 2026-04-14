@@ -75,6 +75,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// 
         /// </summary>
         public ListItemBag CurrencyCode { get; set; }
+
         /// <summary>
         /// Gets or sets the foreign currency display text.
         /// </summary>
@@ -99,7 +100,6 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// Gets or sets the person alias who processed the transaction.
         /// </summary>
         public ListItemBag ProcessedByPersonAlias { get; set; }
-
 
         /// <summary>
         /// Gets or sets the scheduled transaction that initiated this transaction.
