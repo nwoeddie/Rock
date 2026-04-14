@@ -822,7 +822,12 @@ GROUP BY [Bucket], [Partition]";
             }
         }
 
-        public string GetQrCode( string data )
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        private string GetQrCode( string data )
         {
             if ( data.IsNullOrWhiteSpace() )
             {

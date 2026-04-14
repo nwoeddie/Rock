@@ -255,8 +255,9 @@
     }
 
     function getFileName(ext: "svg" | "png"): string {
-        const baseName = pageShortLinkViewBag.value?.url ?? "shortlink";
-        return `${baseName}.${ext}`;
+        console.log(pageShortLinkViewBag.value);
+        const shortCode = pageShortLinkViewBag.value?.token?.split("/").pop() ?? "shortlink";
+        return `shortlink-${shortCode}-qr.${ext}`;
     }
 
     function downloadSVG(): void {
@@ -269,6 +270,7 @@
         const blob = new Blob([svg], {
             type: "image/svg+xml;charset=utf-8"
         });
+
         downloadFile(blob, getFileName("svg"));
     }
 
@@ -285,8 +287,6 @@
         const fetchResult = await fetch(dataUrl);
         const blob = await fetchResult.blob();
 
-        const shortCode = pageShortLinkViewBag.value?.copyLink?.split("/").pop();
-        const fileName = `${shortCode}-qr-code.png`;
-        downloadFile(blob, fileName);
+        downloadFile(blob, getFileName("png"));
     }
 </script>
