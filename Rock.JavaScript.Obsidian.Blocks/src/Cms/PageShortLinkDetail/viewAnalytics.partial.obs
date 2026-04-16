@@ -27,9 +27,8 @@
             <LineChart :data="chartData" />
         </div>
 
-
         <div class="col-md-6 col-lg-4">
-            <Grid :data="partitionGridData" class="inherited-attributes" light>
+            <Grid :data="partitionGridData" class="inherited-attributes" :light="true">
                 <TextColumn name="partition" title="Partition">
                     <template #format="{ row }">
                         <span :class="{ 'text-bold': row.isTotal }">
@@ -53,6 +52,21 @@
 <style scoped>
 .usage-chart {
     height: 240px;
+}
+
+:deep(.inherited-attributes .grid-column-header-container) {
+    background-color: var(--color-interface-softer) !important;
+}
+
+:deep(.inherited-attributes .grid-row) {
+    border-top: none;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--color-interface-softer) !important;
+}
+
+:deep(.inherited-attributes .grid-footing) {
+    display: none;
 }
 </style>
 
@@ -291,19 +305,3 @@
 
     updateChartData();
 </script>
-<style scoped>
-:deep(.inherited-attributes .grid-column-header-container) {
-    background-color: var(--color-interface-softer) !important;
-}
-
-:deep(.inherited-attributes .grid-row) {
-    border-top: none;
-    border-left: none !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--color-interface-softer) !important;
-}
-
-:deep(.inherited-attributes .grid-footing) {
-    display: none;
-}
-</style>
