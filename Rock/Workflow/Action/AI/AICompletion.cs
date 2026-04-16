@@ -69,8 +69,6 @@ namespace Rock.Workflow.Action
         private static class AttributeKey
         {
             public const string Prompt = "Prompt";
-            public const string Provider = "Provider";
-            public const string Temperature = "Temperature";
             public const string OutputAttribute = "OutputAttribute";
         }
 
@@ -86,7 +84,6 @@ namespace Rock.Workflow.Action
         {
             errorMessages = new List<string>();
 
-            var providerIdentifier = GetAttributeValue( action, AttributeKey.Provider, true );
             var service = RockApp.Current.GetRequiredService<TextProcessingService>();
 
             if ( !service.IsAvailable )
