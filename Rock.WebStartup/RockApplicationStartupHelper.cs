@@ -363,6 +363,7 @@ namespace Rock.WebStartup
             sc.AddSingleton<CssProcessor>();
             sc.AddSingleton<ILavaEngineFactory, LavaEngineFactory>();
             sc.AddSingleton<DebugTraceObserver>();
+            sc.AddSingleton<AI.TextProcessingService, AI.OpenAI.TextProcessingServiceImplementation>();
 
             sc.AddScoped<RockContext>();
 

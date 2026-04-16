@@ -29,6 +29,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Rock.AI.Classes.ChatCompletions;
 using static Rock.Model.ConnectionType.ConnectionTypeAdditionalSettings;
+using Rock.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Rock.AI;
 
 namespace Rock.Blocks.Engagement
 {
@@ -2060,7 +2063,7 @@ namespace Rock.Blocks.Engagement
 
             var connectionTypeAdditionalSettings = connectionRequest.ConnectionOpportunity.ConnectionType.GetConnectionTypeAdditionalSettings();
 
-            optionsBag.IsAISummaryVisible = new AIProviderService( RockContext ).GetActiveProvider() != null
+            optionsBag.IsAISummaryVisible = RockApp.Current.GetRequiredService<TextProcessingService>().IsAvailable
                 && ( connectionTypeAdditionalSettings?.AIInsightsPrompt.IsNotNullOrWhiteSpace() == true );
             optionsBag.AISummaryTrigger = connectionTypeAdditionalSettings?.AISummaryTrigger ?? AISummaryTriggerMode.Manual;
 
@@ -4710,10 +4713,10 @@ WHERE 1 = 1" );
                 }
             }
 
-            var aiProvider = new AIProviderService( RockContext ).GetActiveProvider();
-            if ( aiProvider == null )
+            var service = RockApp.Current.GetRequiredService<TextProcessingService>();
+            if ( !service.IsAvailable )
             {
-                return ActionBadRequest( "No active AI provider is configured." );
+                return ActionBadRequest( "AI processing is not available." );
             }
 
             var prompt = additionalSettings?.AIInsightsPrompt;
@@ -4737,23 +4740,15 @@ WHERE 1 = 1" );
                 .Include( r => r.ConnectionRequestActivities.Select( a => a.CreatedByPersonAlias.Person ) )
                 .FirstOrDefault( r => r.Id == connectionRequestId );
 
-            var aiProviderComponent = aiProvider.GetAIComponent();
             var promptWithContext = AttachAIPromptContext( prompt, connectionRequest );
 
-            var completionsRequest = new ChatCompletionsRequest
+            var completionRequest = new ChatCompletionRequest
             {
-                Messages = new List<ChatCompletionsRequestMessage>
-                {
-                    new ChatCompletionsRequestMessage
-                    {
-                        Role = Rock.Enums.AI.ChatMessageRole.User,
-                        Content = promptWithContext
-                    }
-                }
+                Message = promptWithContext
             };
 
-            var response = await aiProviderComponent.GetChatCompletions( aiProvider, completionsRequest );
-            var summary = response.Choices?.FirstOrDefault()?.Text ?? string.Empty;
+            var response = await service.GetChatCompletionAsync( completionRequest );
+            var summary = response.GetText();
 
             // Cache the generated summary for the configured duration so subsequent requests
             // can be served without consuming additional AI credits.

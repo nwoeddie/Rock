@@ -29,11 +29,11 @@ namespace Rock.AI.OpenAI.OpenAIApiClient
 {
     internal class OpenAIApi
     {
-        private string _openAIApiHost = "https://api.openai.com/v1";
+        private readonly string _openAIApiHost = "https://api.openai.com/v1";
         private const int _apiTimeoutLength = 30000;
 
-        private RestClient _client = null;
-        private string _organization = string.Empty;
+        private readonly RestClient _client = null;
+        private readonly string _organization = string.Empty;
 
         #region Constructors
 
@@ -86,9 +86,11 @@ namespace Rock.AI.OpenAI.OpenAIApiClient
         /// <returns></returns>
         private RestClient GetOpenAIClient( string secretKey )
         {
-            var client = new RestClient( _openAIApiHost );
-            client.Authenticator = new JwtAuthenticator( secretKey );
-            client.Timeout = _apiTimeoutLength;
+            var client = new RestClient( _openAIApiHost )
+            {
+                Authenticator = new JwtAuthenticator( secretKey ),
+                Timeout = _apiTimeoutLength
+            };
 
             // Due to issues with RestSharp's deserialization of properties with forward slashes
             // 

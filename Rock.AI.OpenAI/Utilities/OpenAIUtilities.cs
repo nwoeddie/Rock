@@ -56,6 +56,8 @@ namespace Rock.AI.OpenAI.Utilities
         /// </summary>
         /// <param name="role"></param>
         /// <returns></returns>
+        [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+        [RockObsolete( "20.0" )]
         public static OpenAIChatMessageRole ConvertRockChatRoleToOpenAIRole( ChatMessageRole role )
         {
             switch ( role )
@@ -80,6 +82,8 @@ namespace Rock.AI.OpenAI.Utilities
         /// </summary>
         /// <param name="role"></param>
         /// <returns></returns>
+        [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+        [RockObsolete( "20.0" )]
         public static ChatMessageRole ConvertOpenAIChatRoleToRockChatRole( OpenAIChatMessageRole role )
         {
             switch ( role )

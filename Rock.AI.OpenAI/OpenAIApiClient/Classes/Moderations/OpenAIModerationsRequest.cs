@@ -49,6 +49,8 @@ namespace Rock.AI.OpenAI.OpenAIApiClient.Classes.Moderations
         /// Converts the generic moderations request to an OpenAI moderation request.
         /// </summary>
         /// <param name="request"></param>
+        [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+        [RockObsolete( "20.0" )]
         public OpenAIModerationsRequest( ModerationsRequest request )
         {
             this.Input = request.Input;

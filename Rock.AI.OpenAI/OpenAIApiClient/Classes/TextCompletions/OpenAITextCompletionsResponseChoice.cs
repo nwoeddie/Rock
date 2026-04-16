@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using System;
+
 using Newtonsoft.Json;
 
 using Rock.AI.Classes.TextCompletions;
@@ -61,6 +63,8 @@ namespace Rock.AI.OpenAI.OpenAIApiClient.Classes.TextCompletions
         /// Converts the OpenAI completion response choice to a generic one.
         /// </summary>
         /// <returns></returns>
+        [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+        [RockObsolete( "20.0" )]
         internal TextCompletionsResponseChoice AsCompletionResponseChoice()
         {
             var completionResponseChoice = new TextCompletionsResponseChoice();

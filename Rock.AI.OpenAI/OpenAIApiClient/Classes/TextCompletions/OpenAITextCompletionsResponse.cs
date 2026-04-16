@@ -82,6 +82,8 @@ namespace Rock.AI.OpenAI.OpenAIApiClient.Classes.TextCompletions
         /// Converst the OpenAI completion response to a generic response.
         /// </summary>
         /// <returns></returns>
+        [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+        [RockObsolete( "20.0" )]
         public TextCompletionsResponse AsTextCompletionsResponse()
         {
             var response = new TextCompletionsResponse();

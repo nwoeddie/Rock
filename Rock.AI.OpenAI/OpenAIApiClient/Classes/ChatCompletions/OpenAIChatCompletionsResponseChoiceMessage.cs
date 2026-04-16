@@ -32,7 +32,9 @@ namespace Rock.AI.OpenAI.OpenAIApiClient.Classes.ChatCompletions
         /// The text response for the completion.
         /// </summary>
         [JsonProperty( "role" )]
+#pragma warning disable CS0618 // Type or member is obsolete
         public OpenAIChatMessageRole Role { get; set; }
+#pragma warning restore CS0618 // Type or member is obsolete
 
         /// <summary>
         /// The returned content of the completion.

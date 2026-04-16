@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using System;
+
 using Newtonsoft.Json;
 
 using Rock.AI.Classes.TextCompletions;
@@ -114,6 +116,8 @@ namespace Rock.AI.OpenAI.OpenAIApiClient.Classes.TextCompletions
         /// Convert a generic AI completion request to a OpenAI completion request.
         /// </summary>
         /// <param name="request"></param>
+        [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+        [RockObsolete( "20.0" )]
         internal OpenAITextCompletionsRequest ( TextCompletionsRequest request )
         {
             

@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -66,6 +67,8 @@ namespace Rock.AI.OpenAI.OpenAIApiClient.Classes.Moderations
         /// Converts the OpenAI completion response to a generic response.
         /// </summary>
         /// <returns></returns>
+        [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+        [RockObsolete( "20.0" )]
         internal ModerationsResponse AsModerationsResponse()
         {
             var response = new ModerationsResponse();

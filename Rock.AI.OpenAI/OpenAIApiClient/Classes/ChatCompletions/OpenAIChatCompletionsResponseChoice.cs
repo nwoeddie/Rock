@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using System;
+
 using Newtonsoft.Json;
 
 using Rock.AI.Classes.ChatCompletions;
@@ -56,11 +58,15 @@ namespace Rock.AI.OpenAI.OpenAIApiClient.Classes.ChatCompletions
         /// Converts the OpenAI completion response choice to a generic one.
         /// </summary>
         /// <returns></returns>
+        [Obsolete( "This feature has been deprecated and is no longer used by Rock. AI configuration happens automatically." )]
+        [RockObsolete( "20.0" )]
         internal ChatCompletionsResponseChoice AsChatCompletionResponseChoice()
         {
             var completionResponseChoice = new ChatCompletionsResponseChoice();
             completionResponseChoice.Text = this.Message.Content;
+#pragma warning disable CS0618 // Type or member is obsolete
             completionResponseChoice.Role = OpenAIUtilities.ConvertOpenAIChatRoleToRockChatRole( this.Message.Role );
+#pragma warning restore CS0618 // Type or member is obsolete
             return completionResponseChoice;
         }
 

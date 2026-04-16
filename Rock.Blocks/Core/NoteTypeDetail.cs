@@ -89,8 +89,6 @@ namespace Rock.Blocks.Core
         {
             var options = new NoteTypeDetailOptionsBag();
 
-            options.HasActiveAIProviders = AIProviderCache.All( this.RockContext ).Any( a => a.IsActive );
-
             return options;
         }
 
@@ -224,8 +222,6 @@ namespace Rock.Blocks.Core
             var aiApprovalSettings = entity.GetAdditionalSettings<NoteType.AIApprovalSettings>();
             bag.EnabledAIApprovals = aiApprovalSettings.EnabledAIApprovals;
             bag.AIApprovalGuidelines = aiApprovalSettings.AIApprovalGuidelines;
-            var aiProvider = aiApprovalSettings.AIProviderId.HasValue ? AIProviderCache.Get( aiApprovalSettings.AIProviderId.Value ) : null;
-            bag.AIProvider = aiProvider.ToListItemBag();
 
             int? noteTypeId = this.PageParameter( PageParameterKey.NoteTypeId ).AsIntegerOrNull();
             if ( noteTypeId.HasValue )
@@ -312,13 +308,6 @@ namespace Rock.Blocks.Core
             {
                 entity.RequiresApprovals = box.Bag.EnabledAIApprovals;
                 aiApprovalSettings.EnabledAIApprovals = box.Bag.EnabledAIApprovals;
-            } );
-
-            // If AI Approvals are not enabled do not save an AI Provider Id.
-            var aiProviderId = aiApprovalSettings.EnabledAIApprovals ? AIProviderCache.GetId( ( box.Bag.AIProvider?.Value ).AsGuid() ) : null;
-            box.IfValidProperty( nameof( box.Bag.AIProvider ), () =>
-            {
-                aiApprovalSettings.AIProviderId = aiProviderId;
             } );
 
             // If AI Approvals are not enabled do not save AI Approval Guidelines.
