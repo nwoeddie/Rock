@@ -1,5 +1,6 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
+    <div ref="blockElement">
     <NotificationBox v-if="blockError" alertType="warning" v-html="blockError"></NotificationBox>
 
     <NotificationBox v-if="errorMessage" alertType="danger" v-html="errorMessage"></NotificationBox>
@@ -74,6 +75,7 @@
             </div>
         </template>
     </DetailBlock>
+    </div>
     <Modal
            v-model="isRefundOpen"
            title="Refund"
@@ -121,7 +123,8 @@
 </template>
 
 <script setup lang="ts">
-    import { computed, onMounted, ref } from "vue";
+    import { computed, nextTick, onMounted, ref } from "vue";
+    import { scrollElementStartToTop } from "@Obsidian/Utility/dom";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import DetailBlock from "@Obsidian/Templates/detailBlock";
     import { DetailPanelMode } from "@Obsidian/Enums/Controls/detailPanelMode";
@@ -174,6 +177,8 @@
     const refundReason = ref<ListItemBag | null>(null);
     const refundReasonSummary = ref("");
     const processThroughGateway = ref(false);
+
+    const blockElement = ref<HTMLElement | undefined>();
 
     const transactionViewBag = ref(config.entity);
 
@@ -464,6 +469,11 @@
                 ...transactionEditBag.value,
                 bag: { ...persistedDefaults }
             };
+
+            await nextTick();
+            if (blockElement.value) {
+                scrollElementStartToTop(blockElement.value);
+            }
         }
     }
 

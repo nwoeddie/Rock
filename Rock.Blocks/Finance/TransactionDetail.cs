@@ -72,11 +72,18 @@ namespace Rock.Blocks.Finance
 
     [TextField(
     "Refund Batch Name Suffix",
-    Description = "The suffix to append to new batch name when refunding transactions. If left blank, the batch name will be the same as the original transaction's batch name.",
+    Description = "The text appended to the batch name when a refund is processed. To use the original batch name without a suffix, disable Append Suffix to Batch Name.",
     IsRequired = false,
     DefaultValue = " - Refund",
     Order = 3,
     Key = AttributeKey.RefundBatchNameSuffix )]
+
+    [BooleanField(
+    "Append Suffix to Batch Name",
+    Description = "When enabled, the value of Refund Batch Name Suffix is appended to the batch name when a refund is processed. Disable this to use the original batch name without a suffix.",
+    DefaultBooleanValue = true,
+    Order = 4,
+    Key = AttributeKey.AppendSuffixToBatchName )]
 
     [DefinedValueField(
     Rock.SystemGuid.DefinedType.GROUP_LOCATION_TYPE,
@@ -126,6 +133,7 @@ namespace Rock.Blocks.Finance
             public const string ScheduledTransactionDetailPage = "ScheduledTransactionDetailPage";
             public const string RegistrationDetailPage = "RegistrationDetailPage";
             public const string RefundBatchNameSuffix = "RefundBatchNameSuffix";
+            public const string AppendSuffixToBatchName = "AppendSuffixToBatchName";
             public const string LocationTypes = "LocationTypes";
             public const string TransactionSourceRequired = "TransactionSourceRequired";
             public const string EnableForeignCurrency = "EnableForeignCurrency";
@@ -229,7 +237,6 @@ namespace Rock.Blocks.Finance
         /// <param name="box">The box to be populated.</param>
         private void SetBoxInitialEntityState( DetailBlockBox<TransactionBag, TransactionDetailOptionsBag> box )
         {
-            RockContext.SqlLogging( true );
             var entity = GetInitialEntity();
 
             if ( entity == null )
@@ -274,7 +281,6 @@ namespace Rock.Blocks.Finance
             }
 
             PrepareDetailBox( box, entity );
-            RockContext.SqlLogging( false );
         }
 
         private TransactionBag GetBaseTransactionBag( FinancialTransaction transaction )
@@ -997,8 +1003,11 @@ namespace Rock.Blocks.Finance
                     entity.FinancialPaymentDetail.CurrencyTypeValueId =
                         paymentBag.CurrencyType?.GetEntityId<DefinedValue>( RockContext );
 
-                    entity.FinancialPaymentDetail.CreditCardTypeValueId =
-                        paymentBag.CreditCardType?.GetEntityId<DefinedValue>( RockContext );
+                    var isCreditCard = paymentBag.CurrencyType?.Value == Rock.SystemGuid.DefinedValue.CURRENCY_TYPE_CREDIT_CARD.ToLower();
+
+                    entity.FinancialPaymentDetail.CreditCardTypeValueId = isCreditCard
+                        ? paymentBag.CreditCardType?.GetEntityId<DefinedValue>( RockContext )
+                        : null;
 
                     entity.FinancialPaymentDetail.NameOnCard = paymentBag.NameOnCard;
                 } );
@@ -1479,6 +1488,9 @@ namespace Rock.Blocks.Finance
 
             var refundReasonValueId = bag.RefundReason?.GetEntityId<DefinedValue>( RockContext );
 
+            var appendSuffix = GetAttributeValue( AttributeKey.AppendSuffixToBatchName ).AsBoolean();
+            var batchNameSuffix = appendSuffix ? GetAttributeValue( AttributeKey.RefundBatchNameSuffix ) : string.Empty;
+
             string errorMessage;
             var refundTransaction = transactionService.ProcessRefund(
                 transaction,
@@ -1486,7 +1498,7 @@ namespace Rock.Blocks.Finance
                 refundReasonValueId,
                 bag.RefundReasonSummary,
                 process,
-                GetAttributeValue( AttributeKey.RefundBatchNameSuffix ),
+                batchNameSuffix,
                 out errorMessage );
 
             if ( refundTransaction == null )

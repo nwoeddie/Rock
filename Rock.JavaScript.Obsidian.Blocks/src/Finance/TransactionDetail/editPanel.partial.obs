@@ -105,8 +105,28 @@
                             </template>
                         </Column>
 
-                        <EditColumn @click="onEditTransactionDetailClick" :rowDisabled="isTotalRow" />
-                        <DeleteColumn @click="onDeleteTransactionDetailClick" :rowDisabled="isTotalRow" />
+                        <Column name="edit" title="" width="52px" headerClass="grid-columncommand" itemClass="grid-columncommand">
+                            <template #format="{ row }">
+                                <button v-if="!isTotalRow(row)"
+                                        class="btn btn-default btn-sm"
+                                        title="Edit"
+                                        type="button"
+                                        @click.prevent="onEditTransactionDetailClick(row.guid as string)">
+                                    <i class="ti ti-pencil"></i>
+                                </button>
+                            </template>
+                        </Column>
+                        <Column name="delete" title="" width="52px" headerClass="grid-columncommand" itemClass="grid-columncommand">
+                            <template #format="{ row }">
+                                <button v-if="!isTotalRow(row)"
+                                        class="btn btn-danger btn-sm"
+                                        title="Delete"
+                                        type="button"
+                                        @click.prevent="onDeleteTransactionDetailClick(row.guid as string)">
+                                    <i class="ti ti-x"></i>
+                                </button>
+                            </template>
+                        </Column>
                     </Grid>
 
 
@@ -279,7 +299,7 @@
     import ContentSection from "@Obsidian/Controls/contentSection.obs";
     import ContentStack from "@Obsidian/Controls/contentStack.obs";
     import ContentSectionContainer from "@Obsidian/Controls/contentSectionContainer.obs";
-    import Grid, { TextColumn, EditColumn, DeleteColumn, Column } from "@Obsidian/Controls/grid";
+    import Grid, { TextColumn, Column } from "@Obsidian/Controls/grid";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
     import { toCurrencyOrNull } from "@Obsidian/Utility/numberUtils";
@@ -485,6 +505,12 @@
     watch(currentImage, newImage => {
         if (newImage?.value) {
             onImageAdd(newImage);
+        }
+    });
+
+    watch(currencyType, newCurrencyType => {
+        if (newCurrencyType?.value !== DefinedValue.CurrencyTypeCreditCard.toLocaleLowerCase()) {
+            creditCardType.value = null;
         }
     });
 
