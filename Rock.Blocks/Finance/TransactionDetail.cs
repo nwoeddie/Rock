@@ -80,7 +80,7 @@ namespace Rock.Blocks.Finance
 
     [BooleanField(
     "Append Suffix to Batch Name",
-    Description = "When enabled, the value of Refund Batch Name Suffix is appended to the batch name when a refund is processed. Disable this to use the original batch name without a suffix.",
+    Description = "When enabled, appends a suffix to the batch name for refund transactions. When disabled, uses the original batch name. Note: financial gateways that support settlement batches ignore this setting—all transactions process through the settlement batch regardless.",
     DefaultBooleanValue = true,
     Order = 4,
     Key = AttributeKey.AppendSuffixToBatchName )]
