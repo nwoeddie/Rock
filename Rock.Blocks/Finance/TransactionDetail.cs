@@ -21,8 +21,6 @@ using System.ComponentModel;
 using System.Data.Entity;
 using System.Linq;
 
-using Nest;
-
 using Rock.Attribute;
 using Rock.Constants;
 using Rock.Data;
@@ -59,14 +57,14 @@ namespace Rock.Blocks.Finance
     [LinkedPage(
     "Scheduled Transaction Detail Page",
     Description = "Page used to view scheduled transaction detail.",
-    IsRequired = true,
+    IsRequired = false,
     Order = 1,
     Key = AttributeKey.ScheduledTransactionDetailPage )]
 
     [LinkedPage(
     "Registration Detail Page",
     Description = "Page used to view an event registration.",
-    IsRequired = true,
+    IsRequired = false,
     Order = 2,
     Key = AttributeKey.RegistrationDetailPage )]
 

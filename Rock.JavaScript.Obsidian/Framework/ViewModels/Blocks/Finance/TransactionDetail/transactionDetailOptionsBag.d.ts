@@ -29,8 +29,6 @@ export type TransactionDetailOptionsBag = {
 
     batchEditAllowed: boolean;
 
-    canAddTransaction: boolean;
-
     canEdit: boolean;
 
     creditCardTypesGuid?: string | null;
@@ -51,6 +49,4 @@ export type TransactionDetailOptionsBag = {
 
     /** The transaction types that can be used to filter the results. */
     transactionTypesGuid?: string | null;
-
-    useSimpleAccountMode: boolean;
 };

@@ -72,22 +72,12 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// <summary>
         /// 
         /// </summary>
-        public bool CanAddTransaction { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
         public bool IsReadOnly { get; set; }
 
         /// <summary>
         /// 
         /// </summary>
         public bool BatchEditAllowed { get; set; }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public bool UseSimpleAccountMode { get; set; }
 
         /// <summary>
         /// 

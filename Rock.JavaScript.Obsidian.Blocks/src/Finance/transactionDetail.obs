@@ -1,80 +1,80 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div ref="blockElement">
-    <NotificationBox v-if="blockError" alertType="warning" v-html="blockError"></NotificationBox>
+        <NotificationBox v-if="blockError" alertType="warning" v-html="blockError"></NotificationBox>
 
-    <NotificationBox v-if="errorMessage" alertType="danger" v-html="errorMessage"></NotificationBox>
-    <DetailBlock v-if="!blockError"
-                 v-model:mode="panelMode"
-                 :name="panelName"
-                 :entityKey="entityKey"
-                 :isAuditHidden="true"
-                 :isDeleteVisible="false"
-                 :isEditVisible="isEditable && options.canEdit"
-                 :isSecurityHidden="true"
-                 :editFooterActions="editFooterActions"
-                 @cancelEdit="onCancelEdit"
-                 @delete="onDelete"
-                 @edit="onEdit"
-                 @save="onSave">
-        <template v-if="panelMode === DetailPanelMode.View" #headerActions>
-            <span class="label label-info">
-                Batch: #{{ transactionViewBag?.batchId }}
-            </span>
-            <span class="label label-success">
-                ${{ transactionViewBag?.totalAmount.toFixed(2) }}
-            </span>
-            <span class="label label-default">
-                {{ transactionViewBag?.transactionType?.text }}
-            </span>
-        </template>
-        <template #view>
-            <NotificationBox v-if="options.canEdit == false" alertType="info" heading="Note">
-                Because this Financial Transaction belongs to a batch that is either automated or is closed, so editing is not enabled
-            </NotificationBox>
-            <ViewPanel :modelValue="transactionViewBag" :options="options" />
-        </template>
+        <NotificationBox v-if="errorMessage" alertType="danger" v-html="errorMessage"></NotificationBox>
+        <DetailBlock v-if="!blockError"
+                     v-model:mode="panelMode"
+                     :name="panelName"
+                     :entityKey="entityKey"
+                     :isAuditHidden="true"
+                     :isDeleteVisible="false"
+                     :isEditVisible="isEditable && options.canEdit"
+                     :isSecurityHidden="true"
+                     :editFooterActions="editFooterActions"
+                     @cancelEdit="onCancelEdit"
+                     @delete="onDelete"
+                     @edit="onEdit"
+                     @save="onSave">
+            <template v-if="panelMode === DetailPanelMode.View" #headerActions>
+                <span class="label label-info">
+                    Batch: #{{ transactionViewBag?.batchId }}
+                </span>
+                <span class="label label-success">
+                    ${{ transactionViewBag?.totalAmount.toFixed(2) }}
+                </span>
+                <span class="label label-default">
+                    {{ transactionViewBag?.transactionType?.text }}
+                </span>
+            </template>
+            <template #view>
+                <NotificationBox v-if="options.canEdit == false" alertType="info" heading="Note">
+                    Because this Financial Transaction belongs to a batch that is either automated or is closed, so editing is not enabled
+                </NotificationBox>
+                <ViewPanel :modelValue="transactionViewBag" :options="options" />
+            </template>
 
-        <template #edit>
-            <EditPanel v-model="transactionEditBag" :options="options" @propertyChanged="baseBlock.onPropertyChanged" />
-        </template>
+            <template #edit>
+                <EditPanel v-model="transactionEditBag" :options="options" @propertyChanged="baseBlock.onPropertyChanged" />
+            </template>
 
-        <template #footerActions>
-            <div class="d-flex gap-2 mt-3">
-                <RockButton
-                            btnType="primary">
-                    Save Then Add
-                </RockButton>
-            </div>
-        </template>
-        <template #footerSecondaryActions v-if="transactionViewBag?.canRefund">
-            <div class="d-flex gap-2">
-                <RockButton
-                            btnType="default"
-                            @click="onRefundOpen">Refund</RockButton>
-
-                <div v-if="transactionViewBag.batchId" class="d-flex gap-2">
-                    <a v-if="previousTransactionUrl"
-                       :href="previousTransactionUrl"
-                       class="btn btn-default btn-sm">
-                        <i class="fa fa-chevron-left"></i> Back
-                    </a>
-                    <span v-else class="btn btn-default btn-sm disabled">
-                        <i class="fa fa-chevron-left"></i> Back
-                    </span>
-
-                    <a v-if="nextTransactionUrl"
-                       :href="nextTransactionUrl"
-                       class="btn btn-default btn-sm">
-                        Next <i class="fa fa-chevron-right"></i>
-                    </a>
-                    <span v-else class="btn btn-default btn-sm disabled">
-                        Next <i class="fa fa-chevron-right"></i>
-                    </span>
+            <template #footerActions>
+                <div class="d-flex gap-2 mt-3">
+                    <RockButton
+                                btnType="primary">
+                        Save Then Add
+                    </RockButton>
                 </div>
-            </div>
-        </template>
-    </DetailBlock>
+            </template>
+            <template #footerSecondaryActions v-if="transactionViewBag?.canRefund">
+                <div class="d-flex gap-2">
+                    <RockButton
+                                btnType="default"
+                                @click="onRefundOpen">Refund</RockButton>
+
+                    <div v-if="transactionViewBag.batchId" class="d-flex gap-2">
+                        <a v-if="previousTransactionUrl"
+                           :href="previousTransactionUrl"
+                           class="btn btn-default btn-sm">
+                            <i class="fa fa-chevron-left"></i> Back
+                        </a>
+                        <span v-else class="btn btn-default btn-sm disabled">
+                            <i class="fa fa-chevron-left"></i> Back
+                        </span>
+
+                        <a v-if="nextTransactionUrl"
+                           :href="nextTransactionUrl"
+                           class="btn btn-default btn-sm">
+                            Next <i class="fa fa-chevron-right"></i>
+                        </a>
+                        <span v-else class="btn btn-default btn-sm disabled">
+                            Next <i class="fa fa-chevron-right"></i>
+                        </span>
+                    </div>
+                </div>
+            </template>
+        </DetailBlock>
     </div>
     <Modal
            v-model="isRefundOpen"
@@ -243,11 +243,9 @@
     const options = computed((): TransactionDetailOptionsBag => {
         return config.options ?? {
             batchEditAllowed: false,
-            canAddTransaction: false,
             canEdit: false,
             isReadOnly: !isEditable.value,
             showForeignCurrencyFields: false,
-            useSimpleAccountMode: false,
             transactionSourceRequired: false,
         };
     });
@@ -314,7 +312,7 @@
             return result.data;
         }
         else {
-            errorMessage.value = result.errorMessage ?? "Unknown error while trying to delete ttransaction.";
+            errorMessage.value = result.errorMessage ?? "Unknown error while trying to delete transaction.";
 
             return false;
         }
@@ -376,7 +374,7 @@
             }
         }
 
-        errorMessage.value = result.errorMessage ?? "Unknown error while trying to save ttransaction.";
+        errorMessage.value = result.errorMessage ?? "Unknown error while trying to save transaction.";
 
         return false;
     }
@@ -484,7 +482,7 @@
         blockError.value = config.errorMessage;
     }
     else if (!config.entity) {
-        blockError.value = "The specified ttransaction could not be viewed.";
+        blockError.value = "The specified transaction could not be viewed.";
     }
     else if (!config.entity.idKey) {
         transactionEditBag.value = { bag: config.entity };
