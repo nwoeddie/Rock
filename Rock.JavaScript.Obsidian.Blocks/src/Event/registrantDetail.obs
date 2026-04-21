@@ -101,15 +101,15 @@
         errorMessage.value = "";
 
         console.log("Save Values", registrantEditBag.value);
-        // const result = await invokeBlockAction<string>("Save", {
-        //     box: registrantEditBag.value
-        // });
+        const result = await invokeBlockAction<string>("Save", {
+            box: registrantEditBag.value
+        });
 
-        // if (result.isSuccess && result.data) {
-        //     return result.data;
-        // }
+        if (result.isSuccess && result.data) {
+            return result.data;
+        }
 
-        // errorMessage.value = result.errorMessage ?? "Unknown error while trying to save registrant.";
+        errorMessage.value = result.errorMessage ?? "Unknown error while trying to save registrant.";
 
         return false;
     }

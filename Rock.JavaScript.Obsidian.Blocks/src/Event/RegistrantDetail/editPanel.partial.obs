@@ -2,7 +2,7 @@
 <template>
     <fieldset>
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-6 d-flex flex-column gap-2">
                 <PersonPicker v-model="personAlias"
                               label="Person"
                               rules="required" />
@@ -28,6 +28,12 @@
                                           :attributes="attributes"
                                           isEditMode
                                           :numberOfColumns="1" />
+                <FileUploader v-if="props.modelValue.bag?.signatureDocumentTemplateName && !props.modelValue.bag?.hasExistingSignatureDocument"
+                              v-model="signatureDocumentBinaryFile"
+                              :label="props.modelValue.bag?.signatureDocumentTemplateName ?? 'Signature Document'"
+                              :binaryFileTypeGuid="props.modelValue.bag?.signatureDocumentTemplateBinaryFileTypeGuid ?? undefined"
+                              :uploadAsTemporary="true"
+                              :showDeleteButton="true" />
             </div>
 
             <div class="col-md-6" v-if="props.options.fees && props.options.fees.length > 0">
@@ -90,13 +96,6 @@
                 </ContentSection>
             </div>
         </div>
-
-        <FileUploader v-if="props.modelValue.bag?.signatureDocumentTemplateName && !props.modelValue.bag?.hasExistingSignatureDocument"
-                      v-model="signatureDocumentBinaryFile"
-                      :label="props.modelValue.bag?.signatureDocumentTemplateName ?? 'Signature Document'"
-                      :binaryFileTypeGuid="props.modelValue.bag?.signatureDocumentTemplateBinaryFileTypeGuid ?? undefined"
-                      :uploadAsTemporary="true"
-                      :showDeleteButton="true" />
 
         <NotificationBox v-if="props.modelValue.bag?.hasExistingSignatureDocument"
                          alertType="info">

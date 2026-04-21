@@ -338,7 +338,7 @@ namespace Rock.Blocks.Event
                 if ( box.Bag.PersonAlias?.Value.IsNotNullOrWhiteSpace() == true )
                 {
                     var personAlias = new PersonAliasService( RockContext )
-                        .Get( box.Bag.PersonAlias.Value.AsGuid() );
+                        .Get( box.Bag.PersonAlias.Value, !PageCache.Layout.Site.DisablePredictableIds );
 
                     entity.PersonAliasId = personAlias?.Id;
                 }
@@ -559,9 +559,21 @@ namespace Rock.Blocks.Event
             }
 
             var originalPersonAliasId = entity.PersonAliasId;
-            var originalPersonName = entity.PersonAlias?.Person?.FullName ?? string.Empty;
+
+            // TryGetEntityForEditAction loads the entity without nav-property includes,
+            // so PersonAlias is null. Query the name directly to get the correct previous
+            // value for the history entry when the person changes.
+            var originalPersonName = originalPersonAliasId.HasValue
+                ? personAliasService.GetSelect( originalPersonAliasId.Value, pa => pa.Person.FullName ) ?? string.Empty
+                : string.Empty;
+
             var originalCost = entity.Cost;
             var originalDiscountApplies = entity.DiscountApplies;
+
+            // Capture the original wait list state before UpdateEntityFromBox overwrites
+            // it. The capacity check needs to know if the registrant is being moved off
+            // the wait list, not just whether they end up off it.
+            var originalOnWaitList = entity.OnWaitList;
 
             // Pre-load attributes to capture original values before UpdateEntityFromBox
             // overwrites them in memory.
@@ -688,9 +700,9 @@ namespace Rock.Blocks.Event
 
             if ( registrationInstance?.TimeoutIsEnabled == true )
             {
-                // Reserve a spot when adding a new registrant (not to the wait list) or
-                // when moving an existing registrant off the wait list.
-                bool isMovingOffWaitList = !isNew && !entity.OnWaitList;
+                // Reserve a spot when adding a new registrant directly (not to the wait
+                // list), or when an existing wait-list registrant is being promoted off it.
+                bool isMovingOffWaitList = !isNew && originalOnWaitList && !entity.OnWaitList;
                 bool needsCapacityCheck = ( isNew && !entity.OnWaitList ) || isMovingOffWaitList;
 
                 if ( needsCapacityCheck )
