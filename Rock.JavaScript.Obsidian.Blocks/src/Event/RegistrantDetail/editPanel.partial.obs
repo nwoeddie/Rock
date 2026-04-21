@@ -20,7 +20,8 @@
                              label="Cost" />
 
                 <CheckBox v-model="discountApplies"
-                          label="Discount Applies" />
+                          label="Discount Applies"
+                          help="If there was a discount code used for the registration, should it apply to this registrant?" />
 
                 <AttributeValuesContainer v-if="hasAttributes"
                                           v-model="attributeValues"
@@ -35,7 +36,7 @@
 
                         <!-- Multiple Items - Pick One -->
                         <template v-if="fee.feeType === RegistrationFeeType.Multiple && !fee.allowMultiple">
-                            <div v-if="!isFeeHidden(fee)" style="width: fit-content;">
+                            <div v-if="!isFeeHidden(fee)" class="dropdown-container">
                                 <DropDownList
                                               :disabled="isFeeDisabled(fee)"
                                               :modelValue="getSelectedFeeItemId(fee)"
@@ -55,9 +56,9 @@
                                                   :disabled="isFeeItemDisabled(fee, item)"
                                                   :modelValue="getFeeQuantity(fee.id, item.id)"
                                                   @update:modelValue="setFeeQuantity(fee.id, item.id, $event)"
-                                                  :label="feeItemLabel(item)"
+                                                  :label="feeItemLabel(fee.id, item)"
                                                   :min="0"
-                                                  :max="item.countRemaining ?? undefined" />
+                                                  :max="getMaxQuantity(fee.id, item) ?? undefined" />
                                 </template>
                             </template>
                         </template>
@@ -72,8 +73,7 @@
                             <CheckBox
                                       :modelValue="getFeeChecked(fee.id, fee.items[0].id)"
                                       @update:modelValue="setFeeChecked(fee.id, fee.items[0], $event)"
-                                      :label="fee.name ?? ''"
-                                      :help="fee.items[0].cost > 0 ? formatCurrency(fee.items[0].cost) : ''" />
+                                      :label="feeItemLabel(fee.id, fee.items[0], fee.name ?? '')" />
                         </div>
 
                         <!-- Single Item - Multiple Allowed -->
@@ -83,14 +83,20 @@
                             && fee.items.length > 0"
                                       :modelValue="getFeeQuantity(fee.id, fee.items[0].id)"
                                       @update:modelValue="setFeeQuantity(fee.id, fee.items[0].id, $event)"
-                                      :label="fee.name ?? ''"
+                                      :label="feeItemLabel(fee.id, fee.items[0], fee.name ?? '')"
                                       :min="0"
-                                      :max="fee.items[0].countRemaining ?? undefined"
-                                      :help="fee.items[0].cost > 0 ? formatCurrency(fee.items[0].cost) : ''" />
+                                      :max="getMaxQuantity(fee.id, fee.items[0]) ?? undefined" />
                     </ContentStack>
                 </ContentSection>
             </div>
         </div>
+
+        <FileUploader v-if="props.modelValue.bag?.signatureDocumentTemplateName && !props.modelValue.bag?.hasExistingSignatureDocument"
+                      v-model="signatureDocumentBinaryFile"
+                      :label="props.modelValue.bag?.signatureDocumentTemplateName ?? 'Signature Document'"
+                      :binaryFileTypeGuid="props.modelValue.bag?.signatureDocumentTemplateBinaryFileTypeGuid ?? undefined"
+                      :uploadAsTemporary="true"
+                      :showDeleteButton="true" />
 
         <NotificationBox v-if="props.modelValue.bag?.hasExistingSignatureDocument"
                          alertType="info">
@@ -104,6 +110,11 @@
     opacity: 0.6;
     pointer-events: none;
 }
+
+.dropdown-container {
+    min-width: 150px;
+    width: fit-content;
+}
 </style>
 
 <script setup lang="ts">
@@ -112,6 +123,7 @@
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import CurrencyBox from "@Obsidian/Controls/currencyBox.obs";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
+    import FileUploader from "@Obsidian/Controls/fileUploader.obs";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import NumberUpDown from "@Obsidian/Controls/numberUpDown.obs";
     import PersonPicker from "@Obsidian/Controls/personPicker.obs";
@@ -154,13 +166,26 @@
     const discountApplies = propertyRef(props.modelValue.bag?.discountApplies ?? false, "DiscountApplies");
     const isOnWaitList = propertyRef(props.modelValue.bag?.isOnWaitList ?? false, "IsOnWaitList");
 
+    // FileUploader binds to ListItemBag | null; the .value field carries the Guid string.
+    const signatureDocumentBinaryFile = propertyRef<ListItemBag | null>(
+        props.modelValue.bag?.signatureDocumentBinaryFileId
+            ? { value: props.modelValue.bag.signatureDocumentBinaryFileId, text: "" }
+            : null,
+        "SignatureDocumentBinaryFileId"
+    );
+
     const attributes = ref(props.modelValue.bag?.attributes ?? {});
     const attributeValues = ref(props.modelValue.bag?.attributeValues ?? {});
 
     // Keyed as "feeId_feeItemId" → quantity (0 = not selected).
     const feeQuantities = ref<Record<string, number>>(buildFeeQuantities());
 
-    const propRefs = [personAlias, cost, discountApplies, isOnWaitList];
+    // Snapshot of the DB-loaded quantities taken once at init. Used by the hide
+    // logic so that an item the registrant already held stays visible for the whole
+    // editing session, even if they reduce its quantity to zero mid-edit.
+    const initialFeeQuantities = buildFeeQuantities();
+
+    const propRefs = [personAlias, cost, discountApplies, isOnWaitList, signatureDocumentBinaryFile];
 
     // #endregion
 
@@ -175,36 +200,72 @@
     // #region Fee Helpers
 
     /**
-     * Returns true when the fee wrapper div should be hidden (display:none).
-     * Hides only when every item is sold out, HideWhenNoneRemaining is set,
-     * and the registrant has no existing quantity on any item.
+     * Returns the maximum quantity this registrant may select for a fee item.
+     * Used as the :max binding on NumberUpDown.
+     *
+     * The server's countRemaining already deducts this registrant's initialQty,
+     * so the true ceiling is countRemaining + initialQty (open slots plus what
+     * they already hold). This value is static for the life of the edit session.
+     */
+    function getMaxQuantity(feeId: number, item: RegistrationTemplateFeeItemBag): number | null {
+        if (item.countRemaining == null) {
+            return null;
+        }
+
+        const initialQty = initialFeeQuantities[feeKey(feeId, item.id)] ?? 0;
+        return item.countRemaining + initialQty;
+    }
+
+    /**
+     * Returns how many more of this fee item can be added given the registrant's
+     * current quantity. Used for labels and disable/hide decisions.
+     *
+     *   effectiveRemaining = getMaxQuantity - currentQty
+     */
+    function getEffectiveCountRemaining(feeId: number, item: RegistrationTemplateFeeItemBag): number | null {
+        const max = getMaxQuantity(feeId, item);
+        if (max == null) {
+            return null;
+        }
+
+        return Math.max(0, max - getFeeQuantity(feeId, item.id));
+    }
+
+    /**
+     * Returns true when the fee wrapper should be hidden.
+     * Hides only when HideWhenNoneRemaining is set and every item has zero
+     * effective remaining and zero current quantity.
      */
     function isFeeHidden(fee: RegistrationTemplateFeeBag): boolean {
         if (!fee.hideWhenNoneRemaining) {
             return false;
         }
-        return (fee.items ?? []).every(
-            item => item.countRemaining != null && item.countRemaining <= 0 && getFeeQuantity(fee.id, item.id) === 0
-        );
+
+        return (fee.items ?? []).every(item => {
+            const remaining = getEffectiveCountRemaining(fee.id, item);
+            return remaining != null && remaining <= 0 && getFeeQuantity(fee.id, item.id) === 0;
+        });
     }
+
     /**
      * Returns true when the fee control should be shown disabled.
-     * Disables only when every item is sold out, HideWhenNoneRemaining is NOT set,
-     * and the registrant has no existing quantity on any item.
+     * Disables only when HideWhenNoneRemaining is NOT set and every item has
+     * zero effective remaining and zero current quantity.
      */
     function isFeeDisabled(fee: RegistrationTemplateFeeBag): boolean {
         if (fee.hideWhenNoneRemaining) {
             return false;
         }
-        return (fee.items ?? []).every(
-            item => item.countRemaining != null && item.countRemaining <= 0 && getFeeQuantity(fee.id, item.id) === 0
-        );
+
+        return (fee.items ?? []).every(item => {
+            const remaining = getEffectiveCountRemaining(fee.id, item);
+            return remaining != null && remaining <= 0 && getFeeQuantity(fee.id, item.id) === 0;
+        });
     }
 
     function isFeeItemDisabled(fee: RegistrationTemplateFeeBag, item: RegistrationTemplateFeeItemBag): boolean {
-        return item.countRemaining != null
-            && item.countRemaining <= 0
-            && getFeeQuantity(fee.id, item.id) === 0;
+        const remaining = getEffectiveCountRemaining(fee.id, item);
+        return remaining != null && remaining <= 0 && getFeeQuantity(fee.id, item.id) === 0;
     }
 
     function isFeeItemHidden(fee: RegistrationTemplateFeeBag, item: RegistrationTemplateFeeItemBag): boolean {
@@ -262,7 +323,7 @@
     function feeDropdownItems(fee: RegistrationTemplateFeeBag): ListItemBag[] {
         return (fee.items ?? []).map(item => ({
             value: item.id.toString(),
-            text: feeItemLabel(item),
+            text: feeItemLabel(fee.id, item),
             disabled: isFeeItemDisabled(fee, item)
         }));
     }
@@ -301,12 +362,24 @@
         return fees;
     }
 
-    function feeItemLabel(item: RegistrationTemplateFeeItemBag): string {
+    function feeItemLabel(feeId: number, item: RegistrationTemplateFeeItemBag, feeName?: string): string {
+        let label = item.name || feeName || "";
+
         if (item.cost > 0) {
-            return `${item.name ?? ""} (${formatCurrency(item.cost)})`;
+            label += ` (${formatCurrency(item.cost)})`;
         }
 
-        return item.name ?? "";
+        const remaining = getEffectiveCountRemaining(feeId, item);
+        if (remaining != null) {
+            if (remaining > 0) {
+                label += ` (${remaining} Remaining)`;
+            }
+            else if (getFeeQuantity(feeId, item.id) === 0) {
+                label += " (None Remaining)";
+            }
+        }
+
+        return label;
     }
 
     function formatCurrency(value: number): string {
@@ -321,6 +394,10 @@
         updateRefValue(cost, props.modelValue.bag?.cost ?? 0);
         updateRefValue(discountApplies, props.modelValue.bag?.discountApplies ?? false);
         updateRefValue(isOnWaitList, props.modelValue.bag?.isOnWaitList ?? false);
+        updateRefValue(signatureDocumentBinaryFile,
+            props.modelValue.bag?.signatureDocumentBinaryFileId
+                ? { value: props.modelValue.bag.signatureDocumentBinaryFileId, text: "" }
+                : null);
         updateRefValue(attributes, props.modelValue.bag?.attributes ?? {});
         updateRefValue(attributeValues, props.modelValue.bag?.attributeValues ?? {});
         updateRefValue(feeQuantities, buildFeeQuantities());
@@ -336,6 +413,7 @@
         setPropertiesBoxValue(newValue, "cost", cost.value);
         setPropertiesBoxValue(newValue, "discountApplies", discountApplies.value);
         setPropertiesBoxValue(newValue, "isOnWaitList", isOnWaitList.value);
+        setPropertiesBoxValue(newValue, "signatureDocumentBinaryFileId", signatureDocumentBinaryFile.value?.value ?? null);
         setPropertiesBoxValue(newValue, "attributeValues", attributeValues.value);
         setPropertiesBoxValue(newValue, "fees", buildFees());
 

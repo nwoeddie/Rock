@@ -55,14 +55,9 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantDetail
         public List<RegistrantFeeBag> Fees { get; set; }
 
         /// <summary>
-        /// Gets or sets the id of the existing signature document associated with this registrant.
+        /// Gets or sets the Guid of the binary file for a newly uploaded signature document.
         /// </summary>
-        public int? SignatureDocumentId { get; set; }
-
-        /// <summary>
-        /// Gets or sets the binary file id of a newly uploaded signature document.
-        /// </summary>
-        public int? SignatureDocumentBinaryFileId { get; set; }
+        public Guid? SignatureDocumentBinaryFileId { get; set; }
 
         // ── Context / Display ────────────────────────────────────────────────
 

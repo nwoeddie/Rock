@@ -225,8 +225,7 @@ namespace Rock.Blocks.Event
                     Cost = f.Cost,
                     Option = f.Option
                 } ).ToList(),
-                SignatureDocumentId = entity.SignatureDocumentId,
-                SignatureDocumentBinaryFileId = entity.SignatureDocument?.BinaryFileId,
+                SignatureDocumentBinaryFileId = entity.SignatureDocument?.BinaryFile?.Guid,
                 RegistrationIdKey = registration?.IdKey,
                 RegistrationTemplateName = template?.Name,
                 RegistrationInstanceName = instance?.Name,
@@ -418,7 +417,7 @@ namespace Rock.Blocks.Event
                 .Include( r => r.Registration.RegistrationInstance.RegistrationTemplate.RequiredSignatureDocumentTemplate.BinaryFileType )
                 .Include( r => r.PersonAlias.Person )
                 .Include( r => r.Fees )
-                .Include( r => r.SignatureDocument )
+                .Include( r => r.SignatureDocument.BinaryFile )
                 .FirstOrDefault();
 
         }
@@ -679,7 +678,7 @@ namespace Rock.Blocks.Event
 
             if ( template?.RequiredSignatureDocumentTemplate != null && entity.PersonAliasId.HasValue && newPerson != null )
             {
-                HandleSignatureDocument( entity, template, newPerson.Id, box.Bag.SignatureDocumentId, box.Bag.SignatureDocumentBinaryFileId );
+                HandleSignatureDocument( entity, template, newPerson.Id, entity.SignatureDocumentId, box.Bag.SignatureDocumentBinaryFileId );
             }
 
             // ── Registration Session ──────────────────────────────────────────
@@ -800,11 +799,22 @@ namespace Rock.Blocks.Event
         /// creates a new one from an uploaded file, or finds a valid existing document for the person
         /// when no file is provided.
         /// </summary>
-        private void HandleSignatureDocument( RegistrationRegistrant entity, RegistrationTemplate template, int personId, int? existingDocumentId, int? newBinaryFileId )
+        private void HandleSignatureDocument( RegistrationRegistrant entity, RegistrationTemplate template, int personId, int? existingDocumentId, Guid? newBinaryFileGuid )
         {
             var documentService = new SignatureDocumentService( RockContext );
             var binaryFileService = new BinaryFileService( RockContext );
             SignatureDocument document = null;
+
+            // Resolve the uploaded file's Guid to its integer Id so the rest of the
+            // method can work with the BinaryFileId used by SignatureDocument.
+            int? newBinaryFileId = null;
+            if ( newBinaryFileGuid.HasValue )
+            {
+                newBinaryFileId = binaryFileService.Queryable()
+                    .Where( f => f.Guid == newBinaryFileGuid.Value )
+                    .Select( f => ( int? ) f.Id )
+                    .FirstOrDefault();
+            }
 
             if ( existingDocumentId.HasValue )
             {
@@ -812,6 +822,20 @@ namespace Rock.Blocks.Event
                 if ( entity.SignatureDocument == null )
                 {
                     entity.SignatureDocument = document;
+                }
+
+                // If the document had a binary file but the user cleared it in the UI
+                // (newBinaryFileId is null), mark the old file as temporary so the cleanup
+                // job can remove it, then detach it from the document.
+                if ( document != null && document.BinaryFileId.HasValue && !newBinaryFileId.HasValue && !newBinaryFileGuid.HasValue )
+                {
+                    var oldFile = binaryFileService.Get( document.BinaryFileId.Value );
+                    if ( oldFile != null && !oldFile.IsTemporary )
+                    {
+                        oldFile.IsTemporary = true;
+                    }
+
+                    document.BinaryFileId = null;
                 }
             }
 

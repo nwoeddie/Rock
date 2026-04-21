@@ -76,11 +76,8 @@ export type RegistrantBag = {
     /** Gets or sets the registration template name for the wizard breadcrumb. */
     registrationTemplateName?: string | null;
 
-    /** Gets or sets the binary file id of a newly uploaded signature document. */
-    signatureDocumentBinaryFileId?: number | null;
-
-    /** Gets or sets the id of the existing signature document associated with this registrant. */
-    signatureDocumentId?: number | null;
+    /** Gets or sets the Guid of the binary file for a newly uploaded signature document. */
+    signatureDocumentBinaryFileId?: Guid | null;
 
     /** Gets or sets the binary file type guid for the signature document template, used to restrict uploads. */
     signatureDocumentTemplateBinaryFileTypeGuid?: Guid | null;
