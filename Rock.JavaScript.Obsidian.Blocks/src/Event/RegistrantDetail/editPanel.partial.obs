@@ -29,14 +29,15 @@
                                           :numberOfColumns="1" />
             </div>
 
-            <div class="col-md-6" v-if="props.options.fees && props.options.fees?.length > 0">
+            <div class="col-md-6" v-if="props.options.fees && props.options.fees.length > 0">
                 <ContentSection title="Fees" :disableCollapse="true">
-                    <ContentStack v-for="fee in props.options.fees ?? []" :key="fee.id">
+                    <ContentStack v-for="fee in props.options.fees" :key="fee.id">
 
                         <!-- Multiple Items - Pick One -->
                         <template v-if="fee.feeType === RegistrationFeeType.Multiple && !fee.allowMultiple">
-                            <div style="width: fit-content;">
+                            <div v-if="!isFeeHidden(fee)" style="width: fit-content;">
                                 <DropDownList
+                                              :disabled="isFeeDisabled(fee)"
                                               :modelValue="getSelectedFeeItemId(fee)"
                                               @update:modelValue="setSelectedFeeItem(fee, $event)"
                                               :label="fee.name ?? ''"
@@ -47,30 +48,44 @@
 
                         <!-- Multiple Items - Allow Pick Quantity -->
                         <template v-else-if="fee.feeType === RegistrationFeeType.Multiple && fee.allowMultiple">
-                            <label class="control-label">{{ fee.name }}</label>
-                            <NumberUpDown v-for="item in fee.items ?? []"
-                                          :key="item.id"
-                                          :modelValue="getFeeQuantity(fee.id, item.id)"
-                                          @update:modelValue="setFeeQuantity(fee.id, item.id, $event)"
-                                          :label="feeItemLabel(item)"
-                                          :min="0"
-                                          :max="item.maximumUsageCount ?? 100" />
+                            <template v-if="!isFeeHidden(fee)">
+                                <template v-for="item in fee.items ?? []" :key="item.id">
+                                    <NumberUpDown
+                                                  v-if="!isFeeItemHidden(fee, item)"
+                                                  :disabled="isFeeItemDisabled(fee, item)"
+                                                  :modelValue="getFeeQuantity(fee.id, item.id)"
+                                                  @update:modelValue="setFeeQuantity(fee.id, item.id, $event)"
+                                                  :label="feeItemLabel(item)"
+                                                  :min="0"
+                                                  :max="item.countRemaining ?? undefined" />
+                                </template>
+                            </template>
                         </template>
 
                         <!-- Single Item - Only 1 Allowed -->
-                        <CheckBox v-else-if="fee.feeType === RegistrationFeeType.Single && !fee.allowMultiple && fee.items && fee.items.length > 0"
-                                  :modelValue="getFeeChecked(fee.id, fee.items[0].id)"
-                                  @update:modelValue="setFeeChecked(fee.id, fee.items[0], $event)"
-                                  :label="fee.name ?? ''"
-                                  :help="fee.items[0].cost > 0 ? formatCurrency(fee.items[0].cost) : ''" />
+                        <div v-else-if="fee.feeType === RegistrationFeeType.Single
+                            && !fee.allowMultiple
+                            && fee.items
+                            && fee.items.length > 0
+                            && !isFeeHidden(fee)"
+                             :class="{ 'disabled': isFeeDisabled(fee) }">
+                            <CheckBox
+                                      :modelValue="getFeeChecked(fee.id, fee.items[0].id)"
+                                      @update:modelValue="setFeeChecked(fee.id, fee.items[0], $event)"
+                                      :label="fee.name ?? ''"
+                                      :help="fee.items[0].cost > 0 ? formatCurrency(fee.items[0].cost) : ''" />
+                        </div>
 
                         <!-- Single Item - Multiple Allowed -->
-                        <NumberUpDown v-else-if="fee.feeType === RegistrationFeeType.Single && fee.allowMultiple && fee.items && fee.items.length > 0"
+                        <NumberUpDown v-else-if="fee.feeType === RegistrationFeeType.Single
+                            && fee.allowMultiple
+                            && fee.items
+                            && fee.items.length > 0"
                                       :modelValue="getFeeQuantity(fee.id, fee.items[0].id)"
                                       @update:modelValue="setFeeQuantity(fee.id, fee.items[0].id, $event)"
                                       :label="fee.name ?? ''"
                                       :min="0"
-                                      :max="fee.items[0].maximumUsageCount ?? 100"
+                                      :max="fee.items[0].countRemaining ?? undefined"
                                       :help="fee.items[0].cost > 0 ? formatCurrency(fee.items[0].cost) : ''" />
                     </ContentStack>
                 </ContentSection>
@@ -81,10 +96,15 @@
                          alertType="info">
             An existing valid signature document was found for this person and will be associated with this registrant.
         </NotificationBox>
-
-        <!-- TODO: Signature document file uploader requires BinaryFile Guid — bag field needs to change from number to Guid string. -->
     </fieldset>
 </template>
+
+<style scoped>
+.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+</style>
 
 <script setup lang="ts">
     import { computed, PropType, ref, watch } from "vue";
@@ -154,6 +174,43 @@
 
     // #region Fee Helpers
 
+    /**
+     * Returns true when the fee wrapper div should be hidden (display:none).
+     * Hides only when every item is sold out, HideWhenNoneRemaining is set,
+     * and the registrant has no existing quantity on any item.
+     */
+    function isFeeHidden(fee: RegistrationTemplateFeeBag): boolean {
+        if (!fee.hideWhenNoneRemaining) {
+            return false;
+        }
+        return (fee.items ?? []).every(
+            item => item.countRemaining != null && item.countRemaining <= 0 && getFeeQuantity(fee.id, item.id) === 0
+        );
+    }
+    /**
+     * Returns true when the fee control should be shown disabled.
+     * Disables only when every item is sold out, HideWhenNoneRemaining is NOT set,
+     * and the registrant has no existing quantity on any item.
+     */
+    function isFeeDisabled(fee: RegistrationTemplateFeeBag): boolean {
+        if (fee.hideWhenNoneRemaining) {
+            return false;
+        }
+        return (fee.items ?? []).every(
+            item => item.countRemaining != null && item.countRemaining <= 0 && getFeeQuantity(fee.id, item.id) === 0
+        );
+    }
+
+    function isFeeItemDisabled(fee: RegistrationTemplateFeeBag, item: RegistrationTemplateFeeItemBag): boolean {
+        return item.countRemaining != null
+            && item.countRemaining <= 0
+            && getFeeQuantity(fee.id, item.id) === 0;
+    }
+
+    function isFeeItemHidden(fee: RegistrationTemplateFeeBag, item: RegistrationTemplateFeeItemBag): boolean {
+        return fee.hideWhenNoneRemaining && isFeeItemDisabled(fee, item);
+    }
+
     function feeKey(feeId: number, feeItemId: number): string {
         return `${feeId}_${feeItemId}`;
     }
@@ -205,7 +262,8 @@
     function feeDropdownItems(fee: RegistrationTemplateFeeBag): ListItemBag[] {
         return (fee.items ?? []).map(item => ({
             value: item.id.toString(),
-            text: feeItemLabel(item)
+            text: feeItemLabel(item),
+            disabled: isFeeItemDisabled(fee, item)
         }));
     }
 

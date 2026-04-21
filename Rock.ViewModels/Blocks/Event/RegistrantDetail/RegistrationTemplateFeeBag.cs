@@ -56,6 +56,13 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantDetail
         public bool DiscountApplies { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the fee control should be
+        /// hidden entirely when no items remain. When <c>false</c>, the control
+        /// is shown but disabled instead.
+        /// </summary>
+        public bool HideWhenNoneRemaining { get; set; }
+
+        /// <summary>
         /// Gets or sets the display order.
         /// </summary>
         public int Order { get; set; }

@@ -26,10 +26,7 @@ export type RegistrantFeeBag = {
     /** Gets or sets the cost per unit for this fee selection. */
     cost: number;
 
-    /**
-     * Gets or sets the display label for the fee option (e.g. the item name
-     * for multi-option fees). Stored on the RegistrationRegistrantFee record.
-     */
+    /** Gets or sets the display label for the fee option (e.g. the item name for multi-option fees). */
     option?: string | null;
 
     /** Gets or sets the quantity selected. */

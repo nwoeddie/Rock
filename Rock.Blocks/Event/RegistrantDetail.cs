@@ -79,28 +79,49 @@ namespace Rock.Blocks.Event
 
         /// <summary>
         /// Gets the box options required for the component to render the edit panel,
-        /// including fee template definitions needed to render fee controls.
-        /// The RegistrationId page parameter is always present in the URL, so we
-        /// load the template directly from it rather than traversing entity navigation properties.
+        /// including fee template definitions and remaining-usage counts.
+        /// Matches the legacy WebForms approach: counts all usage across the instance
+        /// without excluding the current registrant.
         /// </summary>
         private RegistrantDetailOptionsBag GetBoxOptions( int registrationId )
         {
-
             if ( registrationId == 0 )
             {
                 return new RegistrantDetailOptionsBag { Fees = new List<RegistrationTemplateFeeBag>() };
             }
 
-            var template = new RegistrationService( RockContext )
+            var registrationInfo = new RegistrationService( RockContext )
                 .Queryable()
-                .Include( r => r.RegistrationInstance.RegistrationTemplate.Fees.Select( f => f.FeeItems ) )
                 .Where( r => r.Id == registrationId )
-                .Select( r => r.RegistrationInstance.RegistrationTemplate )
+                .Select( r => new
+                {
+                    r.RegistrationInstanceId,
+                    TemplateId = r.RegistrationInstance.RegistrationTemplateId
+                } )
                 .FirstOrDefault();
 
-            var fees = template?.Fees?
-                .Where( f => f.IsActive )
+            if ( registrationInfo == null )
+            {
+                return new RegistrantDetailOptionsBag { Fees = new List<RegistrationTemplateFeeBag>() };
+            }
+
+            // Load fees with their items
+            var templateFees = new RegistrationTemplateFeeService( RockContext )
+                .Queryable()
+                .Include( f => f.FeeItems )
+                .Where( f => f.RegistrationTemplateId == registrationInfo.TemplateId && f.IsActive )
                 .OrderBy( f => f.Order )
+                .ToList();
+
+            // Get the the totals used for each item so we can know amountRemaining for the UI
+            var feeItemUsage = new RegistrationRegistrantFeeService( RockContext )
+                .Queryable()
+                .Where( f => f.RegistrationRegistrant.Registration.RegistrationInstanceId == registrationInfo.RegistrationInstanceId )
+                .GroupBy( f => f.RegistrationTemplateFeeItemId )
+                .Select( g => new { FeeItemId = g.Key, UsedCount = g.Sum( f => f.Quantity ) } )
+                .ToDictionary( x => x.FeeItemId, x => x.UsedCount );
+
+            var fees = templateFees
                 .Select( f => new RegistrationTemplateFeeBag
                 {
                     Id = f.Id,
@@ -108,6 +129,7 @@ namespace Rock.Blocks.Event
                     FeeType = f.FeeType,
                     AllowMultiple = f.AllowMultiple,
                     DiscountApplies = f.DiscountApplies,
+                    HideWhenNoneRemaining = f.HideWhenNoneRemaining,
                     Order = f.Order,
                     Items = f.FeeItems
                         .OrderBy( i => i.Order )
@@ -116,14 +138,16 @@ namespace Rock.Blocks.Event
                             Id = i.Id,
                             Name = i.Name,
                             Cost = i.Cost,
-                            MaximumUsageCount = i.MaximumUsageCount,
-                            Order = i.Order
+                            Order = i.Order,
+                            CountRemaining = i.MaximumUsageCount.HasValue
+                                ? ( int? ) Math.Max( 0, i.MaximumUsageCount.Value - feeItemUsage.GetValueOrDefault( i.Id, 0 ) )
+                                : null
                         } ).ToList()
                 } ).ToList();
 
             return new RegistrantDetailOptionsBag
             {
-                Fees = fees ?? new List<RegistrationTemplateFeeBag>()
+                Fees = fees
             };
         }
 
@@ -360,8 +384,12 @@ namespace Rock.Blocks.Event
                     return null;
                 }
 
+                // Even on new Registrant, we want to cache the nav properties so when we get info in edit bag we don't fire off more queries.
                 var registration = new RegistrationService( RockContext )
                     .GetQueryableByKey( registrationParameter, !PageCache.Layout.Site.DisablePredictableIds )
+                    .Include( r => r.RegistrationInstance.RegistrationTemplate.Forms.Select( f => f.Fields ) )
+                    .Include( r => r.RegistrationInstance.RegistrationTemplate.Fees )
+                    .Include( r => r.RegistrationInstance.RegistrationTemplate.RequiredSignatureDocumentTemplate.BinaryFileType )
                     .FirstOrDefault();
 
                 if ( registration == null )
@@ -369,10 +397,18 @@ namespace Rock.Blocks.Event
                     return null;
                 }
 
+                var template = registration.RegistrationInstance?.RegistrationTemplate;
+
+                var cost = template?.SetCostOnInstance == true
+                    ? registration.RegistrationInstance?.Cost ?? 0m
+                    : template?.Cost ?? 0m;
+
                 return new RegistrationRegistrant
                 {
                     RegistrationId = registration.Id,
-                    RegistrationTemplateId = registration.RegistrationInstance?.RegistrationTemplate?.Id ?? 0
+                    RegistrationTemplateId = template?.Id ?? 0,
+                    Cost = cost,
+                    Registration = registration
                 };
             }
 
@@ -384,7 +420,7 @@ namespace Rock.Blocks.Event
                 .Include( r => r.Fees )
                 .Include( r => r.SignatureDocument )
                 .FirstOrDefault();
-            
+
         }
 
         /// <summary>
@@ -507,7 +543,6 @@ namespace Rock.Blocks.Event
             var personAliasService = new PersonAliasService( RockContext );
             var registrantService = new RegistrationRegistrantService( RockContext );
             var registrantFeeService = new RegistrationRegistrantFeeService( RockContext );
-            var registrationTemplateFeeService = new RegistrationTemplateFeeService( RockContext );
 
             // Capture pre-update state for history tracking.
             var previousRegistrantPersonIds = isNew
@@ -565,6 +600,19 @@ namespace Rock.Blocks.Event
 
             // ── Fees ──────────────────────────────────────────────────────────
 
+            // Pre-load all fee names needed for history in a single query to
+            // avoid one DB round-trip per fee inside the loops below.
+            var uiFeeIds = box.Bag.Fees?
+                .Select( f => f.RegistrationTemplateFeeId )
+                .Distinct()
+                .ToList() ?? new List<int>();
+
+            var templateFeeNames = new RegistrationTemplateFeeService( RockContext )
+                .Queryable()
+                .Where( f => uiFeeIds.Contains( f.Id ) )
+                .Select( f => new { f.Id, f.Name } )
+                .ToDictionary( f => f.Id, f => f.Name );
+
             foreach ( var dbFee in entity.Fees.ToList() )
             {
                 var uiFee = box.Bag.Fees?.FirstOrDefault( f =>
@@ -574,7 +622,8 @@ namespace Rock.Blocks.Event
 
                 if ( uiFee == null )
                 {
-                    var oldValue = $"'{dbFee.RegistrationTemplateFee?.Name}' Fee (Quantity:{dbFee.Quantity:N0}, Cost:{dbFee.Cost:C2}, Option:{dbFee.Option}";
+                    var feeName = templateFeeNames.GetValueOrDefault( dbFee.RegistrationTemplateFeeId, "Fee" );
+                    var oldValue = $"'{feeName}' Fee (Quantity:{dbFee.Quantity:N0}, Cost:{dbFee.Cost:C2}, Option:{dbFee.Option}";
                     registrantChanges.AddChange( History.HistoryVerb.Delete, History.HistoryChangeType.Record, "Fee" ).SetOldValue( oldValue );
                     entity.Fees.Remove( dbFee );
                     registrantFeeService.Delete( dbFee );
@@ -604,10 +653,8 @@ namespace Rock.Blocks.Event
                     entity.Fees.Add( dbFee );
                 }
 
-                var templateFee = dbFee.RegistrationTemplateFee
-                    ?? registrationTemplateFeeService.Get( uiFee.RegistrationTemplateFeeId );
+                var feeName = templateFeeNames.GetValueOrDefault( uiFee.RegistrationTemplateFeeId, "Fee" );
 
-                string feeName = templateFee?.Name ?? "Fee";
                 if ( uiFee.Option.IsNotNullOrWhiteSpace() )
                 {
                     feeName = $"{feeName} ({uiFee.Option})";

@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -39,10 +39,11 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantDetail
         public decimal Cost { get; set; }
 
         /// <summary>
-        /// Gets or sets the maximum number of times this fee item may be selected.
-        /// Null means no limit.
+        /// Gets or sets the number of times this fee item may still be selected,
+        /// accounting for usage by all other registrants in the instance. A value
+        /// of <c>0</c> means sold out. <c>null</c> means there is no limit.
         /// </summary>
-        public int? MaximumUsageCount { get; set; }
+        public int? CountRemaining { get; set; }
 
         /// <summary>
         /// Gets or sets the display order.

@@ -47,6 +47,13 @@ export type RegistrationTemplateFeeBag = {
      */
     feeType: RegistrationFeeType;
 
+    /**
+     * Gets or sets a value indicating whether the fee control should be
+     * hidden entirely when no items remain. When false, the control
+     * is shown but disabled instead.
+     */
+    hideWhenNoneRemaining: boolean;
+
     /** Gets or sets the fee identifier. */
     id: number;
 

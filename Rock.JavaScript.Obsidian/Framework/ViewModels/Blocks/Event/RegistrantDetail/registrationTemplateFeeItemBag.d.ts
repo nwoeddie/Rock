@@ -29,14 +29,15 @@ export type RegistrationTemplateFeeItemBag = {
     /** Gets or sets the cost per unit of this fee item. */
     cost: number;
 
+    /**
+     * Gets or sets the number of times this fee item may still be selected,
+     * accounting for usage by all other registrants in the instance. A value
+     * of 0 means sold out. null means there is no limit.
+     */
+    countRemaining?: number | null;
+
     /** Gets or sets the fee item identifier. */
     id: number;
-
-    /**
-     * Gets or sets the maximum number of times this fee item may be selected.
-     * Null means no limit.
-     */
-    maximumUsageCount?: number | null;
 
     /** Gets or sets the display name of this fee item. */
     name?: string | null;
