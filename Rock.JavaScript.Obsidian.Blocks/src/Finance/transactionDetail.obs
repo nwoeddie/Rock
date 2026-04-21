@@ -182,7 +182,6 @@
 
     const transactionViewBag = ref(config.entity);
 
-    console.log("Transaction View Bag:", transactionViewBag.value);
     const transactionEditBag = ref<ValidPropertiesBox<TransactionBag>>({
         bag: {} as TransactionBag
     });

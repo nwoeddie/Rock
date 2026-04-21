@@ -450,11 +450,7 @@ namespace Rock.Blocks.Finance
         {
             var parameter = PageParameter( PageParameterKey.TransactionId );
 
-            var service = new FinancialTransactionService( RockContext );
-
-            var entity = service.Get( parameter );
-
-            if ( entity == null )
+            if ( parameter.IsNullOrWhiteSpace() || parameter.AsInteger() == 0 )
             {
                 return new FinancialTransaction
                 {
@@ -462,9 +458,8 @@ namespace Rock.Blocks.Finance
                 };
             }
 
-            // Now load full entity with includes using the numeric Id
-            return service
-                .Queryable()
+            return new FinancialTransactionService( RockContext )
+                .GetQueryableByKey( parameter, !PageCache.Layout.Site.DisablePredictableIds )
                 .Include( t => t.Batch )
                 .Include( t => t.FinancialPaymentDetail )
                 .Include( t => t.RefundDetails )
@@ -476,7 +471,7 @@ namespace Rock.Blocks.Finance
                 .Include( t => t.TransactionDetails )
                 .Include( t => t.TransactionDetails.Select( d => d.Account ) )
                 .Include( t => t.TransactionDetails.Select( d => d.EntityType ) )
-                .FirstOrDefault( t => t.Id == entity.Id );
+                .FirstOrDefault();
         }
 
         /// <summary>
