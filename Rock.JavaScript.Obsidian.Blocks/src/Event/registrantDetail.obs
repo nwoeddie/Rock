@@ -20,11 +20,23 @@
             <EditPanel v-model="registrantEditBag" :options="options" @propertyChanged="baseBlock.onPropertyChanged" />
         </template>
     </DetailBlock>
+
+    <Dialog v-model="isGroupMemberWarningVisible" :dismissible="false">
+
+        This registration is linked to a group. <strong>{{ groupMemberWarningOldName }}</strong> will be removed from the group and <strong>{{ groupMemberWarningNewName }}</strong> will be added to the group.
+
+        <template #footer>
+            <RockButton btnType="primary" @click="onGroupMemberWarningConfirmed">OK</RockButton>
+            <RockButton btnType="link" @click="onGroupMemberWarningCancelled">Cancel</RockButton>
+        </template>
+    </Dialog>
 </template>
 
 <script setup lang="ts">
     import { computed, ref } from "vue";
+    import Dialog from "@Obsidian/Controls/dialog.obs";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
     import DetailBlock from "@Obsidian/Templates/detailBlock";
     import { DetailPanelMode } from "@Obsidian/Enums/Controls/detailPanelMode";
     import EditPanel from "./RegistrantDetail/editPanel.partial.obs";
@@ -45,12 +57,13 @@
     const blockError = ref("");
     const errorMessage = ref("");
 
+    const isGroupMemberWarningVisible = ref(false);
+    const groupMemberWarningOldName = ref("");
+    const groupMemberWarningNewName = ref("");
+
     const registrantEditBag = ref<ValidPropertiesBox<RegistrantBag>>({
         bag: config.entity ?? {} as RegistrantBag
     });
-
-    console.log("Edit Bag", registrantEditBag.value.bag);
-
 
     const panelMode = ref<DetailPanelMode>(DetailPanelMode.Edit);
 
@@ -75,8 +88,6 @@
         return config.options ?? {};
     });
 
-    console.log("Options Bag", options.value);
-
     // #endregion
 
     // #region Event Handlers
@@ -94,13 +105,53 @@
     }
 
     /**
-     * Event handler for the panel's Save event. Sends the data to the server
-     * and redirects to the parent page on success.
+     * Event handler for the panel's Save event. If the registrant is already
+     * linked to a group member and the person has changed, shows a warning modal
+     * before proceeding. Otherwise saves immediately.
      */
     async function onSave(): Promise<boolean | string> {
+        const hasGroupMember = registrantEditBag.value.bag?.hasGroupMember ?? false;
+        const originalPersonId = config.entity?.personAlias?.value;
+        const newPersonId = registrantEditBag.value.bag?.personAlias?.value;
+
+        if (hasGroupMember && originalPersonId && newPersonId && originalPersonId !== newPersonId) {
+            groupMemberWarningOldName.value = config.entity?.personAlias?.text ?? "";
+            groupMemberWarningNewName.value = registrantEditBag.value.bag?.personAlias?.text ?? "";
+            isGroupMemberWarningVisible.value = true;
+            return false;
+        }
+
+        return await performSave();
+    }
+
+    /**
+     * Called when the user confirms the group member change warning. Closes
+     * the dialog and proceeds with the deferred save.
+     */
+    async function onGroupMemberWarningConfirmed(): Promise<void> {
+        isGroupMemberWarningVisible.value = false;
+
+        const redirectUrl = await performSave();
+        if (typeof redirectUrl === "string") {
+            window.location.href = redirectUrl;
+        }
+    }
+
+    /**
+     * Called when the user cancels the group member change warning.
+     * Closes the dialog and does not save.
+     */
+    function onGroupMemberWarningCancelled(): void {
+        isGroupMemberWarningVisible.value = false;
+    }
+
+    /**
+     * Sends the registrant data to the server and returns the redirect URL on
+     * success, or false on failure.
+     */
+    async function performSave(): Promise<boolean | string> {
         errorMessage.value = "";
 
-        console.log("Save Values", registrantEditBag.value);
         const result = await invokeBlockAction<string>("Save", {
             box: registrantEditBag.value
         });

@@ -161,6 +161,14 @@ namespace Rock.Blocks.Event
         {
             errorMessage = null;
 
+            if ( !entity.IsValid )
+            {
+                errorMessage = entity.ValidationResults
+                    .Select( r => r.ErrorMessage )
+                    .JoinStrings( ", " );
+                return false;
+            }
+
             return true;
         }
 
@@ -226,6 +234,8 @@ namespace Rock.Blocks.Event
                     Option = f.Option
                 } ).ToList(),
                 SignatureDocumentBinaryFileId = entity.SignatureDocument?.BinaryFile?.Guid,
+                SignatureDocumentBinaryFileName = entity.SignatureDocument?.BinaryFile?.FileName,
+                HasGroupMember = entity.GroupMemberId.HasValue,
                 RegistrationIdKey = registration?.IdKey,
                 RegistrationTemplateName = template?.Name,
                 RegistrationInstanceName = instance?.Name,
@@ -543,14 +553,6 @@ namespace Rock.Blocks.Event
             var registrantService = new RegistrationRegistrantService( RockContext );
             var registrantFeeService = new RegistrationRegistrantFeeService( RockContext );
 
-            // Capture pre-update state for history tracking.
-            var previousRegistrantPersonIds = isNew
-                ? new List<int>()
-                : registrantService.Queryable()
-                    .Where( r => r.RegistrationId == entity.RegistrationId && r.PersonAlias != null )
-                    .Select( r => r.PersonAlias.PersonId )
-                    .ToList();
-
             var registrantChanges = new History.HistoryChangeList();
 
             if ( isNew )
@@ -558,29 +560,21 @@ namespace Rock.Blocks.Event
                 registrantChanges.AddChange( History.HistoryVerb.Add, History.HistoryChangeType.Record, "Registrant" );
             }
 
+            // Capture pre-update state before UpdateEntityFromBox overwrites it.
             var originalPersonAliasId = entity.PersonAliasId;
-
-            // TryGetEntityForEditAction loads the entity without nav-property includes,
-            // so PersonAlias is null. Query the name directly to get the correct previous
-            // value for the history entry when the person changes.
-            var originalPersonName = originalPersonAliasId.HasValue
-                ? personAliasService.GetSelect( originalPersonAliasId.Value, pa => pa.Person.FullName ) ?? string.Empty
-                : string.Empty;
-
-            var originalCost = entity.Cost;
-            var originalDiscountApplies = entity.DiscountApplies;
-
-            // Capture the original wait list state before UpdateEntityFromBox overwrites
-            // it. The capacity check needs to know if the registrant is being moved off
-            // the wait list, not just whether they end up off it.
             var originalOnWaitList = entity.OnWaitList;
 
-            // Pre-load attributes to capture original values before UpdateEntityFromBox
-            // overwrites them in memory.
+            var originalPersonName = entity.PersonAliasId.HasValue
+                ? personAliasService.GetPerson( entity.PersonAliasId.Value ).FullName
+                : string.Empty;
+
             entity.LoadAttributes( RockContext );
             var originalAttributeValues = entity.Attributes?.Keys
                 .ToDictionary( key => key, key => entity.GetAttributeValue( key ) )
                 ?? new Dictionary<string, string>();
+
+            History.EvaluateChange( registrantChanges, "Cost", entity.Cost, box.Bag.Cost );
+            History.EvaluateChange( registrantChanges, "Discount Applies", entity.DiscountApplies, box.Bag.DiscountApplies );
 
             if ( !UpdateEntityFromBox( entity, box ) )
             {
@@ -592,12 +586,14 @@ namespace Rock.Blocks.Event
                 return ActionBadRequest( validationMessage );
             }
 
-            // Resolve the updated person for history and group member handling.
-            var personAlias = entity.PersonAliasId.HasValue
-                ? personAliasService.Get( entity.PersonAliasId.Value )
-                : null;
+            var previousRegistrantPersonIds = registrantService.Queryable()
+                .Where( r => r.RegistrationId == entity.RegistrationId && r.PersonAlias != null )
+                .Select( r => r.PersonAlias.PersonId )
+                .ToList();
 
-            var newPerson = personAlias?.Person;
+            var newPerson = entity.PersonAliasId.HasValue
+                ? personAliasService.GetPerson( entity.PersonAliasId.Value )
+                : null;
 
             var personChanged = !originalPersonAliasId.Equals( entity.PersonAliasId );
 
@@ -606,23 +602,42 @@ namespace Rock.Blocks.Event
                 History.EvaluateChange( registrantChanges, "Person", originalPersonName, newPerson?.FullName ?? string.Empty );
             }
 
-            History.EvaluateChange( registrantChanges, "Cost", originalCost, entity.Cost );
-            History.EvaluateChange( registrantChanges, "Discount Applies", originalDiscountApplies, entity.DiscountApplies );
+            var registration = GetRegistration( entity );
+            var template = registration?.RegistrationInstance?.RegistrationTemplate;
 
             // ── Fees ──────────────────────────────────────────────────────────
 
             // Pre-load all fee names needed for history in a single query to
             // avoid one DB round-trip per fee inside the loops below.
-            var uiFeeIds = box.Bag.Fees?
-                .Select( f => f.RegistrationTemplateFeeId )
+            // Include both UI fee IDs and existing DB fee IDs so that fees being
+            // deleted (absent from the bag) still resolve to their real name.
+            var allFeeIds = ( box.Bag.Fees?.Select( f => f.RegistrationTemplateFeeId ) ?? Enumerable.Empty<int>() )
+                .Union( entity.Fees.Select( f => f.RegistrationTemplateFeeId ) )
                 .Distinct()
-                .ToList() ?? new List<int>();
+                .ToList();
 
             var templateFeeNames = new RegistrationTemplateFeeService( RockContext )
                 .Queryable()
-                .Where( f => uiFeeIds.Contains( f.Id ) )
+                .Where( f => allFeeIds.Contains( f.Id ) )
                 .Select( f => new { f.Id, f.Name } )
                 .ToDictionary( f => f.Id, f => f.Name );
+
+            // Pre-load fee item option names so new fees get the authoritative name
+            // from the database rather than trusting the client-supplied value.
+            var allFeeItemIds = ( box.Bag.Fees?
+                    .Where( f => f.RegistrationTemplateFeeItemId.HasValue )
+                    .Select( f => f.RegistrationTemplateFeeItemId.Value ) ?? Enumerable.Empty<int>() )
+                .Union( entity.Fees
+                    .Where( f => f.RegistrationTemplateFeeItemId.HasValue )
+                    .Select( f => f.RegistrationTemplateFeeItemId.Value ) )
+                .Distinct()
+                .ToList();
+
+            var templateFeeItemOptions = new RegistrationTemplateFeeItemService( RockContext )
+                .Queryable()
+                .Where( i => allFeeItemIds.Contains( i.Id ) )
+                .Select( i => new { i.Id, i.Name } )
+                .ToDictionary( i => i.Id, i => i.Name );
 
             foreach ( var dbFee in entity.Fees.ToList() )
             {
@@ -654,11 +669,15 @@ namespace Rock.Blocks.Event
 
                 if ( dbFee == null )
                 {
+                    var option = uiFee.RegistrationTemplateFeeItemId.HasValue
+                        ? templateFeeItemOptions.GetValueOrDefault( uiFee.RegistrationTemplateFeeItemId.Value, null )
+                        : null;
+
                     dbFee = new RegistrationRegistrantFee
                     {
                         RegistrationTemplateFeeId = uiFee.RegistrationTemplateFeeId,
                         RegistrationTemplateFeeItemId = uiFee.RegistrationTemplateFeeItemId,
-                        Option = uiFee.Option
+                        Option = option
                     };
 
                     entity.Fees.Add( dbFee );
@@ -683,10 +702,17 @@ namespace Rock.Blocks.Event
                 dbFee.Cost = uiFee.Cost;
             }
 
-            // ── Signature Document ────────────────────────────────────────────
+            // ── Fee Item Capacity Validation ──────────────────────────────────
 
-            var registration = GetRegistration( entity );
-            var template = registration?.RegistrationInstance?.RegistrationTemplate;
+            // Guard against two concurrent saves both claiming the last available
+            // slot for a fee item that has a MaximumUsageCount.
+            var feeCapacityError = ValidateFeeItemCapacity( entity, box.Bag.Fees, registration?.RegistrationInstanceId ?? 0 );
+            if ( feeCapacityError != null )
+            {
+                return ActionBadRequest( feeCapacityError );
+            }
+
+            // ── Signature Document ────────────────────────────────────────────
 
             if ( template?.RequiredSignatureDocumentTemplate != null && entity.PersonAliasId.HasValue && newPerson != null )
             {
@@ -727,8 +753,6 @@ namespace Rock.Blocks.Event
                 {
                     RockContext.SaveChanges();
 
-                    // Reload attributes from DB now that the entity is saved so we get
-                    // attribute values tied to the correct entity ID.
                     entity.LoadAttributes( RockContext );
 
                     var allowedAttributeKeys = GetRegistrantAttributeKeys( entity );
@@ -766,14 +790,17 @@ namespace Rock.Blocks.Event
                 {
                     HandleGroupMember( entity, registration, template, newPerson.Id, registrantChanges );
                 }
-
-                if ( registration.FirstName.IsNotNullOrWhiteSpace() && registration.LastName.IsNotNullOrWhiteSpace() )
+                 
+                if ( ( isNew || personChanged ) && template?.GroupTypeId.HasValue == true )
                 {
-                    registration.SavePersonNotesAndHistory(
-                        registration.FirstName,
-                        registration.LastName,
-                        RequestContext.CurrentPerson?.PrimaryAliasId,
-                        previousRegistrantPersonIds );
+                    if ( registration.FirstName.IsNotNullOrWhiteSpace() && registration.LastName.IsNotNullOrWhiteSpace() )
+                    {
+                        registration.SavePersonNotesAndHistory(
+                            registration.FirstName,
+                            registration.LastName,
+                            RequestContext.CurrentPerson?.PrimaryAliasId,
+                            previousRegistrantPersonIds );
+                    }
                 }
 
                 HistoryService.SaveChanges(
@@ -805,6 +832,76 @@ namespace Rock.Blocks.Event
         #endregion Block Actions
 
         #region Private Helpers
+
+        /// <summary>
+        /// Checks whether any requested fee item would exceed its <see cref="RegistrationTemplateFeeItem.MaximumUsageCount"/>
+        /// given the current usage across the registration instance. The current registrant's own
+        /// existing fees are excluded so that updating a quantity is not counted twice.
+        /// </summary>
+        /// <returns>
+        /// A user-facing error message if any item is over-limit; otherwise <c>null</c>.
+        /// </returns>
+        private string ValidateFeeItemCapacity( RegistrationRegistrant entity, List<RegistrantFeeBag> requestedFees, int registrationInstanceId )
+        {
+            if ( registrationInstanceId == 0 )
+            {
+                return null;
+            }
+
+            // Collect all fee items being requested that have a positive quantity.
+            var requestedItems = requestedFees?
+                .Where( f => f.Quantity > 0 && f.RegistrationTemplateFeeItemId.HasValue )
+                .GroupBy( f => f.RegistrationTemplateFeeItemId.Value )
+                .Select( g => new { FeeItemId = g.Key, Quantity = g.Sum( f => f.Quantity ) } )
+                .ToList();
+
+            if ( requestedItems == null || !requestedItems.Any() )
+            {
+                return null;
+            }
+
+            var requestedItemIds = requestedItems.Select( f => f.FeeItemId ).ToList();
+
+            // Only fee items that have an enforced cap require validation.
+            var limitedItems = new RegistrationTemplateFeeItemService( RockContext )
+                .Queryable()
+                .Where( i => requestedItemIds.Contains( i.Id ) && i.MaximumUsageCount.HasValue )
+                .Select( i => new { i.Id, i.Name, i.MaximumUsageCount } )
+                .ToList();
+
+            if ( !limitedItems.Any() )
+            {
+                return null;
+            }
+
+            var limitedItemIds = limitedItems.Select( i => i.Id ).ToList();
+
+            // dictionary of fee item id to number of items already taken
+            var currentUsage = new RegistrationRegistrantFeeService( RockContext )
+                .Queryable()
+                .Where( f =>
+                    f.RegistrationTemplateFeeItemId.HasValue &&
+                    limitedItemIds.Contains( f.RegistrationTemplateFeeItemId.Value ) &&
+                    f.RegistrationRegistrant.Registration.RegistrationInstanceId == registrationInstanceId && f.RegistrationRegistrantId != entity.Id )
+                .GroupBy( f => f.RegistrationTemplateFeeItemId.Value )
+                .Select( g => new { FeeItemId = g.Key, UsedCount = g.Sum( f => f.Quantity ) } )
+                .ToDictionary( x => x.FeeItemId, x => x.UsedCount );
+
+
+            foreach ( var item in limitedItems )
+            {
+                var requested = requestedItems.FirstOrDefault( f => f.FeeItemId == item.Id )?.Quantity ?? 0;
+                var used = currentUsage.GetValueOrDefault( item.Id, 0 );
+
+                if ( used + requested > item.MaximumUsageCount.Value )
+                {
+                    var remaining = Math.Max( 0, item.MaximumUsageCount.Value - used );
+                    return $"The '{item.Name}' fee option only has {remaining:N0} spot(s) remaining and cannot be saved as requested.";
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// Handles all signature document logic for the registrant: attaches an existing document,
@@ -974,6 +1071,9 @@ namespace Rock.Blocks.Event
                     };
 
                     groupMemberService.Add( groupMember );
+
+                    newRockContext.SaveChanges();
+
                     registrantChanges.AddChange( History.HistoryVerb.Add, History.HistoryChangeType.Record, $"Registrant to {group.Name} group" );
                 }
                 else

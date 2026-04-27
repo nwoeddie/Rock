@@ -49,6 +49,13 @@ export type RegistrantBag = {
      */
     hasExistingSignatureDocument: boolean;
 
+    /**
+     * Gets or sets a value indicating whether this registrant is already linked to a group member record.
+     * When true and the person is changed, a warning is shown that the old person will be removed from
+     * the group and the new person will be added.
+     */
+    hasGroupMember: boolean;
+
     /** Gets or sets the identifier key of this entity. */
     idKey?: string | null;
 
@@ -78,6 +85,12 @@ export type RegistrantBag = {
 
     /** Gets or sets the Guid of the binary file for a newly uploaded signature document. */
     signatureDocumentBinaryFileId?: Guid | null;
+
+    /**
+     * Gets or sets the file name of the existing signature document binary file.
+     * Used to display the file name in the uploader when editing a saved registrant.
+     */
+    signatureDocumentBinaryFileName?: string | null;
 
     /** Gets or sets the binary file type guid for the signature document template, used to restrict uploads. */
     signatureDocumentTemplateBinaryFileTypeGuid?: Guid | null;

@@ -165,10 +165,9 @@
     const discountApplies = propertyRef(props.modelValue.bag?.discountApplies ?? false, "DiscountApplies");
     const isOnWaitList = propertyRef(props.modelValue.bag?.isOnWaitList ?? false, "IsOnWaitList");
 
-    // FileUploader binds to ListItemBag | null; the .value field carries the Guid string.
     const signatureDocumentBinaryFile = propertyRef<ListItemBag | null>(
         props.modelValue.bag?.signatureDocumentBinaryFileId
-            ? { value: props.modelValue.bag.signatureDocumentBinaryFileId, text: "" }
+            ? { value: props.modelValue.bag.signatureDocumentBinaryFileId, text: props.modelValue.bag.signatureDocumentBinaryFileName ?? "" }
             : null,
         "SignatureDocumentBinaryFileId"
     );
@@ -395,7 +394,7 @@
         updateRefValue(isOnWaitList, props.modelValue.bag?.isOnWaitList ?? false);
         updateRefValue(signatureDocumentBinaryFile,
             props.modelValue.bag?.signatureDocumentBinaryFileId
-                ? { value: props.modelValue.bag.signatureDocumentBinaryFileId, text: "" }
+                ? { value: props.modelValue.bag.signatureDocumentBinaryFileId, text: props.modelValue.bag.signatureDocumentBinaryFileName ?? "" }
                 : null);
         updateRefValue(attributes, props.modelValue.bag?.attributes ?? {});
         updateRefValue(attributeValues, props.modelValue.bag?.attributeValues ?? {});

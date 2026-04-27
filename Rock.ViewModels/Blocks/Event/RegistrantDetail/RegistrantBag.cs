@@ -1,3 +1,4 @@
+﻿
 // <copyright>
 // Copyright by the Spark Development Network
 //
@@ -59,6 +60,12 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantDetail
         /// </summary>
         public Guid? SignatureDocumentBinaryFileId { get; set; }
 
+        /// <summary>
+        /// Gets or sets the file name of the existing signature document binary file.
+        /// Used to display the file name in the uploader when editing a saved registrant.
+        /// </summary>
+        public string SignatureDocumentBinaryFileName { get; set; }
+
         // ── Context / Display ────────────────────────────────────────────────
 
         /// <summary>
@@ -102,5 +109,12 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantDetail
         /// When true, a notification is shown informing the editor.
         /// </summary>
         public bool HasExistingSignatureDocument { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this registrant is already linked to a group member record.
+        /// When true and the person is changed, a warning is shown that the old person will be removed from
+        /// the group and the new person will be added.
+        /// </summary>
+        public bool HasGroupMember { get; set; }
     }
 }
