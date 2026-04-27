@@ -44,10 +44,5 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantDetail
         /// of <c>0</c> means sold out. <c>null</c> means there is no limit.
         /// </summary>
         public int? CountRemaining { get; set; }
-
-        /// <summary>
-        /// Gets or sets the display order.
-        /// </summary>
-        public int Order { get; set; }
     }
 }

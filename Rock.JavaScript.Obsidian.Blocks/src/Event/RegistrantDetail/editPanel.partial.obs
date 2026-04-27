@@ -3,25 +3,36 @@
     <fieldset>
         <div class="row">
             <div class="col-md-6 d-flex flex-column gap-2">
-                <PersonPicker v-model="personAlias"
-                              label="Person"
-                              rules="required" />
+                <div class="row">
+                    <div class="col-md-6">
+                        <PersonPicker v-model="personAlias"
+                                      label="Person"
+                                      rules="required" />
+                    </div>
+                    <div class="col-md-6">
+                        <Toggle v-if="props.modelValue.bag?.isWaitListEnabled"
+                                v-model="isOnWaitList"
+                                label="Status"
+                                trueText="Wait List"
+                                falseText="Registrant"
+                                activeButtonCssClass="btn-info"
+                                buttonSizeCssClass="btn-xs"
+                                help="Moving someone from a wait list here will not send any emails to them. To send a formatted email use the Wait List tab." />
+                    </div>
+                </div>
 
-                <Toggle v-if="props.modelValue.bag?.isWaitListEnabled"
-                        v-model="isOnWaitList"
-                        label="Status"
-                        trueText="Wait List"
-                        falseText="Registrant"
-                        activeButtonCssClass="btn-info"
-                        buttonSizeCssClass="btn-xs"
-                        help="Moving someone from a wait list here will not send any emails to them. To send a formatted email use the Wait List tab." />
+                <div class="row">
+                    <div class="col-md-6">
+                        <CurrencyBox v-model="cost"
+                                     label="Cost" />
+                    </div>
 
-                <CurrencyBox v-model="cost"
-                             label="Cost" />
-
-                <CheckBox v-model="discountApplies"
-                          label="Discount Applies"
-                          help="If there was a discount code used for the registration, should it apply to this registrant?" />
+                    <div class="col-md-6">
+                        <CheckBox v-model="discountApplies"
+                                  label="Discount Applies"
+                                  help="If there was a discount code used for the registration, should it apply to this registrant?" />
+                    </div>
+                </div>
 
                 <AttributeValuesContainer v-if="hasAttributes"
                                           v-model="attributeValues"

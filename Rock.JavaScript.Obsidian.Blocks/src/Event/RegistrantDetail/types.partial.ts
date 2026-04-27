@@ -16,5 +16,23 @@
 //
 
 export const enum NavigationUrlKey {
-    ParentPage = "ParentPage"
+    ParentPage = "ParentPage",
+    RegistrationInstancePage = "RegistrationInstancePage",
+    RegistrationTemplatePage = "RegistrationTemplatePage"
 }
+
+/** A single step in the registrant detail wizard breadcrumb. */
+export type RegistrantWizardItem = {
+    /** The icon CSS class to display in the wizard step icon area. */
+    iconCssClass: string;
+
+    /** The display label for this wizard step. */
+    label: string;
+
+    /**
+     * The navigation URL for this step. When present on a non-active item
+     * the step renders as a clickable anchor. Omit or set null for the
+     * active (current) step.
+     */
+    url?: string | null;
+};

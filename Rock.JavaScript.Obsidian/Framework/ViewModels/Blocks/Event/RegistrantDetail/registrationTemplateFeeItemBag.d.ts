@@ -41,7 +41,4 @@ export type RegistrationTemplateFeeItemBag = {
 
     /** Gets or sets the display name of this fee item. */
     name?: string | null;
-
-    /** Gets or sets the display order. */
-    order: number;
 };

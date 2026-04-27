@@ -36,12 +36,6 @@ export type RegistrationTemplateFeeBag = {
     allowMultiple: boolean;
 
     /**
-     * Gets or sets a value indicating whether this fee is subject to
-     * registration discounts.
-     */
-    discountApplies: boolean;
-
-    /**
      * Gets or sets the fee type, which controls whether one or multiple
      * fee items are rendered.
      */
@@ -57,15 +51,9 @@ export type RegistrationTemplateFeeBag = {
     /** Gets or sets the fee identifier. */
     id: number;
 
-    /**
-     * Gets or sets the selectable items for this fee, ordered by
-     * Rock.ViewModels.Blocks.Event.RegistrantDetail.RegistrationTemplateFeeItemBag.Order.
-     */
+    /** Gets or sets the selectable items for this fee. */
     items?: RegistrationTemplateFeeItemBag[] | null;
 
     /** Gets or sets the display name of this fee. */
     name?: string | null;
-
-    /** Gets or sets the display order. */
-    order: number;
 };

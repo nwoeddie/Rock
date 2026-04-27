@@ -4,6 +4,8 @@
 
     <NotificationBox v-if="errorMessage" alertType="danger" v-html="errorMessage"></NotificationBox>
 
+    <Wizard v-if="!blockError && wizardItems.length > 0" :items="wizardItems" />
+
     <DetailBlock v-if="!blockError"
                  v-model:mode="panelMode"
                  :name="panelName"
@@ -40,8 +42,9 @@
     import DetailBlock from "@Obsidian/Templates/detailBlock";
     import { DetailPanelMode } from "@Obsidian/Enums/Controls/detailPanelMode";
     import EditPanel from "./RegistrantDetail/editPanel.partial.obs";
+    import Wizard from "./RegistrantDetail/wizard.partial.obs";
     import { onConfigurationValuesChanged, useConfigurationValues, useEntityDetailBlock, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
-    import { NavigationUrlKey } from "./RegistrantDetail/types.partial";
+    import { NavigationUrlKey, RegistrantWizardItem } from "./RegistrantDetail/types.partial";
     import { DetailBlockBox } from "@Obsidian/ViewModels/Blocks/detailBlockBox";
     import { RegistrantBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantBag";
     import { RegistrantDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantDetailOptionsBag";
@@ -86,6 +89,52 @@
 
     const options = computed((): RegistrantDetailOptionsBag => {
         return config.options ?? {};
+    });
+
+    /**
+     * Builds the ordered list of wizard breadcrumb items. Each ancestor step
+     * carries a navigation URL; the active (current) registrant step does not.
+     * Items whose label is empty are omitted so the wizard only renders when
+     * the bag has the expected name data.
+     */
+    const wizardItems = computed((): RegistrantWizardItem[] => {
+        const bag = registrantEditBag.value.bag;
+        const nav = config.navigationUrls ?? {};
+        const items: RegistrantWizardItem[] = [];
+
+        if (bag?.registrationTemplateName) {
+            items.push({
+                iconCssClass: "ti ti-fw ti-clipboard",
+                label: bag.registrationTemplateName,
+                url: nav[NavigationUrlKey.RegistrationTemplatePage] ?? null
+            });
+        }
+
+        if (bag?.registrationInstanceName) {
+            items.push({
+                iconCssClass: "ti ti-fw ti-file",
+                label: bag.registrationInstanceName,
+                url: nav[NavigationUrlKey.RegistrationInstancePage] ?? null
+            });
+        }
+
+        if (bag?.registrationName) {
+            items.push({
+                iconCssClass: "ti ti-fw ti-users",
+                label: bag.registrationName,
+                url: nav[NavigationUrlKey.ParentPage] ?? null
+            });
+        }
+
+        // Active step — no URL. Label is the person's name for existing registrants
+        // or "New Registrant" when adding, matching the WebForms lWizardRegistrantName.
+        const registrantLabel = bag?.personAlias?.text || "New Registrant";
+        items.push({
+            iconCssClass: "ti ti-fw ti-user",
+            label: registrantLabel
+        });
+
+        return items;
     });
 
     // #endregion

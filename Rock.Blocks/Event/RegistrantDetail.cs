@@ -58,6 +58,8 @@ namespace Rock.Blocks.Event
         private static class NavigationUrlKey
         {
             public const string ParentPage = "ParentPage";
+            public const string RegistrationInstancePage = "RegistrationInstancePage";
+            public const string RegistrationTemplatePage = "RegistrationTemplatePage";
         }
 
         #endregion Keys
@@ -128,9 +130,7 @@ namespace Rock.Blocks.Event
                     Name = f.Name,
                     FeeType = f.FeeType,
                     AllowMultiple = f.AllowMultiple,
-                    DiscountApplies = f.DiscountApplies,
                     HideWhenNoneRemaining = f.HideWhenNoneRemaining,
-                    Order = f.Order,
                     Items = f.FeeItems
                         .OrderBy( i => i.Order )
                         .Select( i => new RegistrationTemplateFeeItemBag
@@ -138,7 +138,6 @@ namespace Rock.Blocks.Event
                             Id = i.Id,
                             Name = i.Name,
                             Cost = i.Cost,
-                            Order = i.Order,
                             CountRemaining = i.MaximumUsageCount.HasValue
                                 ? ( int? ) Math.Max( 0, i.MaximumUsageCount.Value - feeItemUsage.GetValueOrDefault( i.Id, 0 ) )
                                 : null
@@ -433,8 +432,8 @@ namespace Rock.Blocks.Event
         }
 
         /// <summary>
-        /// Gets the box navigation URLs, including the parent registration detail page
-        /// with the RegistrationId parameter preserved.
+        /// Gets the box navigation URLs for the wizard breadcrumb and the cancel/save redirect.
+        /// Traverses the page hierarchy to build URLs for the registration, instance, and template pages.
         /// </summary>
         private Dictionary<string, string> GetBoxNavigationUrls( RegistrationRegistrant entity )
         {
@@ -444,10 +443,34 @@ namespace Rock.Blocks.Event
                 ? new Dictionary<string, string> { [PageParameterKey.RegistrationId] = registrationId.ToString() }
                 : null;
 
-            return new Dictionary<string, string>
+            var urls = new Dictionary<string, string>
             {
                 [NavigationUrlKey.ParentPage] = this.GetParentPageUrl( parentParams )
             };
+
+            var instancePage = PageCache.ParentPage?.ParentPage;
+            var templatePage = PageCache.ParentPage?.ParentPage?.ParentPage;
+
+            var instanceId = entity?.Registration?.RegistrationInstanceId ?? 0;
+            var templateId = entity?.Registration?.RegistrationInstance?.RegistrationTemplateId ?? 0;
+
+            if ( instancePage != null && instanceId > 0 )
+            {
+                urls[NavigationUrlKey.RegistrationInstancePage] = new Rock.Web.PageReference(
+                    instancePage.Id, 0,
+                    new Dictionary<string, string> { ["RegistrationInstanceId"] = instanceId.ToString() }
+                ).BuildUrl();
+            }
+
+            if ( templatePage != null && templateId > 0 )
+            {
+                urls[NavigationUrlKey.RegistrationTemplatePage] = new Rock.Web.PageReference(
+                    templatePage.Id, 0,
+                    new Dictionary<string, string> { ["RegistrationTemplateId"] = templateId.ToString() }
+                ).BuildUrl();
+            }
+
+            return urls;
         }
 
         /// <inheritdoc/>
@@ -611,8 +634,10 @@ namespace Rock.Blocks.Event
             // avoid one DB round-trip per fee inside the loops below.
             // Include both UI fee IDs and existing DB fee IDs so that fees being
             // deleted (absent from the bag) still resolve to their real name.
+            var existingFees = entity.Fees ?? Enumerable.Empty<RegistrationRegistrantFee>();
+
             var allFeeIds = ( box.Bag.Fees?.Select( f => f.RegistrationTemplateFeeId ) ?? Enumerable.Empty<int>() )
-                .Union( entity.Fees.Select( f => f.RegistrationTemplateFeeId ) )
+                .Union( existingFees.Select( f => f.RegistrationTemplateFeeId ) )
                 .Distinct()
                 .ToList();
 
@@ -627,7 +652,7 @@ namespace Rock.Blocks.Event
             var allFeeItemIds = ( box.Bag.Fees?
                     .Where( f => f.RegistrationTemplateFeeItemId.HasValue )
                     .Select( f => f.RegistrationTemplateFeeItemId.Value ) ?? Enumerable.Empty<int>() )
-                .Union( entity.Fees
+                .Union( existingFees
                     .Where( f => f.RegistrationTemplateFeeItemId.HasValue )
                     .Select( f => f.RegistrationTemplateFeeItemId.Value ) )
                 .Distinct()
@@ -639,7 +664,7 @@ namespace Rock.Blocks.Event
                 .Select( i => new { i.Id, i.Name } )
                 .ToDictionary( i => i.Id, i => i.Name );
 
-            foreach ( var dbFee in entity.Fees.ToList() )
+            foreach ( var dbFee in existingFees.ToList() )
             {
                 var uiFee = box.Bag.Fees?.FirstOrDefault( f =>
                     f.RegistrationTemplateFeeId == dbFee.RegistrationTemplateFeeId &&
@@ -826,7 +851,12 @@ namespace Rock.Blocks.Event
                 }
             }
 
-            return ActionOk( GetBoxNavigationUrls( entity )[NavigationUrlKey.ParentPage] );
+            var registrationId = entity.RegistrationId;
+            var parentParams = registrationId > 0
+                ? new Dictionary<string, string> { [PageParameterKey.RegistrationId] = registrationId.ToString() }
+                : null;
+
+            return ActionOk( this.GetParentPageUrl( parentParams ) );
         }
 
         #endregion Block Actions
