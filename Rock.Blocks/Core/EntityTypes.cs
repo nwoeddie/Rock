@@ -35,7 +35,6 @@ namespace Rock.Blocks.Core
     /// <summary>
     /// Displays a list of entity types.
     /// </summary>
-
     [DisplayName( "Entity Types" )]
     [Category( "Core" )]
     [Description( "Displays a list of entity types." )]
@@ -47,7 +46,8 @@ namespace Rock.Blocks.Core
         Key = AttributeKey.DetailPage )]
 
     [Rock.SystemGuid.EntityTypeGuid( "712dd8aa-aafa-4e92-b804-d884b6848adf" )]
-    [Rock.SystemGuid.BlockTypeGuid( "3136cb51-8b94-4116-9c34-59ba6425a1ca" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "3136cb51-8b94-4116-9c34-59ba6425a1ca" )]
+    [Rock.SystemGuid.BlockTypeGuid( "8098DF5D-4B87-4FAF-BA65-E017C5A93353" )]
     [CustomizedGrid]
     public class EntityTypes : RockListBlockType<EntityTypesBag>
     {
@@ -73,7 +73,7 @@ namespace Rock.Blocks.Core
             var box = new ListBlockBox<EntityTypesOptionsBag>();
             var builder = GetGridBuilder();
 
-            box.IsDeleteEnabled = BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+            box.IsDeleteEnabled = false;
             box.ExpectedRowCount = null;
             box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions();
@@ -170,7 +170,7 @@ namespace Rock.Blocks.Core
                 return false;
             }
 
-            if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            if ( !entity.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson ) )
             {
                 error = ActionBadRequest( $"Not authorized to edit ${EntityType.FriendlyTypeName}." );
                 return false;
@@ -233,7 +233,7 @@ namespace Rock.Blocks.Core
                 return ActionBadRequest( $"{EntityType.FriendlyTypeName} not found." );
             }
 
-            if ( !entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            if ( !entity.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson ) )
             {
                 return ActionBadRequest( "Not authorized to make changes to this entity type." );
             }
