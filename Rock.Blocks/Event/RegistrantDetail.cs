@@ -115,11 +115,12 @@ namespace Rock.Blocks.Event
                 .OrderBy( f => f.Order )
                 .ToList();
 
-            // Get the the totals used for each item so we can know amountRemaining for the UI
+            // Get the totals used for each item so we can know amountRemaining for the UI
             var feeItemUsage = new RegistrationRegistrantFeeService( RockContext )
                 .Queryable()
-                .Where( f => f.RegistrationRegistrant.Registration.RegistrationInstanceId == registrationInfo.RegistrationInstanceId )
-                .GroupBy( f => f.RegistrationTemplateFeeItemId )
+                .Where( f => f.RegistrationRegistrant.Registration.RegistrationInstanceId == registrationInfo.RegistrationInstanceId
+                    && f.RegistrationTemplateFeeItemId.HasValue )
+                .GroupBy( f => f.RegistrationTemplateFeeItemId.Value )
                 .Select( g => new { FeeItemId = g.Key, UsedCount = g.Sum( f => f.Quantity ) } )
                 .ToDictionary( x => x.FeeItemId, x => x.UsedCount );
 
@@ -383,7 +384,7 @@ namespace Rock.Blocks.Event
             var registrantParameter = PageParameter( PageParameterKey.RegistrantId );
 
             // New registrant - Get RegistrationId from Page Parameter to get Fee Template data
-            if( registrantParameter.AsInteger() == 0 )
+            if ( registrantParameter.AsInteger() == 0 )
             {
                 var registrationParameter = PageParameter( PageParameterKey.RegistrationId );
 
@@ -428,7 +429,6 @@ namespace Rock.Blocks.Event
                 .Include( r => r.Fees )
                 .Include( r => r.SignatureDocument.BinaryFile )
                 .FirstOrDefault();
-
         }
 
         /// <summary>
@@ -632,8 +632,6 @@ namespace Rock.Blocks.Event
 
             // Pre-load all fee names needed for history in a single query to
             // avoid one DB round-trip per fee inside the loops below.
-            // Include both UI fee IDs and existing DB fee IDs so that fees being
-            // deleted (absent from the bag) still resolve to their real name.
             var existingFees = entity.Fees ?? Enumerable.Empty<RegistrationRegistrantFee>();
 
             var allFeeIds = ( box.Bag.Fees?.Select( f => f.RegistrationTemplateFeeId ) ?? Enumerable.Empty<int>() )
@@ -747,6 +745,12 @@ namespace Rock.Blocks.Event
             // ── Registration Session ──────────────────────────────────────────
 
             Guid? registrationSessionGuid = null;
+
+            if ( registration == null )
+            {
+                return ActionBadRequest( "Registration not found." );
+            }
+
             var registrationInstance = new RegistrationInstanceService( RockContext ).Get( registration.RegistrationInstanceId );
 
             if ( registrationInstance?.TimeoutIsEnabled == true )
@@ -916,7 +920,6 @@ namespace Rock.Blocks.Event
                 .GroupBy( f => f.RegistrationTemplateFeeItemId.Value )
                 .Select( g => new { FeeItemId = g.Key, UsedCount = g.Sum( f => f.Quantity ) } )
                 .ToDictionary( x => x.FeeItemId, x => x.UsedCount );
-
 
             foreach ( var item in limitedItems )
             {

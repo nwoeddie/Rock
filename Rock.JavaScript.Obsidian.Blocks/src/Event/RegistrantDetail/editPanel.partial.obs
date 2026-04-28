@@ -344,6 +344,18 @@
             if (fee.registrationTemplateFeeItemId != null) {
                 map[feeKey(fee.registrationTemplateFeeId, fee.registrationTemplateFeeItemId)] = fee.quantity;
             }
+            else {
+                // Maintaining Web Forms logic for legacy fees with no item id
+                // if legacy fee with no item id and if single-type, display in form and update item id on save
+                const templateFee = props.options.fees?.find(f => f.id === fee.registrationTemplateFeeId);
+                if (templateFee?.feeType === RegistrationFeeType.Single && (templateFee.items?.length ?? 0) > 0) {
+                    const firstItem = templateFee.items![0];
+                    const key = feeKey(fee.registrationTemplateFeeId, firstItem.id);
+                    if (!(key in map)) {
+                        map[key] = fee.quantity;
+                    }
+                }
+            }
         }
 
         return map;
