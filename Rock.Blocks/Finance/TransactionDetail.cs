@@ -273,6 +273,14 @@ namespace Rock.Blocks.Finance
             PrepareDetailBox( box, entity );
         }
 
+        /// <summary>
+        /// Builds the shared base <see cref="TransactionBag"/> from a loaded
+        /// <see cref="FinancialTransaction"/> without view-only or edit-only fields.
+        /// Both <see cref="GetEntityBagForView"/> and <see cref="GetEntityBagForEdit"/> call
+        /// this method and then layer on mode-specific properties.
+        /// </summary>
+        /// <param name="transaction">The transaction to map; must not be <c>null</c>.</param>
+        /// <returns>A populated <see cref="TransactionBag"/> containing common fields.</returns>
         private TransactionBag GetBaseTransactionBag( FinancialTransaction transaction )
         {
             var creditCardGuid = Rock.SystemGuid.DefinedValue.CURRENCY_TYPE_CREDIT_CARD.AsGuid();
@@ -404,7 +412,7 @@ namespace Rock.Blocks.Finance
             return bag;
         }
 
-        //// <inheritdoc/>
+        /// <inheritdoc/>
         protected override TransactionBag GetEntityBagForEdit( FinancialTransaction entity )
         {
             var batchParameter = PageParameter( PageParameterKey.BatchId );
@@ -426,8 +434,6 @@ namespace Rock.Blocks.Finance
             bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: false );
             return bag;
         }
-
-        /// <inheritdoc/>
 
         /// <inheritdoc/>
         protected override FinancialTransaction GetInitialEntity()
@@ -506,10 +512,11 @@ namespace Rock.Blocks.Finance
         }
 
         /// <summary>
-        ///  Gets Details of the refund transaction
+        /// Maps a <see cref="FinancialTransactionRefund"/> to a <see cref="RefundDetailBag"/>
+        /// for display in the view panel.
         /// </summary>
-        /// <param name="refundDetails"></param>
-        /// <returns></returns>
+        /// <param name="refundDetails">The refund entity; may be <c>null</c>.</param>
+        /// <returns>A populated <see cref="RefundDetailBag"/>, or <c>null</c> if <paramref name="refundDetails"/> is <c>null</c>.</returns>
         private RefundDetailBag GetRefundDetailBag( FinancialTransactionRefund refundDetails )
         {
             if ( refundDetails == null )
@@ -536,6 +543,11 @@ namespace Rock.Blocks.Finance
             };
         }
 
+        /// <summary>
+        /// Returns a summary of every refund transaction linked to the given original transaction.
+        /// </summary>
+        /// <param name="originalTransactionId">The Id of the transaction that was refunded.</param>
+        /// <returns>An ordered list of <see cref="RefundTransactionBag"/> items; empty when none exist.</returns>
         private List<RefundTransactionBag> GetRefundOverview( int originalTransactionId )
         {
             return new FinancialTransactionRefundService( RockContext )
@@ -554,6 +566,12 @@ namespace Rock.Blocks.Finance
                 .ToList();
         }
 
+        /// <summary>
+        /// Maps a <see cref="FinancialScheduledTransaction"/> to the lightweight
+        /// <see cref="ScheduledTransactionBag"/> used for display and linking.
+        /// </summary>
+        /// <param name="scheduledTransaction">The scheduled transaction; may be <c>null</c>.</param>
+        /// <returns>A <see cref="ScheduledTransactionBag"/>, or <c>null</c> if <paramref name="scheduledTransaction"/> is <c>null</c>.</returns>
         private ScheduledTransactionBag GetScheduledTransactionBag( FinancialScheduledTransaction scheduledTransaction )
         {
             if ( scheduledTransaction == null )
@@ -571,6 +589,14 @@ namespace Rock.Blocks.Finance
             };
         }
 
+        /// <summary>
+        /// Converts a collection of <see cref="FinancialTransactionDetail"/> line items into a
+        /// <see cref="TransactionDetailsBag"/> that includes row data and any public attributes
+        /// defined on the detail entity type.
+        /// </summary>
+        /// <param name="transactionId">The Id of the parent transaction; used to load attribute definitions.</param>
+        /// <param name="transactionDetails">The line-item collection; may be <c>null</c>.</param>
+        /// <returns>A <see cref="TransactionDetailsBag"/> ready to be sent to the client.</returns>
         private TransactionDetailsBag GetTransactionLineItemBags( int transactionId, ICollection<FinancialTransactionDetail> transactionDetails )
         {
             var tempFinancialTransactionDetail = new FinancialTransactionDetail
@@ -620,6 +646,14 @@ namespace Rock.Blocks.Finance
             };
         }
 
+        /// <summary>
+        /// Maps a <see cref="FinancialPaymentDetail"/> entity to a <see cref="PaymentDetailBag"/>
+        /// for display in the view panel.
+        /// </summary>
+        /// <param name="paymentDetail">The payment detail entity; may be <c>null</c>.</param>
+        /// <param name="creditCardGuid">The <see cref="Guid"/> of the credit-card currency defined value,
+        /// used to determine whether to show credit-card-specific fields.</param>
+        /// <returns>A <see cref="PaymentDetailBag"/>, or <c>null</c> if <paramref name="paymentDetail"/> is <c>null</c>.</returns>
         private PaymentDetailBag GetPaymentDetailBag( FinancialPaymentDetail paymentDetail, Guid creditCardGuid )
         {
             if ( paymentDetail == null )
@@ -657,6 +691,13 @@ namespace Rock.Blocks.Finance
             };
         }
 
+        /// <summary>
+        /// Returns a human-readable foreign currency display string (e.g., "Euro €") and its
+        /// symbol for the given currency defined-value Guid.
+        /// </summary>
+        /// <param name="currencyCodeGuid">The Guid string of the currency code defined value.</param>
+        /// <param name="symbol">On return, contains the currency symbol (e.g., "€"), or an empty string.</param>
+        /// <returns>A combined display string, or an empty string when the feature is disabled or the value is not found.</returns>
         private string GetForeignCurrencyDisplay( string currencyCodeGuid, out string symbol )
         {
             if ( !GetAttributeValue( AttributeKey.EnableForeignCurrency ).AsBoolean() )
@@ -684,6 +725,12 @@ namespace Rock.Blocks.Finance
             }
         }
 
+        /// <summary>
+        /// Maps a <see cref="Person"/> to an <see cref="AuthorizedPersonBag"/> that provides
+        /// display data for the authorized-by section of the view panel.
+        /// </summary>
+        /// <param name="person">The person; may be <c>null</c>.</param>
+        /// <returns>An <see cref="AuthorizedPersonBag"/>, or <c>null</c> if <paramref name="person"/> is <c>null</c>.</returns>
         private AuthorizedPersonBag GetAuthorizedPersonBag( Person person )
         {
             if ( person == null )
@@ -708,6 +755,13 @@ namespace Rock.Blocks.Finance
             };
         }
 
+        /// <summary>
+        /// Queries the family group locations for a person and returns them as
+        /// <see cref="AddressBag"/> items, filtered to the location types configured in
+        /// block settings.
+        /// </summary>
+        /// <param name="personId">The Id of the person whose addresses to load.</param>
+        /// <returns>A list of <see cref="AddressBag"/> items ordered by mailing, mapped, then newest first.</returns>
         private List<AddressBag> GetAuthorizedPersonAddresses( int personId )
         {
             var allowedLocationTypeIds = GetAttributeValue( AttributeKey.LocationTypes )
@@ -753,6 +807,12 @@ namespace Rock.Blocks.Finance
                 .ToList();
         }
 
+        /// <summary>
+        /// Builds the list of audit-style update strings (created by, processed by, modified by)
+        /// shown in the view panel.
+        /// </summary>
+        /// <param name="transaction">The transaction whose audit persons and dates to format.</param>
+        /// <returns>A list of HTML anchor strings ready to be rendered in the UI.</returns>
         public List<string> GetTransactionUpdates( FinancialTransaction transaction )
         {
             var updates = new List<string>();
@@ -776,6 +836,12 @@ namespace Rock.Blocks.Finance
             return updates;
         }
 
+        /// <summary>
+        /// Finds any event registrations linked to this transaction's detail line items and
+        /// returns them as <see cref="RegistrationLinkBag"/> items with display text and URLs.
+        /// </summary>
+        /// <param name="transaction">The transaction whose detail line items to inspect.</param>
+        /// <returns>A list of <see cref="RegistrationLinkBag"/> items; empty when none are found.</returns>
         private List<RegistrationLinkBag> GetRegistrations( FinancialTransaction transaction )
         {
             var registrationEntityTypeId = EntityTypeCache.Get( typeof( Rock.Model.Registration ) )?.Id;
@@ -845,6 +911,13 @@ namespace Rock.Blocks.Finance
             return GlobalAttributesCache.Get().GetValue( "PublicApplicationRoot" ) + virtualPath.RemoveLeadingForwardslash();
         }
 
+        /// <summary>
+        /// Finds other transactions that share the same gateway, transaction code, and authorized
+        /// person alias as the given transaction. These are surfaced in the view panel as related transactions.
+        /// </summary>
+        /// <param name="transaction">The transaction to find related records for.</param>
+        /// <returns>A list of <see cref="RelatedTransactionBag"/> items ordered by date; empty when the
+        /// transaction lacks a gateway, transaction code, or authorized person.</returns>
         private List<RelatedTransactionBag> GetRelatedTransactions( FinancialTransaction transaction )
         {
             if ( transaction == null
@@ -879,6 +952,12 @@ namespace Rock.Blocks.Finance
             return bags;
         }
 
+        /// <summary>
+        /// Loads the binary-file images attached to a transaction and resolves each one
+        /// to a public image URL.
+        /// </summary>
+        /// <param name="transactionId">The Id of the transaction whose images to load.</param>
+        /// <returns>A list of <see cref="TransactionImageBag"/> items ordered by display order; empty when none exist.</returns>
         private List<TransactionImageBag> GetImageBags( int transactionId )
         {
             var imageBag = new FinancialTransactionImageService( RockContext )
@@ -904,6 +983,7 @@ namespace Rock.Blocks.Finance
             return imageBag;
         }
 
+        /// <inheritdoc/>
         protected override bool UpdateEntityFromBox( FinancialTransaction entity, ValidPropertiesBox<TransactionBag> box )
         {
             if ( box?.Bag == null || box.ValidProperties == null )
@@ -1026,6 +1106,13 @@ namespace Rock.Blocks.Finance
             return true;
         }
 
+        /// <summary>
+        /// Applies line-item changes from <paramref name="detailsBag"/> to the transaction's
+        /// <see cref="FinancialTransactionDetail"/> collection, handling explicit deletes and
+        /// add/update of remaining rows.
+        /// </summary>
+        /// <param name="entity">The transaction whose details are being modified.</param>
+        /// <param name="detailsBag">The bag containing current rows and the Guids of rows to delete.</param>
         private void SaveTransactionDetails( FinancialTransaction entity, TransactionDetailsBag detailsBag )
         {
             if ( detailsBag == null )
@@ -1082,6 +1169,13 @@ namespace Rock.Blocks.Finance
         }
 
 
+        /// <summary>
+        /// Persists image additions and deletions from the bag to the database.
+        /// Each image is either maintained/added or removed based on its
+        /// <see cref="TransactionImageBag.IsMarkedForDeletion"/> flag.
+        /// </summary>
+        /// <param name="bag">The transaction bag containing the image list from the client.</param>
+        /// <param name="entity">The transaction entity whose images are being updated.</param>
         private void SaveTransactionImages(TransactionBag bag, FinancialTransaction entity )
         {
             var images = bag.Images;
@@ -1107,6 +1201,13 @@ namespace Rock.Blocks.Finance
             }
         }
 
+        /// <summary>
+        /// Marks a binary file as temporary and removes the corresponding
+        /// <see cref="FinancialTransactionImage"/> record so the image is no longer
+        /// associated with the transaction.
+        /// </summary>
+        /// <param name="binaryFileId">The Id of the binary file to remove.</param>
+        /// <param name="transactionId">The Id of the transaction the image is being removed from.</param>
         private void RemoveImageFromTransaction( int binaryFileId, int transactionId )
         {
 
@@ -1133,6 +1234,12 @@ namespace Rock.Blocks.Finance
 
         }
 
+        /// <summary>
+        /// Ensures a <see cref="FinancialTransactionImage"/> record exists for the given binary file
+        /// and transaction, creating it and marking the file as permanent when it does not already exist.
+        /// </summary>
+        /// <param name="binaryFileId">The Id of the binary file to link.</param>
+        /// <param name="transactionId">The Id of the transaction to link the image to.</param>
         private void MaintainOrAddImage( int binaryFileId, int transactionId )
         {
             var txnImageService = new FinancialTransactionImageService( RockContext );
@@ -1162,6 +1269,12 @@ namespace Rock.Blocks.Finance
             }
         }
 
+        /// <summary>
+        /// Applies or removes the refund state on <paramref name="entity"/> based on the
+        /// <see cref="TransactionBag.IsRefund"/> flag and refund detail values from the bag.
+        /// </summary>
+        /// <param name="entity">The transaction whose refund details are being updated.</param>
+        /// <param name="bag">The bag containing the client-submitted refund state and details.</param>
         private void ApplyRefundState( FinancialTransaction entity, TransactionBag bag )
         {
             var isRefund = bag.IsRefund;
@@ -1186,6 +1299,12 @@ namespace Rock.Blocks.Finance
             }
         }
 
+        /// <summary>
+        /// Determines whether the given currency defined-value Id matches the organization's
+        /// configured base currency, returning <c>true</c> when no foreign currency is set.
+        /// </summary>
+        /// <param name="foreignCurrencyValueId">The defined-value Id of the transaction's currency; <c>null</c> means organization currency.</param>
+        /// <returns><c>true</c> if the transaction is in the organization's currency; otherwise <c>false</c>.</returns>
         private bool IsOrganizationCurrency( int? foreignCurrencyValueId )
         {
             // If no foreign currency is set, it's organization currency.
@@ -1217,6 +1336,13 @@ namespace Rock.Blocks.Finance
             return organizationCurrencyDefinedValue.Id == foreignCurrencyValueId.Value;
         }
 
+        /// <summary>
+        /// Calculates the maximum amount that can still be refunded for a transaction by
+        /// summing the transaction's total amount with any existing refund or related
+        /// transaction amounts posted against the same gateway and transaction code.
+        /// </summary>
+        /// <param name="transaction">The transaction for which to compute the refund ceiling.</param>
+        /// <returns>The net remaining refundable amount; may be negative when over-refunded.</returns>
         private decimal GetMaxRefundAmountForTransaction( FinancialTransaction transaction )
         {
             var hasTransactionCode = !string.IsNullOrWhiteSpace( transaction.TransactionCode );
@@ -1363,6 +1489,13 @@ namespace Rock.Blocks.Finance
             return ActionOk( this.GetParentPageUrl() );
         }
 
+        /// <summary>
+        /// Returns the public attributes and default attribute values for a
+        /// <see cref="FinancialTransactionDetail"/> line item, used to populate the
+        /// attribute fields in the edit modal.
+        /// </summary>
+        /// <param name="guid">The Guid of an existing detail line item, or an empty string to get defaults.</param>
+        /// <returns>A <see cref="TransactionDetailsBag"/> containing the attribute definitions and values.</returns>
         [BlockAction]
         public BlockActionResult GetTransactionDetailAttributes( string guid )
         {
@@ -1391,6 +1524,12 @@ namespace Rock.Blocks.Finance
             return ActionOk( bag );
         }
 
+        /// <summary>
+        /// Returns the maximum amount that can be refunded for the specified transaction.
+        /// Used to pre-populate the refund amount field in the refund modal.
+        /// </summary>
+        /// <param name="key">The IdKey of the transaction to evaluate.</param>
+        /// <returns>The refundable decimal amount.</returns>
         [BlockAction]
         public BlockActionResult GetMaxRefundAmount( string key )
         {
@@ -1407,6 +1546,14 @@ namespace Rock.Blocks.Finance
         }
 
 
+        /// <summary>
+        /// Processes a refund for the specified transaction using the amount, reason, and
+        /// processing options supplied by the client. Optionally runs the refund through
+        /// the financial gateway when the transaction has a transaction code and gateway.
+        /// </summary>
+        /// <param name="key">The IdKey of the transaction to refund.</param>
+        /// <param name="bag">The refund request containing amount, reason, and processing options.</param>
+        /// <returns>The updated <see cref="TransactionBag"/> for the original transaction after the refund is applied.</returns>
         [BlockAction]
         public BlockActionResult Refund( string key, RefundRequestBag bag )
         {
@@ -1504,6 +1651,12 @@ namespace Rock.Blocks.Finance
             return ActionOk( GetEntityBagForView( updatedEntity ) );
         }
 
+        /// <summary>
+        /// Returns the integer Ids of the previous and next transactions within the same batch,
+        /// enabling the Back/Next navigation buttons in the view panel footer.
+        /// </summary>
+        /// <param name="key">Not used; navigation is resolved from the current page parameters.</param>
+        /// <returns>A <see cref="BatchNavigationBag"/> with the adjacent transaction Ids, or nulls when at the boundary.</returns>
         [BlockAction]
         public BlockActionResult GetBatchNavigation( string key )
         {

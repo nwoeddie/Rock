@@ -130,8 +130,10 @@
 
     // #region Computed Values
 
+    /** True when the line item has at least one public attribute, showing the attributes section. */
     const hasAttributes = computed(() => Object.keys(attributes.value).length > 0);
 
+    /** True when the original line item had a fee coverage amount, keeping that field visible for edits. */
     const showFeeCoverage =
         props.modelValue?.feeCoverageAmount != null;
 

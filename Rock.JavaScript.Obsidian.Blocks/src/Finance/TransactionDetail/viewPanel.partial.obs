@@ -250,6 +250,7 @@
         }
     });
 
+    /** Transforms transaction detail line items into the grid row format for the allocations table. */
     const allocationsGridData = computed(() => {
         const rows = (props.modelValue?.transactionDetails?.rows ?? []).map(detail => ({
 
@@ -262,6 +263,7 @@
         return { rows };
     });
 
+    /** Transforms the transaction's refund list into grid rows for the refunds table. */
     const refundsGridData = computed(() => {
         const rows = (props.modelValue?.refunds ?? []).map(refund => ({
             id: refund.id,
@@ -274,6 +276,7 @@
         return { rows };
     });
 
+    /** Transforms the transaction's related-transaction list into grid rows for the related transactions table. */
     const relatedTransactionsGridData = computed(() => {
         const rows = (props.modelValue?.relatedTransactions ?? []).map(transaction => ({
             id: transaction.id,
@@ -306,6 +309,13 @@
 
     // #region Functions
 
+    /**
+     * Builds a URL to another transaction detail page by replacing the last path segment
+     * of the current URL with the given IdKey.
+     *
+     * @param idKey The IdKey of the target transaction.
+     * @returns The absolute path to that transaction's detail page.
+     */
     function getTransactionLink(idKey: string): string {
         const basePath = window.location.pathname.replace(/\/[^\/]+$/, "");
         return `${basePath}/${idKey}`;
@@ -317,11 +327,15 @@
 
     const zoomedImage = ref<string | null>(null);
 
-    // Handle zooming of images on click
+    /**
+     * Opens the full-screen image zoom overlay for the given image URL.
+     * @param image The URL of the image to zoom into.
+     */
     function openImage(image: string): void {
         zoomedImage.value = image;
     }
 
+    /** Closes the full-screen image zoom overlay. */
     function closeImage(): void {
         zoomedImage.value = null;
     }

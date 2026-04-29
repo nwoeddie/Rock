@@ -404,8 +404,14 @@
 
     // #region Computed Values
 
+    /** True when there is no persisted transaction Id, meaning this is a new transaction being created. */
     const isAddingTransaction = computed(() => !props.modelValue.bag?.id);
 
+    /**
+     * Whether to show the foreign currency code picker. For new transactions the field
+     * is always shown when the feature is enabled; for existing ones only when a foreign
+     * currency is already set.
+     */
     const showForeignCurrencyFields = computed(() => {
         if (!props.options.showForeignCurrencyFields) {
             return false;
@@ -420,6 +426,7 @@
         return props.modelValue.bag?.currencyCode != null;
     });
 
+    /** The list of non-deleted images formatted as ListItemBag items for the ImageUploader components. */
     const imageListItems = computed(() => {
         return images.value
             .filter(image => !image.isMarkedForDeletion)
@@ -431,6 +438,7 @@
 
     const totalRowGuid = "00000000-0000-0000-0000-000000000001";
 
+    /** Grid rows for the allocations table, including a computed totals row appended at the bottom. */
     const transactionDetailsGridData = computed<GridDataBag>(() => {
         const rows = [...transactionDetails.value];
 
@@ -452,22 +460,32 @@
         };
     });
 
+    /** True when the selected currency type is credit card, showing the card type picker. */
     const showCreditCard = computed(() =>
         currencyType?.value?.value === DefinedValue.CurrencyTypeCreditCard.toLocaleLowerCase()
     );
 
+    /** True when the selected currency type is non-cash, showing the non-cash asset type picker. */
     const showNonCash = computed(() =>
         currencyType?.value?.value === DefinedValue.CurrencyTypeNoncash.toLocaleLowerCase()
     );
 
+    /** True when either the credit card or non-cash secondary pickers should be shown. */
     const showWell = computed(() => showCreditCard.value || showNonCash.value);
 
+    /** True when the transaction detail entity type has at least one public attribute defined. */
     const hasAttributes = computed(() => Object.keys(attributes.value).length > 0);
 
     // #endregion Computed Values
 
     // #region Functions
 
+    /**
+     * Returns true when the given grid row is the synthetic totals row
+     * appended by transactionDetailsGridData.
+     *
+     * @param row The grid row to test.
+     */
     function isTotalRow(row: Record<string, unknown>): boolean {
         return row.guid === totalRowGuid;
     }
@@ -482,6 +500,11 @@
 
     const currentImageKey = ref(0);
 
+    /**
+     * Appends a newly uploaded image to the images list and resets the uploader for the next upload.
+     *
+     * @param image The ListItemBag returned by the ImageUploader containing the binary file Guid.
+     */
     function onImageAdd(image: ListItemBag | null): void {
         if (!image?.value) {
             return;
@@ -514,6 +537,11 @@
         }
     });
 
+    /**
+     * Marks an image as deleted so it is excluded from the UI and sent to the server for removal on save.
+     *
+     * @param image The ListItemBag whose value matches the Guid of the image to remove.
+     */
     function onImageRemove(image: ListItemBag): void {
         const imageToRemove = images.value.find(i => i.guid === image.value);
         if (imageToRemove) {
@@ -522,6 +550,12 @@
         }
     }
 
+    /**
+     * Opens the allocation edit modal for an existing line item. For new (unsaved) items the
+     * modal opens directly; for server-persisted items the full attribute set is fetched first.
+     *
+     * @param guid The Guid of the transaction detail line item to edit.
+     */
     async function onEditTransactionDetailClick(guid: string): Promise<void> {
         // First check if this is a client-side-only item (no server id yet)
         const lineItem = transactionDetails.value.find(td => td.guid === guid);
@@ -552,6 +586,12 @@
         }
     }
 
+    /**
+     * Removes a line item from the allocations grid and, for server-persisted items, queues
+     * the Guid for server-side deletion on save.
+     *
+     * @param guid The Guid of the transaction detail line item to delete.
+     */
     function onDeleteTransactionDetailClick(guid: string): void {
         const index = transactionDetails.value.findIndex(td => td.guid === guid);
 
@@ -594,6 +634,10 @@
         isEditTransactionDetailVisible.value = false;
     }
 
+    /**
+     * Fetches default attribute definitions from the server and opens the allocation
+     * edit modal with a new empty line item.
+     */
     async function onAddTransactionDetailClick(): Promise<void> {
         try {
             const transactionDetailAttributes = await invokeBlockAction<TransactionDetailsBag>("GetTransactionDetailAttributes", {

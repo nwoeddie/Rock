@@ -235,10 +235,12 @@
         return transactionViewBag.value?.idKey ?? "";
     });
 
+    /** Whether the current user has block-level edit permission. */
     const isEditable = computed((): boolean => {
         return config.isEditable === true;
     });
 
+    /** Resolved options bag; falls back to safe defaults when config.options is absent. */
     const options = computed((): TransactionDetailOptionsBag => {
         return config.options ?? {
             batchEditAllowed: false,
@@ -378,6 +380,9 @@
         return false;
     }
 
+    /**
+     * Submits the refund form to the server and refreshes the view bag on success.
+     */
     async function onRefundSave(): Promise<void> {
         errorMessage.value = "";
 
@@ -402,6 +407,10 @@
         }
     }
 
+    /**
+     * Opens the refund modal, fetching the maximum refundable amount from the server
+     * and pre-populating the amount field.
+     */
     async function onRefundOpen(): Promise<void> {
         canProcess.value = !isNullOrWhiteSpace(transactionViewBag.value?.transactionCode) && !isNullOrWhiteSpace(transactionViewBag.value?.transactionCode);
 
@@ -418,10 +427,17 @@
         isRefundOpen.value = true;
     }
 
+    /** Closes the refund modal without submitting. */
     async function onRefundClose(): Promise<void> {
         isRefundOpen.value = false;
     }
 
+    /**
+     * Saves the current transaction and then either resets the form for a new entry
+     * or redirects to the batch detail page, based on the caller's choice.
+     *
+     * @param reloadAction "add" to stay and add another transaction; "batch" to navigate to the batch.
+     */
     async function onSpecificAdd(reloadAction: "add" | "batch"): Promise<void> {
         if (transactionEditBag.value.bag == null) {
             return;
