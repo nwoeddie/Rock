@@ -1188,22 +1188,23 @@ namespace Rock.Blocks.Finance
             var images = bag.Images;
             if ( images?.Any() == true )
             {
-                foreach( var image in images)
+                var imageOrder = 0;
+                foreach ( var image in images )
                 {
                     var binaryFileId = new BinaryFileService( RockContext ).GetId( image.Guid );
 
                     if ( binaryFileId != null )
                     {
-                        if( image.IsMarkedForDeletion)
+                        if ( image.IsMarkedForDeletion )
                         {
                             RemoveImageFromTransaction( binaryFileId.Value, entity.Id );
                         }
                         else
                         {
-                            MaintainOrAddImage( binaryFileId.Value, entity.Id );
+                            MaintainOrAddImage( binaryFileId.Value, entity.Id, imageOrder );
+                            imageOrder++;
                         }
                     }
-                    
                 }
             }
         }
@@ -1247,33 +1248,34 @@ namespace Rock.Blocks.Finance
         /// </summary>
         /// <param name="binaryFileId">The Id of the binary file to link.</param>
         /// <param name="transactionId">The Id of the transaction to link the image to.</param>
-        private void MaintainOrAddImage( int binaryFileId, int transactionId )
+        /// <param name="order">The display order of this image among the transaction's images.</param>
+        private void MaintainOrAddImage( int binaryFileId, int transactionId, int order )
         {
             var txnImageService = new FinancialTransactionImageService( RockContext );
             var binaryFileService = new BinaryFileService( RockContext );
 
-            // Check if the transaction image already exists
-            var existingTxnImage = txnImageService.Queryable()
+            var txnImage = txnImageService.Queryable()
                 .Where( i => i.BinaryFileId == binaryFileId && i.TransactionId == transactionId )
                 .FirstOrDefault();
 
-            if ( existingTxnImage == null )
+            if ( txnImage == null )
             {
-                // Add new transaction image
-                var newTxnImage = new FinancialTransactionImage
+                txnImage = new FinancialTransactionImage
                 {
                     BinaryFileId = binaryFileId,
                     TransactionId = transactionId
                 };
-                txnImageService.Add( newTxnImage );
+                txnImageService.Add( txnImage );
 
-                // Mark the binary file as not temporary so it is persisted
+                // Mark the binary file as not temporary so it is persisted.
                 var binaryFile = binaryFileService.Get( binaryFileId );
                 if ( binaryFile != null )
                 {
                     binaryFile.IsTemporary = false;
                 }
             }
+
+            txnImage.Order = order;
         }
 
         /// <summary>
