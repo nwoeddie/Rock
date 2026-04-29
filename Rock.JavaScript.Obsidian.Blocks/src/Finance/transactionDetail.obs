@@ -36,17 +36,11 @@
             </template>
 
             <template #edit>
-                <EditPanel v-model="transactionEditBag" :options="options" @propertyChanged="baseBlock.onPropertyChanged" />
+                <RockForm ref="editForm" @submit="onFormValid">
+                    <EditPanel v-model="transactionEditBag" :options="options" @propertyChanged="baseBlock.onPropertyChanged" />
+                </RockForm>
             </template>
 
-            <template #footerActions>
-                <div class="d-flex gap-2 mt-3">
-                    <RockButton
-                                btnType="primary">
-                        Save Then Add
-                    </RockButton>
-                </div>
-            </template>
             <template #footerSecondaryActions v-if="transactionViewBag?.canRefund">
                 <div class="d-flex gap-2">
                     <RockButton
@@ -138,6 +132,7 @@
     import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
     import Modal from "@Obsidian/Controls/modal.obs";
     import CurrencyBox from "@Obsidian/Controls/currencyBox.obs";
     import { isNullOrWhiteSpace } from "@Obsidian/Utility/stringUtils";
@@ -147,12 +142,12 @@
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
     import { BtnType } from "@Obsidian/Enums/Controls/btnType";
-    import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
-    import { TransactionDetailsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailsBag";
-
 
     const config = useConfigurationValues<DetailBlockBox<TransactionBag, TransactionDetailOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
+
+    const editForm = ref<InstanceType<typeof RockForm> | null>(null);
+    let isFormValid = false;
 
     const previousTransactionUrl = ref<string | null>(null);
     const nextTransactionUrl = ref<string | null>(null);
@@ -351,13 +346,33 @@
         }
     }
 
+    /** Sets the isFormValid flag when RockForm validation passes. Used by onSave and onSpecificAdd to gate the server call. */
+    function onFormValid(): void {
+        isFormValid = true;
+    }
+
     /**
-     * Event handler for the panel's Save event. Send the data to the server
-     * to be saved and then leave edit mode or redirect to target page.
+     * Runs form validation and waits for it to complete.
+     * Returns true if all fields passed, false if any failed.
+     */
+    async function validateForm(): Promise<boolean> {
+        isFormValid = false;
+        await new Promise<void>(resolve => {
+            editForm.value?.submitForm().then(() => resolve());
+        });
+        return isFormValid;
+    }
+
+    /**
+     * Event handler for the panel's Save event. Validates the form then sends data to the server.
      *
      * @returns true if the panel should leave edit mode; false if it should stay in edit mode; or a string containing a redirect URL.
      */
     async function onSave(): Promise<boolean | string> {
+        if (!await validateForm()) {
+            return false;
+        }
+
         errorMessage.value = "";
 
         const result = await invokeBlockAction<ValidPropertiesBox<TransactionBag> | string>("Save", {
@@ -367,7 +382,6 @@
         if (result.isSuccess && result.data) {
             if (result.statusCode === 200 && typeof result.data === "object") {
                 transactionViewBag.value = result.data.bag;
-
                 return true;
             }
             else if (result.statusCode === 201 && typeof result.data === "string") {
@@ -376,7 +390,6 @@
         }
 
         errorMessage.value = result.errorMessage ?? "Unknown error while trying to save transaction.";
-
         return false;
     }
 
@@ -412,10 +425,10 @@
      * and pre-populating the amount field.
      */
     async function onRefundOpen(): Promise<void> {
-        canProcess.value = !isNullOrWhiteSpace(transactionViewBag.value?.transactionCode) && !isNullOrWhiteSpace(transactionViewBag.value?.transactionCode);
+        canProcess.value = !isNullOrWhiteSpace(transactionViewBag.value?.transactionCode) && transactionViewBag.value?.financialGateway != null;
 
         if (!canProcess.value) {
-            processThroughGateway.value = true;
+            processThroughGateway.value = false;
         }
         const result = await invokeBlockAction<number>("GetMaxRefundAmount", {
             key: transactionViewBag.value?.idKey
@@ -440,6 +453,10 @@
      */
     async function onSpecificAdd(reloadAction: "add" | "batch"): Promise<void> {
         if (transactionEditBag.value.bag == null) {
+            return;
+        }
+
+        if (!await validateForm()) {
             return;
         }
 

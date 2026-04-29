@@ -1186,7 +1186,7 @@ namespace Rock.Blocks.Finance
         private void SaveTransactionImages(TransactionBag bag, FinancialTransaction entity )
         {
             var images = bag.Images;
-            if ( images.Any() )
+            if ( images?.Any() == true )
             {
                 foreach( var image in images)
                 {
