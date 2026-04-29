@@ -26,6 +26,8 @@ import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 export type RefundDetailBag = {
     originalTransactionId?: number | null;
 
+    originalTransactionIdKey?: string | null;
+
     refundAmount: number;
 
     refundReason?: ListItemBag | null;

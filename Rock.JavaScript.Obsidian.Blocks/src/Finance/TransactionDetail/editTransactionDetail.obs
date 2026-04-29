@@ -126,7 +126,7 @@
     const attributes = ref(props.modelValue.attributes ?? {});
     const attributeValues = ref(props.modelValue.attributeValues ?? {});
 
-    // #endregion
+    // #endregion Values
 
     // #region Computed Values
 
@@ -135,7 +135,7 @@
     const showFeeCoverage =
         props.modelValue?.feeCoverageAmount != null;
 
-    // #endregion
+    // #endregion Computed Values
 
     // #region Event Handlers
 
@@ -167,7 +167,7 @@
         emit("save", newValue);
     }
 
-    // #endregion
+    // #endregion Event Handlers
 
     watch(() => props.modelValue, () => {
         updateRefValue(account, props.modelValue.account?.value

@@ -400,7 +400,7 @@
     const propRefs = [personOrBusiness, isAnonymous, transactionDateTime, summary, images, transactionDetailsToDelete, transactionType,
         foreignCurrencyCode, nonCashAssetType, sourceType, refundReason, isRefund, currencyType, creditCardType, financialGateway, transactionCode, refundSummary];
 
-    // #endregion
+    // #endregion Values
 
     // #region Computed Values
 
@@ -464,7 +464,7 @@
 
     const hasAttributes = computed(() => Object.keys(attributes.value).length > 0);
 
-    // #endregion
+    // #endregion Computed Values
 
     // #region Functions
 
@@ -613,11 +613,11 @@
         }
     }
 
-    // #endregion
+    // #endregion Functions
 
     // #region Event Handlers
 
-    // #endregion
+    // #endregion Event Handlers
 
     // Watch for parental changes in our model value and update all our values.
     watch(() => props.modelValue, () => {

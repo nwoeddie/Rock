@@ -35,6 +35,8 @@ export type AuthorizedPersonBag = {
 
     id?: number | null;
 
+    idKey?: string | null;
+
     name?: string | null;
 
     photoUrl?: string | null;

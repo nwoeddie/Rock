@@ -43,70 +43,62 @@ namespace Rock.Blocks.Finance
     [Category( "Finance" )]
     [Description( "Displays the details of a particular financial transaction." )]
     [IconCssClass( "fa fa-question" )]
-     [SupportedSiteTypes( Model.SiteType.Web )]
+    [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
 
-    [LinkedPage(
-    "Batch Detail Page",
-    Description = "Page used to view batch.",
-    IsRequired = true,
-    Order = 0,
-    Key = AttributeKey.BatchDetailPage )]
+    [LinkedPage( "Batch Detail Page",
+        Description = "Page used to view batch.",
+        IsRequired = true,
+        Order = 0,
+        Key = AttributeKey.BatchDetailPage )]
 
-    [LinkedPage(
-    "Scheduled Transaction Detail Page",
-    Description = "Page used to view scheduled transaction detail.",
-    IsRequired = false,
-    Order = 1,
-    Key = AttributeKey.ScheduledTransactionDetailPage )]
+    [LinkedPage( "Scheduled Transaction Detail Page",
+        Description = "Page used to view scheduled transaction detail.",
+        IsRequired = false,
+        Order = 1,
+        Key = AttributeKey.ScheduledTransactionDetailPage )]
 
-    [LinkedPage(
-    "Registration Detail Page",
-    Description = "Page used to view an event registration.",
-    IsRequired = false,
-    Order = 2,
-    Key = AttributeKey.RegistrationDetailPage )]
+    [LinkedPage( "Registration Detail Page",
+        Description = "Page used to view an event registration.",
+        IsRequired = false,
+        Order = 2,
+        Key = AttributeKey.RegistrationDetailPage )]
 
-    [TextField(
-    "Refund Batch Name Suffix",
-    Description = "The text appended to the batch name when a refund is processed. To use the original batch name without a suffix, disable Append Suffix to Batch Name.",
-    IsRequired = false,
-    DefaultValue = " - Refund",
-    Order = 3,
-    Key = AttributeKey.RefundBatchNameSuffix )]
+    [TextField( "Refund Batch Name Suffix",
+        Description = "The text appended to the batch name when a refund is processed. To use the original batch name without a suffix, disable Append Suffix to Batch Name.",
+        IsRequired = false,
+        DefaultValue = " - Refund",
+        Order = 3,
+        Key = AttributeKey.RefundBatchNameSuffix )]
 
-    [BooleanField(
-    "Append Suffix to Batch Name",
-    Description = "When enabled, appends a suffix to the batch name for refund transactions. When disabled, uses the original batch name. Note: financial gateways that support settlement batches ignore this setting—all transactions process through the settlement batch regardless.",
-    DefaultBooleanValue = true,
-    Order = 4,
-    Key = AttributeKey.AppendSuffixToBatchName )]
+    [BooleanField( "Append Suffix to Batch Name",
+        Description = "When enabled, appends a suffix to the batch name for refund transactions. When disabled, uses the original batch name. Note: financial gateways that support settlement batches ignore this setting—all transactions process through the settlement batch regardless.",
+        DefaultBooleanValue = true,
+        Order = 4,
+        Key = AttributeKey.AppendSuffixToBatchName )]
 
-    [DefinedValueField(
-    Rock.SystemGuid.DefinedType.GROUP_LOCATION_TYPE,
-    "Location Types",
-    Description = "The type of location type to display for person (if none are selected all addresses will be included ).",
-    IsRequired = false,
-    AllowMultiple = true,
-    Order = 5,
-    Key = AttributeKey.LocationTypes )]
+    [DefinedValueField( Rock.SystemGuid.DefinedType.GROUP_LOCATION_TYPE,
+        "Location Types",
+        Description = "The type of location type to display for person (if none are selected all addresses will be included ).",
+        IsRequired = false,
+        AllowMultiple = true,
+        Order = 5,
+        Key = AttributeKey.LocationTypes )]
 
-    [BooleanField(
-    "Transaction Source Required",
-    Description = "Determine if Transaction Source should be required.",
-    DefaultBooleanValue = false,
-    Order = 6,
-    Key = AttributeKey.TransactionSourceRequired )]
+    [BooleanField( "Transaction Source Required",
+        Description = "Determine if Transaction Source should be required.",
+        DefaultBooleanValue = false,
+        Order = 6,
+        Key = AttributeKey.TransactionSourceRequired )]
 
-    [BooleanField(
-    "Enable Foreign Currency",
-    Description = "Shows the transaction's currency code field if enabled.",
-    DefaultBooleanValue = false,
-    Order = 7,
-    Key = AttributeKey.EnableForeignCurrency )]
+    [BooleanField( "Enable Foreign Currency",
+        Description = "Shows the transaction's currency code field if enabled.",
+        DefaultBooleanValue = false,
+        Order = 7,
+        Key = AttributeKey.EnableForeignCurrency )]
 
-    #endregion
+    #endregion Block Attributes
 
     [Rock.SystemGuid.EntityTypeGuid( "31989b35-624b-4529-bc55-bb251e7fb1da" )]
     [Rock.SystemGuid.BlockTypeGuid( "f6f7a34c-c5d7-4cf9-a325-baf5300bce91" )]
@@ -285,19 +277,6 @@ namespace Rock.Blocks.Finance
         {
             var creditCardGuid = Rock.SystemGuid.DefinedValue.CURRENCY_TYPE_CREDIT_CARD.AsGuid();
 
-            // Only query for the aggregate sums — everything else comes from the already-loaded entity
-            //var aggregates = new FinancialTransactionDetailService( RockContext )
-            //    .Queryable()
-            //    .Where( d => d.TransactionId == transaction.Id )
-            //    .GroupBy( d => d.TransactionId )
-            //    .Select( g => new
-            //    {
-            //        TotalAmount = g.Sum( d => ( decimal? ) d.Amount - ( d.FeeCoverageAmount ?? 0 ) ) ?? 0m,
-            //        TotalFeeAmount = g.Sum( d => ( decimal? ) d.FeeAmount ) ?? 0m,
-            //        TotalFeeCoverageAmount = g.Sum( d => ( decimal? ) d.FeeCoverageAmount ) ?? 0m
-            //    } )
-            //    .FirstOrDefault();
-
             var totalAmount = transaction.TransactionDetails?.Sum( d => d.Amount - ( d.FeeCoverageAmount ?? 0 ) ) ?? 0m;
             var totalFeeAmount = transaction.TransactionDetails?.Sum( d => d.FeeAmount ) ?? 0m;
             var totalFeeCoverageAmount = transaction.TransactionDetails?.Sum( d => d.FeeCoverageAmount ) ?? 0m;
@@ -316,6 +295,7 @@ namespace Rock.Blocks.Finance
             {
                 Id = transaction.Id,
                 BatchId = transaction.BatchId,
+                BatchIdKey = transaction.Batch?.IdKey,
                 ScheduledTransactionId = transaction.ScheduledTransactionId,
                 AuthorizedPersonAliasId = transaction.AuthorizedPersonAliasId,
                 ShowAsAnonymous = transaction.ShowAsAnonymous,
@@ -427,7 +407,11 @@ namespace Rock.Blocks.Finance
         //// <inheritdoc/>
         protected override TransactionBag GetEntityBagForEdit( FinancialTransaction entity )
         {
-            var batchId = PageParameter( PageParameterKey.BatchId ).AsInteger();
+            var batchParameter = PageParameter( PageParameterKey.BatchId );
+            var batchId = batchParameter.IsNullOrWhiteSpace() ? 0 : new FinancialBatchService( RockContext )
+                .GetQueryableByKey( batchParameter, !PageCache.Layout.Site.DisablePredictableIds )
+                .Select( b => b.Id )
+                .FirstOrDefault();
 
             if ( entity == null )
             {
@@ -450,7 +434,7 @@ namespace Rock.Blocks.Finance
         {
             var parameter = PageParameter( PageParameterKey.TransactionId );
 
-            if ( parameter.IsNullOrWhiteSpace() || parameter.AsInteger() == 0 )
+            if ( parameter.IsNullOrWhiteSpace() || parameter == "0" )
             {
                 return new FinancialTransaction
                 {
@@ -540,6 +524,7 @@ namespace Rock.Blocks.Finance
             return new RefundDetailBag
             {
                 OriginalTransactionId = refundDetails.OriginalTransactionId,
+                OriginalTransactionIdKey = refundDetails.OriginalTransactionId.HasValue ? IdHasher.Instance.GetHash( refundDetails.OriginalTransactionId.Value ) : null,
                 RefundReason = refundReasonDefinedValue == null
                     ? null
                     : new ListItemBag
@@ -582,7 +567,7 @@ namespace Rock.Blocks.Finance
                 DisplayText = scheduledTransaction.GatewayScheduleId.IsNotNullOrWhiteSpace()
                     ? scheduledTransaction.GatewayScheduleId
                     : scheduledTransaction.Id.ToString(),
-                Url = this.GetLinkedPageUrl( AttributeKey.ScheduledTransactionDetailPage, "ScheduledTransactionId", scheduledTransaction.Id.ToString() )
+                Url = this.GetLinkedPageUrl( AttributeKey.ScheduledTransactionDetailPage, "ScheduledTransactionId", scheduledTransaction.IdKey )
             };
         }
 
@@ -650,7 +635,6 @@ namespace Rock.Blocks.Finance
                 ? DefinedValueCache.Get( paymentDetail.CreditCardTypeValueId.Value )
                 : null;
 
-
             return new PaymentDetailBag
             {
                 CurrencyType = currencyType == null
@@ -713,6 +697,7 @@ namespace Rock.Blocks.Finance
             {
                 Guid = person.Guid,
                 Id = person.Id,
+                IdKey = person.IdKey,
                 Name = person.FullName,
                 Email = person.Email,
                 PhotoUrl = person.PhotoUrl,
@@ -831,7 +816,7 @@ namespace Rock.Blocks.Finance
                 {
                     Id = r.Id,
                     Text = $"{r.TemplateName} - {r.InstanceName}",
-                    Url = this.GetLinkedPageUrl( AttributeKey.RegistrationDetailPage, "RegistrationId", r.Id.ToString() )
+                    Url = this.GetLinkedPageUrl( AttributeKey.RegistrationDetailPage, "RegistrationId", IdHasher.Instance.GetHash( r.Id ) )
                 } )
                 .ToList();
         }
@@ -870,7 +855,7 @@ namespace Rock.Blocks.Finance
                 return new List<RelatedTransactionBag>();
             }
 
-            return new FinancialTransactionService( RockContext )
+            var bags = new FinancialTransactionService( RockContext )
                 .Queryable()
                 .AsNoTracking()
                 .Where( t =>
@@ -888,6 +873,10 @@ namespace Rock.Blocks.Finance
                     Amount = t.TransactionDetails.Select( d => ( decimal? ) d.Amount ).DefaultIfEmpty().Sum() ?? 0m
                 } )
                 .ToList();
+
+            bags.ForEach( b => b.IdKey = IdHasher.Instance.GetHash( b.Id ) );
+
+            return bags;
         }
 
         private List<TransactionImageBag> GetImageBags( int transactionId )
@@ -969,7 +958,6 @@ namespace Rock.Blocks.Finance
             // Defined values coming from ListItemBag selections.
             box.IfValidProperty( nameof( box.Bag.TransactionType ),
                 () => entity.TransactionTypeValueId = box.Bag.TransactionType?.GetEntityId<DefinedValue>( RockContext ) ?? 0 );
-
 
             box.IfValidProperty( nameof( box.Bag.NonCashAssetType ),
                 () => entity.NonCashAssetTypeValueId = box.Bag.NonCashAssetType?.GetEntityId<DefinedValue>( RockContext ) );
@@ -1260,7 +1248,7 @@ namespace Rock.Blocks.Finance
             return transaction.TotalAmount + otherAmounts;
         }
 
-        #endregion
+        #endregion Methods
 
         #region Block Actions
 
@@ -1519,13 +1507,17 @@ namespace Rock.Blocks.Finance
         [BlockAction]
         public BlockActionResult GetBatchNavigation( string key )
         {
-            var transactionId = RequestContext.PageParameters
-                .GetValueOrNull( PageParameterKey.TransactionId )
-                .AsInteger();
+            var transactionParameter = RequestContext.PageParameters.GetValueOrNull( PageParameterKey.TransactionId );
+            var transactionId = transactionParameter.IsNullOrWhiteSpace() ? 0 : new FinancialTransactionService( RockContext )
+                .GetQueryableByKey( transactionParameter, !PageCache.Layout.Site.DisablePredictableIds )
+                .Select( t => t.Id )
+                .FirstOrDefault();
 
-            var batchId = RequestContext.PageParameters
-                .GetValueOrNull( PageParameterKey.BatchId )
-                .AsInteger();
+            var batchParameter = RequestContext.PageParameters.GetValueOrNull( PageParameterKey.BatchId );
+            var batchId = batchParameter.IsNullOrWhiteSpace() ? 0 : new FinancialBatchService( RockContext )
+                .GetQueryableByKey( batchParameter, !PageCache.Layout.Site.DisablePredictableIds )
+                .Select( b => b.Id )
+                .FirstOrDefault();
 
             if ( batchId == 0 )
             {
@@ -1549,6 +1541,6 @@ namespace Rock.Blocks.Finance
             } );
         }
 
-        #endregion
+        #endregion Block Actions
     }
 }

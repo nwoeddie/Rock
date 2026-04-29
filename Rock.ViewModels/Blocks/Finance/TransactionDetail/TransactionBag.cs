@@ -62,6 +62,11 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public int? BatchId { get; set; }
 
         /// <summary>
+        /// Gets or sets the batch IdKey.
+        /// </summary>
+        public string BatchIdKey { get; set; }
+
+        /// <summary>
         /// Gets or sets the financial gateway.
         /// </summary>
         public ListItemBag FinancialGateway { get; set; }

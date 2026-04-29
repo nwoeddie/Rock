@@ -25,9 +25,14 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     public class RefundDetailBag
     {
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int? OriginalTransactionId { get; set; }
+
+        /// <summary>
+        ///
+        /// </summary>
+        public string OriginalTransactionIdKey { get; set; }
 
         /// <summary>
         /// 

@@ -193,7 +193,7 @@
         entity: transactionEditBag
     });
 
-    // #endregion
+    // #endregion Values
 
     // #region Computed Values
 
@@ -249,11 +249,11 @@
         };
     });
 
-    // #endregion
+    // #endregion Computed Values
 
     // #region Functions
 
-    // #endregion
+    // #endregion Functions
 
     // #region Event Handlers
 
@@ -440,7 +440,7 @@
             if (reloadAction === "batch") {
                 const batchUrl = options.value.batchDetailPageUrl;
                 if (batchUrl && transactionViewBag?.value?.batchId != null) {
-                    window.location.href = `${batchUrl}?BatchId=${transactionViewBag.value.batchId}`;
+                    window.location.href = `${batchUrl}?BatchId=${transactionViewBag.value.batchIdKey}`;
                 }
                 return;
             }
@@ -474,7 +474,7 @@
         }
     }
 
-    // #endregion
+    // #endregion Event Handlers
 
     // Handle any initial error conditions or the need to go into edit mode.
     if (config.errorMessage) {

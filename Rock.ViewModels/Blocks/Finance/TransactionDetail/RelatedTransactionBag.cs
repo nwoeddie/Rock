@@ -25,9 +25,14 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     public class RelatedTransactionBag
     {
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int Id { get; set; }
+
+        /// <summary>
+        ///
+        /// </summary>
+        public string IdKey { get; set; }
 
         /// <summary>
         /// 

@@ -26,6 +26,8 @@ export type RelatedTransactionBag = {
 
     id: number;
 
+    idKey?: string | null;
+
     transactionDateTime?: string | null;
 
     transactionReference?: string | null;

@@ -53,6 +53,9 @@ export type TransactionBag = {
     /** Gets or sets the batch identifier. */
     batchId?: number | null;
 
+    /** Gets or sets the batch IdKey. */
+    batchIdKey?: string | null;
+
     canRefund: boolean;
 
     currencyCode?: ListItemBag | null;

@@ -32,9 +32,14 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// </summary>
         public Guid Guid { get; set; }
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public int? Id { get; set; }
+
+        /// <summary>
+        ///
+        /// </summary>
+        public string IdKey { get; set; }
         /// <summary>
         /// 
         /// </summary>
