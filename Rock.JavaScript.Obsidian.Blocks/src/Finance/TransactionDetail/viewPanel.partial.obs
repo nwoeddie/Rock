@@ -149,18 +149,26 @@
                                 <TextColumn name="details"
                                             field="details"
                                             title="Details" />
-                                <TextColumn name="processingFees"
-                                            field="processingFees"
-                                            title="Processing Fees" />
-                                <TextColumn name="amount"
-                                            field="amount"
-                                            title="Amount" />
+                                <Column name="processingFees"
+                                        title="Processing Fees">
+                                    <template #format="{ row }">
+                                        <strong v-if="row.isTotalRow">{{ toCurrencyOrNull(row.processingFees) }}</strong>
+                                        <template v-else>{{ toCurrencyOrNull(row.processingFees) }}</template>
+                                    </template>
+                                </Column>
+                                <Column name="amount"
+                                        title="Amount">
+                                    <template #format="{ row }">
+                                        <strong v-if="row.isTotalRow">{{ toCurrencyOrNull(row.amount) }}</strong>
+                                        <template v-else>{{ toCurrencyOrNull(row.amount) }}</template>
+                                    </template>
+                                </Column>
                             </Grid>
                         </div>
                         <div v-if="modelValue?.refunds?.length && modelValue.refunds.length > 0" class="mb-4">
                             <h6>Refunds</h6>
                             <Grid :data="refundsGridData"
-                                  keyField="id"
+                                  keyField="idKey"
                                   liveUpdates
                                   light
                                   :isFooterHidden="true"
@@ -188,7 +196,7 @@
                         <div v-if="modelValue?.relatedTransactions?.length && modelValue.relatedTransactions.length > 0">
                             <h6>Related Transactions</h6>
                             <Grid :data="relatedTransactionsGridData"
-                                  keyField="id"
+                                  keyField="idKey"
                                   liveUpdates
                                   light
                                   :isFooterHidden="true"
@@ -224,124 +232,6 @@
         </div>
     </transition>
 </template>
-
-<script setup lang="ts">
-    import { computed, PropType, ref } from "vue";
-    import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
-    import { TransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionBag";
-    import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
-    import ContentSection from "@Obsidian/Controls/contentSection.obs";
-    import ContentStack from "@Obsidian/Controls/contentStack.obs";
-    import DisplayCard from "@Obsidian/Controls/displayCard.obs";
-    import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
-    import { DateTimeFormat, RockDateTime } from "@Obsidian/Utility/rockDateTime";
-    import Grid, { Column } from "@Obsidian/Controls/grid";
-    import { toCurrencyOrNull } from "@Obsidian/Utility/numberUtils";
-
-    const props = defineProps({
-        modelValue: {
-            type: Object as PropType<TransactionBag | null>,
-            required: false
-        },
-
-        options: {
-            type: Object as PropType<TransactionDetailOptionsBag>,
-            required: true
-        }
-    });
-
-    /** Transforms transaction detail line items into the grid row format for the allocations table. */
-    const allocationsGridData = computed(() => {
-        const rows = (props.modelValue?.transactionDetails?.rows ?? []).map(detail => ({
-
-            accountName: detail.account?.text ?? "",
-            details: detail.summary ?? "",
-            processingFees: toCurrencyOrNull(detail.feeAmount),
-            amount: toCurrencyOrNull(detail.amount)
-        }));
-
-        return { rows };
-    });
-
-    /** Transforms the transaction's refund list into grid rows for the refunds table. */
-    const refundsGridData = computed(() => {
-        const rows = (props.modelValue?.refunds ?? []).map(refund => ({
-            id: refund.id,
-            dateTime: RockDateTime.parseISO(refund.date ?? "")?.toLocaleString(DateTimeFormat.DateTimeShortWithSeconds) ?? "",
-            transactionReference: refund.transactionCode,
-            reason: refund.reason,
-            amount: `${toCurrencyOrNull(refund.amount)}`
-        }));
-
-        return { rows };
-    });
-
-    /** Transforms the transaction's related-transaction list into grid rows for the related transactions table. */
-    const relatedTransactionsGridData = computed(() => {
-        const rows = (props.modelValue?.relatedTransactions ?? []).map(transaction => ({
-            id: transaction.id,
-            idKey: transaction.idKey,
-            dateTime: RockDateTime.parseISO(transaction.transactionDateTime ?? "")?.toLocaleString(DateTimeFormat.DateTimeShortWithSeconds) ?? "",
-            transactionReference: transaction.transactionReference,
-            amount: toCurrencyOrNull(transaction.amount)
-        }));
-
-        return { rows };
-    });
-
-    const formattedDate = ref("");
-
-    if (props.modelValue?.transactionDateTime) {
-        formattedDate.value = RockDateTime
-            .parseISO(props.modelValue.transactionDateTime)
-            ?.toLocaleString(DateTimeFormat.DateTimeShort) ?? "";
-    }
-    // #region Values
-
-    const attributes = ref(props.modelValue?.attributes ?? {});
-    const attributeValues = ref(props.modelValue?.attributeValues ?? {});
-
-    // #endregion Values
-
-    // #region Computed Values
-
-    // #endregion Computed Values
-
-    // #region Functions
-
-    /**
-     * Builds a URL to another transaction detail page by replacing the last path segment
-     * of the current URL with the given IdKey.
-     *
-     * @param idKey The IdKey of the target transaction.
-     * @returns The absolute path to that transaction's detail page.
-     */
-    function getTransactionLink(idKey: string): string {
-        const basePath = window.location.pathname.replace(/\/[^\/]+$/, "");
-        return `${basePath}/${idKey}`;
-    }
-
-    // #endregion Functions
-
-    // #region Event Handlers
-
-    const zoomedImage = ref<string | null>(null);
-
-    /**
-     * Opens the full-screen image zoom overlay for the given image URL.
-     * @param image The URL of the image to zoom into.
-     */
-    function openImage(image: string): void {
-        zoomedImage.value = image;
-    }
-
-    /** Closes the full-screen image zoom overlay. */
-    function closeImage(): void {
-        zoomedImage.value = null;
-    }
-
-    // #endregion Event Handlers
-</script>
 
 <style scoped>
 :deep(.displaycard-heading) {
@@ -386,4 +276,142 @@ label {
     flex-wrap: wrap;
     gap: 1rem;
 }
+
+strong {
+    font-weight: var(--font-weight-semibold);
+}
 </style>
+
+<script setup lang="ts">
+    import { computed, PropType, ref } from "vue";
+    import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
+    import { TransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionBag";
+    import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
+    import ContentSection from "@Obsidian/Controls/contentSection.obs";
+    import ContentStack from "@Obsidian/Controls/contentStack.obs";
+    import DisplayCard from "@Obsidian/Controls/displayCard.obs";
+    import PersonAvatar from "@Obsidian/Controls/personAvatar.obs";
+    import { DateTimeFormat, RockDateTime } from "@Obsidian/Utility/rockDateTime";
+    import Grid, { Column } from "@Obsidian/Controls/grid";
+    import { toCurrencyOrNull } from "@Obsidian/Utility/numberUtils";
+
+    const props = defineProps({
+        modelValue: {
+            type: Object as PropType<TransactionBag | null>,
+            required: false
+        },
+
+        options: {
+            type: Object as PropType<TransactionDetailOptionsBag>,
+            required: true
+        }
+    });
+
+    /** Transforms transaction detail line items into the grid row format for the allocations table, with a totals row appended. */
+    const allocationsGridData = computed(() => {
+        const detailRows = props.modelValue?.transactionDetails?.rows ?? [];
+
+        const feeTotal = detailRows.reduce((sum, d) => sum + (d.feeAmount ?? 0), 0);
+        const amountTotal = detailRows.reduce((sum, d) => sum + (d.amount ?? 0), 0);
+
+        const rows = detailRows.map(detail => ({
+            idKey: detail.idKey,
+            accountName: detail.account?.text ?? "",
+            details: detail.summary ?? "",
+            processingFees: detail.feeAmount ?? 0,
+            amount: detail.amount ?? 0
+        }));
+
+        return {
+            rows: [
+                ...rows,
+                {
+                    idKey: "__totals__",
+                    isTotalRow: true,
+                    accountName: "",
+                    details: "",
+                    processingFees: feeTotal,
+                    amount: amountTotal
+                }
+            ]
+        };
+    });
+
+    /** Transforms the transaction's refund list into grid rows for the refunds table. */
+    const refundsGridData = computed(() => {
+        const rows = (props.modelValue?.refunds ?? []).map(refund => ({
+            idKey: refund.idKey,
+            dateTime: RockDateTime.parseISO(refund.date ?? "")?.toLocaleString(DateTimeFormat.DateTimeShortWithSeconds) ?? "",
+            transactionReference: refund.transactionCode,
+            reason: refund.reason,
+            amount: `${toCurrencyOrNull(refund.amount)}`
+        }));
+
+        return { rows };
+    });
+
+    /** Transforms the transaction's related-transaction list into grid rows for the related transactions table. */
+    const relatedTransactionsGridData = computed(() => {
+        const rows = (props.modelValue?.relatedTransactions ?? []).map(transaction => ({
+            idKey: transaction.idKey,
+            dateTime: RockDateTime.parseISO(transaction.transactionDateTime ?? "")?.toLocaleString(DateTimeFormat.DateTimeShortWithSeconds) ?? "",
+            transactionReference: transaction.transactionReference,
+            amount: toCurrencyOrNull(transaction.amount)
+        }));
+
+        return { rows };
+    });
+
+    const formattedDate = ref("");
+
+    if (props.modelValue?.transactionDateTime) {
+        formattedDate.value = RockDateTime
+            .parseISO(props.modelValue.transactionDateTime)
+            ?.toLocaleString(DateTimeFormat.DateTimeShort) ?? "";
+    }
+    // #region Values
+
+    const attributes = ref(props.modelValue?.attributes ?? {});
+    const attributeValues = ref(props.modelValue?.attributeValues ?? {});
+
+    // #endregion Values
+
+    // #region Computed Values
+
+    // #endregion Computed Values
+
+    // #region Functions
+
+    /**
+     * Builds a URL to another transaction detail page by replacing the last path segment
+     * of the current URL with the given IdKey.
+     *
+     * @param idKey The IdKey of the target transaction.
+     * @returns The absolute path to that transaction's detail page.
+     */
+    function getTransactionLink(idKey: string): string {
+        const basePath = window.location.pathname.replace(/\/[^/]+$/, "");
+        return `${basePath}/${idKey}`;
+    }
+
+    // #endregion Functions
+
+    // #region Event Handlers
+
+    const zoomedImage = ref<string | null>(null);
+
+    /**
+     * Opens the full-screen image zoom overlay for the given image URL.
+     * @param image The URL of the image to zoom into.
+     */
+    function openImage(image: string): void {
+        zoomedImage.value = image;
+    }
+
+    /** Closes the full-screen image zoom overlay. */
+    function closeImage(): void {
+        zoomedImage.value = null;
+    }
+
+    // #endregion Event Handlers
+</script>

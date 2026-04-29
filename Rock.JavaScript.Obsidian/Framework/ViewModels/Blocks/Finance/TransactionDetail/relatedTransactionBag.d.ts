@@ -31,7 +31,7 @@ export type RelatedTransactionBag = {
     amount: number;
 
     /** Gets or sets the integer Id of the related transaction. */
-    id: number;
+    id?: number | null;
 
     /** Gets or sets the obfuscated IdKey of the related transaction, used to build detail page links. */
     idKey?: string | null;

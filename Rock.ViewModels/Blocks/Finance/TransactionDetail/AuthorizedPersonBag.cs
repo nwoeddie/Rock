@@ -25,7 +25,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     /// <summary>
     /// Display data for the person or business credited with a financial transaction.
     /// </summary>
-    public class AuthorizedPersonBag
+    public class AuthorizedPersonBag : ITranslateIdKey
     {
         /// <summary>
         /// Gets or sets the person's unique identifier.

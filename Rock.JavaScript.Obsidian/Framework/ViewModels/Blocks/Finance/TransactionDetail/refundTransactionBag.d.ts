@@ -33,7 +33,7 @@ export type RefundTransactionBag = {
     date?: string | null;
 
     /** Gets or sets the integer Id of the refund transaction. */
-    id: number;
+    id?: number | null;
 
     /** Gets or sets the obfuscated IdKey of the refund transaction, used to build detail page links. */
     idKey?: string | null;

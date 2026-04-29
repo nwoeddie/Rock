@@ -133,10 +133,6 @@
     /** True when the line item has at least one public attribute, showing the attributes section. */
     const hasAttributes = computed(() => Object.keys(attributes.value).length > 0);
 
-    /** True when the original line item had a fee coverage amount, keeping that field visible for edits. */
-    const showFeeCoverage =
-        props.modelValue?.feeCoverageAmount != null;
-
     // #endregion Computed Values
 
     // #region Event Handlers
@@ -171,6 +167,9 @@
 
     // #endregion Event Handlers
 
+    // #region Watchers
+
+    // Watch for parental changes in our model value and update all our values.
     watch(() => props.modelValue, () => {
         updateRefValue(account, props.modelValue.account?.value
             ? { value: String(props.modelValue.account?.value), text: props.modelValue.account?.text ?? "" }
@@ -184,4 +183,6 @@
         updateRefValue(attributes, props.modelValue.attributes ?? {});
         updateRefValue(attributeValues, props.modelValue.attributeValues ?? {});
     });
+
+    // #endregion Watchers
 </script>

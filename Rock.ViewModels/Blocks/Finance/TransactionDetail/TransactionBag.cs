@@ -25,12 +25,12 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     /// <summary>
     /// The main transaction data for the Transaction Detail block.
     /// </summary>
-    public class TransactionBag : EntityBagBase
+    public class TransactionBag : EntityBagBase, ITranslateIdKey
     {
         /// <summary>
         /// Gets or sets the integer Id of the financial transaction.
         /// </summary>
-        public int Id { get; set; }
+        public int? Id { get; set; }
         /// <summary>
         /// Gets or sets the authorized person alias.
         /// </summary>

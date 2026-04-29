@@ -382,7 +382,7 @@ namespace Rock.Blocks.Finance
                 return null;
             }
 
-            bag.IdKey = bag.Id.AsIdKey();
+            bag.IdKey = bag.Id?.AsIdKey();
 
             bag.TransactionDetails = GetTransactionLineItemBags( entity.Id, entity.TransactionDetails );
             bag.Images = GetImageBags( entity.Id );
@@ -550,7 +550,7 @@ namespace Rock.Blocks.Finance
         /// <returns>An ordered list of <see cref="RefundTransactionBag"/> items; empty when none exist.</returns>
         private List<RefundTransactionBag> GetRefundOverview( int originalTransactionId )
         {
-            return new FinancialTransactionRefundService( RockContext )
+            var refunds = new FinancialTransactionRefundService( RockContext )
                 .Queryable()
                 .AsNoTracking()
                 .Where( r => r.OriginalTransactionId == originalTransactionId && r.FinancialTransaction != null )
@@ -564,6 +564,10 @@ namespace Rock.Blocks.Finance
                     Amount = r.FinancialTransaction.TransactionDetails.Sum( d => d.Amount )
                 } )
                 .ToList();
+
+            refunds.TranslateIdToIdKey();
+
+            return refunds;
         }
 
         /// <summary>
@@ -740,11 +744,10 @@ namespace Rock.Blocks.Finance
 
             var addresses = GetAuthorizedPersonAddresses( person.Id );
 
-            return new AuthorizedPersonBag
+            var authorizedPersonBag = new AuthorizedPersonBag
             {
                 Guid = person.Guid,
                 Id = person.Id,
-                IdKey = person.IdKey,
                 Name = person.FullName,
                 Email = person.Email,
                 PhotoUrl = person.PhotoUrl,
@@ -753,6 +756,10 @@ namespace Rock.Blocks.Finance
                     ? CampusCache.Get( person.PrimaryCampusId.Value )?.Name
                     : null
             };
+
+            authorizedPersonBag.TranslateIdToIdKey();
+
+            return authorizedPersonBag;
         }
 
         /// <summary>
@@ -813,7 +820,7 @@ namespace Rock.Blocks.Finance
         /// </summary>
         /// <param name="transaction">The transaction whose audit persons and dates to format.</param>
         /// <returns>A list of HTML anchor strings ready to be rendered in the UI.</returns>
-        public List<string> GetTransactionUpdates( FinancialTransaction transaction )
+        private List<string> GetTransactionUpdates( FinancialTransaction transaction )
         {
             var updates = new List<string>();
             var rootUrl = ResolveRockUrlIncludeRoot( "/" );
@@ -947,7 +954,7 @@ namespace Rock.Blocks.Finance
                 } )
                 .ToList();
 
-            bags.ForEach( b => b.IdKey = IdHasher.Instance.GetHash( b.Id ) );
+            bags.TranslateIdToIdKey();
 
             return bags;
         }
@@ -1499,6 +1506,11 @@ namespace Rock.Blocks.Finance
         [BlockAction]
         public BlockActionResult GetTransactionDetailAttributes( string guid )
         {
+            if ( !BlockCache.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionForbidden();
+            }
+
             FinancialTransactionDetail detailEntity;
 
             if( guid.IsNotNullOrWhiteSpace())
@@ -1533,6 +1545,11 @@ namespace Rock.Blocks.Finance
         [BlockAction]
         public BlockActionResult GetMaxRefundAmount( string key )
         {
+            if ( !BlockCache.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionForbidden();
+            }
+
             var transaction = new FinancialTransactionService( RockContext )
                 .GetQueryableByKey( key )
                 .FirstOrDefault();
@@ -1660,6 +1677,11 @@ namespace Rock.Blocks.Finance
         [BlockAction]
         public BlockActionResult GetBatchNavigation( string key )
         {
+            if ( !BlockCache.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionForbidden();
+            }
+
             var transactionParameter = RequestContext.PageParameters.GetValueOrNull( PageParameterKey.TransactionId );
             var transactionId = transactionParameter.IsNullOrWhiteSpace() ? 0 : new FinancialTransactionService( RockContext )
                 .GetQueryableByKey( transactionParameter, !PageCache.Layout.Site.DisablePredictableIds )

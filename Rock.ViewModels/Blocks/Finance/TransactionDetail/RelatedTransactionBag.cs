@@ -17,6 +17,8 @@
 
 using System;
 
+using Rock.ViewModels.Utility;
+
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
@@ -24,12 +26,12 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     /// and authorized person as the current transaction, displayed in the Related
     /// Transactions grid on the view panel.
     /// </summary>
-    public class RelatedTransactionBag
+    public class RelatedTransactionBag : ITranslateIdKey
     {
         /// <summary>
         /// Gets or sets the integer Id of the related transaction.
         /// </summary>
-        public int Id { get; set; }
+        public int? Id { get; set; }
 
         /// <summary>
         /// Gets or sets the obfuscated IdKey of the related transaction, used to build detail page links.

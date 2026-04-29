@@ -146,7 +146,7 @@
                             <DefinedValuePicker v-model="transactionType"
                                                 label="Transaction Type"
                                                 :definedTypeGuid="options.transactionTypesGuid ?? ''"
-                                                :showBlankItem="false"
+                                                :showBlankItem="true"
                                                 rules="required"
                                                 help="Choose the kind of transaction this is." />
                         </div>
@@ -156,7 +156,7 @@
                             <DefinedValuePicker v-model="sourceType"
                                                 label="Transaction Source"
                                                 :definedTypeGuid="options.transactionSourceTypesGuid ?? ''"
-                                                :showBlankValues="true"
+                                                :showBlankItem="true"
                                                 :rules="options.transactionSourceRequired ? 'required' : ''"
                                                 help="Choose how this transaction was received, such as online, check, or in person." />
                         </div>
@@ -282,6 +282,12 @@
     </fieldset>
 </template>
 
+<style scoped>
+strong {
+    font-weight: var(--font-weight-semibold);
+}
+</style>
+
 <script setup lang="ts">
     import { computed, PropType, ref, watch } from "vue";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
@@ -366,6 +372,8 @@
         })) ?? []);
 
     const transactionDetailsToDelete = propertyRef(props.modelValue.bag?.transactionDetails?.rowsToDelete ?? [] as string[], "TransactionDetailsToDelete");
+
+    const currentImageKey = ref(0);
 
     const transactionType = propertyRef(props.modelValue.bag?.transactionType ?? null, "TransactionType");
 
@@ -498,8 +506,6 @@
         transactionDateTime.value = newDate ?? new Date().toISOString();
     }
 
-    const currentImageKey = ref(0);
-
     /**
      * Appends a newly uploaded image to the images list and resets the uploader for the next upload.
      *
@@ -524,18 +530,6 @@
         currentImage.value = null;
         currentImageKey.value++;
     }
-
-    watch(currentImage, newImage => {
-        if (newImage?.value) {
-            onImageAdd(newImage);
-        }
-    });
-
-    watch(currencyType, newCurrencyType => {
-        if (newCurrencyType?.value !== DefinedValue.CurrencyTypeCreditCard.toLocaleLowerCase()) {
-            creditCardType.value = null;
-        }
-    });
 
     /**
      * Marks an image as deleted so it is excluded from the UI and sent to the server for removal on save.
@@ -663,6 +657,22 @@
 
     // #endregion Event Handlers
 
+    // #region Watchers
+
+    /** Triggers onImageAdd whenever the ImageUploader sets a new current image. */
+    watch(currentImage, newImage => {
+        if (newImage?.value) {
+            onImageAdd(newImage);
+        }
+    });
+
+    /** Clears the credit card type selection when the currency type changes away from credit card. */
+    watch(currencyType, newCurrencyType => {
+        if (newCurrencyType?.value !== DefinedValue.CurrencyTypeCreditCard.toLocaleLowerCase()) {
+            creditCardType.value = null;
+        }
+    });
+
     // Watch for parental changes in our model value and update all our values.
     watch(() => props.modelValue, () => {
         updateRefValue(attributes, props.modelValue.bag?.attributes ?? {});
@@ -764,10 +774,6 @@
     // Watch for any changes to props that represent properties and then
     // automatically emit which property changed.
     watchPropertyChanges(propRefs, emit);
-</script>
 
-<style scoped>
-strong {
-    font-weight: var(--font-weight-semibold);
-}
-</style>
+    // #endregion Watchers
+</script>

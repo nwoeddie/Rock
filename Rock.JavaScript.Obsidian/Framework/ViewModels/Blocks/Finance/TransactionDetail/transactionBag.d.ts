@@ -78,7 +78,7 @@ export type TransactionBag = {
     foreignCurrencySymbol?: string | null;
 
     /** Gets or sets the integer Id of the financial transaction. */
-    id: number;
+    id?: number | null;
 
     /** Gets or sets the identifier key of this entity. */
     idKey?: string | null;

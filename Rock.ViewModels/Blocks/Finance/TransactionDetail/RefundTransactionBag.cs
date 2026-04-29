@@ -17,18 +17,20 @@
 
 using System;
 
+using Rock.ViewModels.Utility;
+
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
     /// Summary data for a single refund transaction linked to an original transaction,
     /// displayed in the Refunds grid on the view panel.
     /// </summary>
-    public class RefundTransactionBag
+    public class RefundTransactionBag : ITranslateIdKey
     {
         /// <summary>
         /// Gets or sets the integer Id of the refund transaction.
         /// </summary>
-        public int Id { get; set; }
+        public int? Id { get; set; }
 
         /// <summary>
         /// Gets or sets the obfuscated IdKey of the refund transaction, used to build detail page links.
