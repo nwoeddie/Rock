@@ -23,16 +23,32 @@
 
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/**
+ * Payment method details for a financial transaction, including currency type
+ * and credit card information when applicable.
+ */
 export type PaymentDetailBag = {
+    /** Gets or sets the masked account or card number (e.g. xxxx-xxxx-xxxx-1234). */
     accountNumberMasked?: string | null;
 
+    /**
+     * Gets or sets the credit card network defined value (e.g. Visa, Mastercard).
+     * Only populated when Rock.ViewModels.Blocks.Finance.TransactionDetail.PaymentDetailBag.IsCreditCard is true.
+     */
     creditCardType?: ListItemBag | null;
 
+    /** Gets or sets the currency type defined value (e.g. Credit Card, Check, Cash). */
     currencyType?: ListItemBag | null;
 
+    /** Gets or sets the card expiration date string (e.g. 12/27). */
     expirationDate?: string | null;
 
+    /**
+     * Gets or sets a value indicating whether the currency type is credit card,
+     * used to show or hide card-specific fields in the UI.
+     */
     isCreditCard: boolean;
 
+    /** Gets or sets the name printed on the credit or debit card. */
     nameOnCard?: string | null;
 };

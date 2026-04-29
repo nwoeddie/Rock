@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -23,45 +23,47 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
-    /// 
+    /// Display data for the person or business credited with a financial transaction.
     /// </summary>
     public class AuthorizedPersonBag
     {
         /// <summary>
-        /// 
+        /// Gets or sets the person's unique identifier.
         /// </summary>
         public Guid Guid { get; set; }
+
         /// <summary>
-        ///
+        /// Gets or sets the person's integer identifier.
         /// </summary>
         public int? Id { get; set; }
 
         /// <summary>
-        ///
+        /// Gets or sets the obfuscated IdKey used for building person profile links.
         /// </summary>
         public string IdKey { get; set; }
+
         /// <summary>
-        /// 
+        /// Gets or sets the person's full name.
         /// </summary>
         public string Name { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the person's email address.
         /// </summary>
         public string Email { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the URL of the person's profile photo.
         /// </summary>
         public string PhotoUrl { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the list of addresses associated with the person's family group.
         /// </summary>
         public List<AddressBag> Addresses { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the name of the person's primary campus.
         /// </summary>
         public string Campus { get; set; }
     }

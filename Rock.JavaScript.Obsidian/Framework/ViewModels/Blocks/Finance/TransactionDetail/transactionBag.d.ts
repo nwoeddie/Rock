@@ -56,8 +56,16 @@ export type TransactionBag = {
     /** Gets or sets the batch IdKey. */
     batchIdKey?: string | null;
 
+    /**
+     * Gets or sets a value indicating whether the current user may issue a refund
+     * against this transaction.
+     */
     canRefund: boolean;
 
+    /**
+     * Gets or sets the foreign currency code defined value selected for this transaction.
+     * Only populated when the Enable Foreign Currency block setting is on.
+     */
     currencyCode?: ListItemBag | null;
 
     /** Gets or sets the financial gateway. */
@@ -69,6 +77,7 @@ export type TransactionBag = {
     /** Gets or sets the foreign currency symbol. */
     foreignCurrencySymbol?: string | null;
 
+    /** Gets or sets the integer Id of the financial transaction. */
     id: number;
 
     /** Gets or sets the identifier key of this entity. */
@@ -77,6 +86,10 @@ export type TransactionBag = {
     /** Gets or sets the images associated with this transaction. */
     images?: TransactionImageBag[] | null;
 
+    /**
+     * Gets or sets a value indicating whether this transaction is a refund,
+     * determined by the presence of a RefundDetails record.
+     */
     isRefund: boolean;
 
     /** Gets or sets the non-cash asset type. */
@@ -97,6 +110,10 @@ export type TransactionBag = {
     /** Gets or sets the registrations linked to this transaction's detail line items. */
     registrations?: RegistrationLinkBag[] | null;
 
+    /**
+     * Gets or sets other transactions that share the same gateway, transaction code,
+     * and authorized person, displayed in the Related Transactions grid.
+     */
     relatedTransactions?: RelatedTransactionBag[] | null;
 
     /** Gets or sets the scheduled transaction that initiated this transaction. */
@@ -105,6 +122,10 @@ export type TransactionBag = {
     /** Gets or sets the scheduled transaction identifier. */
     scheduledTransactionId?: number | null;
 
+    /**
+     * Gets or sets a value indicating whether the donor's name should be hidden
+     * wherever this gift is displayed publicly.
+     */
     showAsAnonymous: boolean;
 
     /** Gets or sets the transaction source type. */
@@ -143,5 +164,9 @@ export type TransactionBag = {
     /** Gets or sets the transaction type. */
     transactionType?: ListItemBag | null;
 
+    /**
+     * Gets or sets the audit-style update strings (created by, processed by, modified by)
+     * rendered in the view panel's Updates section.
+     */
     updates?: string[] | null;
 };

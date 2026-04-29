@@ -25,6 +25,11 @@ import { Guid } from "@Obsidian/Types";
 import { TransactionLineItemBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionLineItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
+/**
+ * The collection of transaction detail line items together with the attribute
+ * definitions and pending deletions, passed between the client and server
+ * during save operations.
+ */
 export type TransactionDetailsBag = {
     /** Gets or sets the attributes. */
     attributes?: Record<string, PublicAttributeBag> | null;
@@ -35,7 +40,12 @@ export type TransactionDetailsBag = {
     /** Gets or sets the identifier key of this entity. */
     idKey?: string | null;
 
+    /** Gets or sets the current set of account allocation line items. */
     rows?: TransactionLineItemBag[] | null;
 
+    /**
+     * Gets or sets the Guids of line items that have been explicitly removed
+     * by the user and should be deleted from the database on save.
+     */
     rowsToDelete?: Guid[] | null;
 };

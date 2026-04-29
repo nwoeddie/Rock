@@ -23,30 +23,76 @@
 
 /** The additional configuration options for the Transaction Detail block. */
 export type TransactionDetailOptionsBag = {
+    /**
+     * Gets or sets the Guid of the Financial Non-Cash Asset Type defined type,
+     * used to populate the non-cash asset type picker.
+     */
     assetTypes?: string | null;
 
+    /**
+     * Gets or sets the URL of the batch detail page, used by the "Save Then View Batch"
+     * footer action when adding a new transaction.
+     */
     batchDetailPageUrl?: string | null;
 
+    /** Gets or sets a value indicating whether editing the associated batch is allowed. */
     batchEditAllowed: boolean;
 
+    /**
+     * Gets or sets a value indicating whether the current user may edit this transaction.
+     * This is false when the batch is closed or automated, even if the user
+     * has block-level edit permission.
+     */
     canEdit: boolean;
 
+    /**
+     * Gets or sets the Guid of the Financial Credit Card Type defined type,
+     * used to populate the credit card type picker.
+     */
     creditCardTypesGuid?: string | null;
 
+    /**
+     * Gets or sets the Guid of the Financial Currency Code defined type,
+     * used to populate the foreign currency picker.
+     */
     currencyCodesGuid?: string | null;
 
+    /**
+     * Gets or sets the Guid of the Financial Currency Type defined type,
+     * used to populate the payment method picker.
+     */
     currencyTypesGuid?: string | null;
 
+    /** Gets or sets a value indicating whether the block is in read-only mode. */
     isReadOnly: boolean;
 
+    /**
+     * Gets or sets the Guid of the Financial Transaction Refund Reason defined type,
+     * used to populate the refund reason picker.
+     */
     refundReasonTypesGuid?: string | null;
 
+    /**
+     * Gets or sets a value indicating whether foreign currency fields should be shown,
+     * controlled by the Enable Foreign Currency block setting.
+     */
     showForeignCurrencyFields: boolean;
 
+    /**
+     * Gets or sets a value indicating whether the Transaction Source field is required,
+     * controlled by the Transaction Source Required block setting.
+     */
     transactionSourceRequired: boolean;
 
+    /**
+     * Gets or sets the Guid of the Financial Source Type defined type,
+     * used to populate the transaction source picker.
+     */
     transactionSourceTypesGuid?: string | null;
 
-    /** The transaction types that can be used to filter the results. */
+    /**
+     * Gets or sets the Guid of the Financial Transaction Type defined type,
+     * used to populate the transaction type picker.
+     */
     transactionTypesGuid?: string | null;
 };

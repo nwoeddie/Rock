@@ -21,14 +21,26 @@
 // </copyright>
 //
 
+/**
+ * Summary data for a single refund transaction linked to an original transaction,
+ * displayed in the Refunds grid on the view panel.
+ */
 export type RefundTransactionBag = {
+    /** Gets or sets the total amount of the refund (typically negative). */
     amount?: number | null;
 
+    /** Gets or sets the date and time the refund transaction was processed. */
     date?: string | null;
 
+    /** Gets or sets the integer Id of the refund transaction. */
     id: number;
 
+    /** Gets or sets the obfuscated IdKey of the refund transaction, used to build detail page links. */
+    idKey?: string | null;
+
+    /** Gets or sets the human-readable refund reason label. */
     reason?: string | null;
 
+    /** Gets or sets the gateway transaction code for the refund. */
     transactionCode?: string | null;
 };

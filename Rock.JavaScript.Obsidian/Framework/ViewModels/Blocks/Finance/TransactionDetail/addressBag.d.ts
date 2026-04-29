@@ -21,10 +21,14 @@
 // </copyright>
 //
 
+/** A mailing address associated with the authorized person on a transaction. */
 export type AddressBag = {
+    /** Gets or sets the single-line formatted address string. */
     formattedAddress?: string | null;
 
+    /** Gets or sets a value indicating whether this is the person's primary mailing address. */
     isPrimary: boolean;
 
+    /** Gets or sets the location type label (e.g. Home, Work, Previous). */
     type?: string | null;
 };

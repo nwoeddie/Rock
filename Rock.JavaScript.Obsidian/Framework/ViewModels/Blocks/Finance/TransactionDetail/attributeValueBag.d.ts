@@ -21,16 +21,26 @@
 // </copyright>
 //
 
+/**
+ * A single attribute key/value pair for a transaction detail line item,
+ * carrying both the raw value and a formatted display value.
+ */
 export type AttributeValueBag = {
+    /** Gets or sets the formatted display value of the attribute (e.g. a resolved defined value label). */
     formattedValue?: string | null;
 
+    /** Gets or sets a value indicating whether the current user may edit this attribute value. */
     isEditable: boolean;
 
+    /** Gets or sets a value indicating whether this attribute value is required. */
     isRequired: boolean;
 
+    /** Gets or sets the attribute key used to identify this attribute. */
     key?: string | null;
 
+    /** Gets or sets the human-readable attribute name shown as a label in the UI. */
     name?: string | null;
 
+    /** Gets or sets the raw stored value of the attribute. */
     value?: string | null;
 };

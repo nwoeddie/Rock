@@ -23,14 +23,26 @@
 
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/**
+ * The client-submitted payload for the Refund block action, containing
+ * the amount and reason for the refund.
+ */
 export type RefundRequestBag = {
+    /** Gets or sets the dollar amount to refund. */
     amount: number;
 
+    /** Gets or sets the maximum allowable refund amount, used for server-side validation. */
     maximumAmount: number;
 
+    /**
+     * Gets or sets a value indicating whether to process the refund through
+     * the financial gateway in addition to recording it in Rock.
+     */
     process: boolean;
 
+    /** Gets or sets the defined value representing the reason for the refund. */
     refundReason?: ListItemBag | null;
 
+    /** Gets or sets the free-text explanation of why the refund was issued. */
     refundReasonSummary?: string | null;
 };

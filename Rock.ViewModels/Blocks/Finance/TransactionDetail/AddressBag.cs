@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -18,22 +18,22 @@
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
-    /// 
+    /// A mailing address associated with the authorized person on a transaction.
     /// </summary>
     public class AddressBag
     {
         /// <summary>
-        /// 
+        /// Gets or sets the location type label (e.g. Home, Work, Previous).
         /// </summary>
-        public string Type { get; set; } // Home, Work, Previous, etc.
+        public string Type { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the single-line formatted address string.
         /// </summary>
         public string FormattedAddress { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets a value indicating whether this is the person's primary mailing address.
         /// </summary>
         public bool IsPrimary { get; set; }
     }

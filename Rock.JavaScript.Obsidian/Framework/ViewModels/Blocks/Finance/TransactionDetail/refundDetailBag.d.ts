@@ -23,14 +23,26 @@
 
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/**
+ * Details about the refund associated with a transaction, including a link
+ * back to the original transaction that was refunded.
+ */
 export type RefundDetailBag = {
+    /** Gets or sets the integer Id of the original transaction that this refund reverses. */
     originalTransactionId?: number | null;
 
+    /**
+     * Gets or sets the obfuscated IdKey of the original transaction, used to build
+     * the link to the original transaction detail page.
+     */
     originalTransactionIdKey?: string | null;
 
+    /** Gets or sets the total amount refunded. */
     refundAmount: number;
 
+    /** Gets or sets the defined value representing the reason for the refund. */
     refundReason?: ListItemBag | null;
 
+    /** Gets or sets the free-text explanation of why the refund was issued. */
     refundReasonSummary?: string | null;
 };

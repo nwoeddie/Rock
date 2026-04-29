@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -23,17 +23,20 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
-    /// 
+    /// The collection of transaction detail line items together with the attribute
+    /// definitions and pending deletions, passed between the client and server
+    /// during save operations.
     /// </summary>
     public class TransactionDetailsBag : EntityBagBase
     {
         /// <summary>
-        /// 
+        /// Gets or sets the current set of account allocation line items.
         /// </summary>
         public List<TransactionLineItemBag> Rows { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the Guids of line items that have been explicitly removed
+        /// by the user and should be deleted from the database on save.
         /// </summary>
         public List<Guid> RowsToDelete { get; set; }
     }

@@ -24,20 +24,29 @@
 import { Guid } from "@Obsidian/Types";
 import { AddressBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/addressBag";
 
+/** Display data for the person or business credited with a financial transaction. */
 export type AuthorizedPersonBag = {
+    /** Gets or sets the list of addresses associated with the person's family group. */
     addresses?: AddressBag[] | null;
 
+    /** Gets or sets the name of the person's primary campus. */
     campus?: string | null;
 
+    /** Gets or sets the person's email address. */
     email?: string | null;
 
+    /** Gets or sets the person's unique identifier. */
     guid: Guid;
 
+    /** Gets or sets the person's integer identifier. */
     id?: number | null;
 
+    /** Gets or sets the obfuscated IdKey used for building person profile links. */
     idKey?: string | null;
 
+    /** Gets or sets the person's full name. */
     name?: string | null;
 
+    /** Gets or sets the URL of the person's profile photo. */
     photoUrl?: string | null;
 };

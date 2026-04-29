@@ -24,19 +24,36 @@
 import { Guid } from "@Obsidian/Types";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
+/**
+ * Represents a single image attached to a financial transaction, carrying both
+ * the binary file reference and resolved URL for display in the UI.
+ */
 export type TransactionImageBag = {
+    /** Gets or sets the integer Id of the BinaryFile record. */
     binaryFileId: number;
 
+    /** Gets or sets the original file name of the uploaded image. */
     fileName?: string | null;
 
+    /** Gets or sets the Guid of the underlying BinaryFile record. */
     guid: Guid;
 
-    /** Gets or sets the Rock.Model.BinaryFile that contains the EventItem's photo. */
+    /**
+     * Gets or sets the BinaryFile reference as a ListItemBag, used by the ImageUploader
+     * component to track the uploaded file.
+     */
     imageItemBag?: ListItemBag | null;
 
+    /** Gets or sets the full public URL for displaying the image at its original size. */
     imageUrl?: string | null;
 
+    /**
+     * Gets or sets a value indicating whether the user has removed this image.
+     * When true the image is excluded from the UI and deleted from the
+     * transaction on save.
+     */
     isMarkedForDeletion: boolean;
 
+    /** Gets or sets the public URL for displaying a thumbnail-sized version of the image. */
     thumbnailUrl?: string | null;
 };

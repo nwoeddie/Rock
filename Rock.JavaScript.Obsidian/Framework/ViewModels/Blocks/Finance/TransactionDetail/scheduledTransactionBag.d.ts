@@ -21,10 +21,20 @@
 // </copyright>
 //
 
+/**
+ * Lightweight reference to the scheduled transaction that generated this
+ * financial transaction, used to render the link in the view panel.
+ */
 export type ScheduledTransactionBag = {
+    /**
+     * Gets or sets the text shown for the scheduled transaction link.
+     * Prefers the gateway schedule Id; falls back to the integer Id as a string.
+     */
     displayText?: string | null;
 
+    /** Gets or sets the integer Id of the scheduled transaction. */
     id: number;
 
+    /** Gets or sets the URL to the scheduled transaction detail page. */
     url?: string | null;
 };

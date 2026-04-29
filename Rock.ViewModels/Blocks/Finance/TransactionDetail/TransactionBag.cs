@@ -28,7 +28,7 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     public class TransactionBag : EntityBagBase
     {
         /// <summary>
-        /// 
+        /// Gets or sets the integer Id of the financial transaction.
         /// </summary>
         public int Id { get; set; }
         /// <summary>
@@ -37,7 +37,8 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public AuthorizedPersonBag AuthorizedPerson { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets a value indicating whether the donor's name should be hidden
+        /// wherever this gift is displayed publicly.
         /// </summary>
         public Boolean ShowAsAnonymous { get; set; }
 
@@ -77,7 +78,8 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public PaymentDetailBag PaymentDetail { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the foreign currency code defined value selected for this transaction.
+        /// Only populated when the Enable Foreign Currency block setting is on.
         /// </summary>
         public ListItemBag CurrencyCode { get; set; }
 
@@ -172,12 +174,14 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public decimal? TotalForeignCurrencyAmount { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the audit-style update strings (created by, processed by, modified by)
+        /// rendered in the view panel's Updates section.
         /// </summary>
         public List<string> Updates { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets a value indicating whether this transaction is a refund,
+        /// determined by the presence of a RefundDetails record.
         /// </summary>
         public bool IsRefund { get; set; }
 
@@ -192,12 +196,14 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public List<RefundTransactionBag> Refunds { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets other transactions that share the same gateway, transaction code,
+        /// and authorized person, displayed in the Related Transactions grid.
         /// </summary>
         public List<RelatedTransactionBag> RelatedTransactions { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets a value indicating whether the current user may issue a refund
+        /// against this transaction.
         /// </summary>
         public bool CanRefund { get; set; }
 

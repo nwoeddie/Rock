@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -20,32 +20,34 @@ using Rock.ViewModels.Utility;
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
-    /// 
+    /// Details about the refund associated with a transaction, including a link
+    /// back to the original transaction that was refunded.
     /// </summary>
     public class RefundDetailBag
     {
         /// <summary>
-        ///
+        /// Gets or sets the integer Id of the original transaction that this refund reverses.
         /// </summary>
         public int? OriginalTransactionId { get; set; }
 
         /// <summary>
-        ///
+        /// Gets or sets the obfuscated IdKey of the original transaction, used to build
+        /// the link to the original transaction detail page.
         /// </summary>
         public string OriginalTransactionIdKey { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the defined value representing the reason for the refund.
         /// </summary>
         public ListItemBag RefundReason { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the free-text explanation of why the refund was issued.
         /// </summary>
         public string RefundReasonSummary { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the total amount refunded.
         /// </summary>
         public decimal RefundAmount { get; set; }
     }

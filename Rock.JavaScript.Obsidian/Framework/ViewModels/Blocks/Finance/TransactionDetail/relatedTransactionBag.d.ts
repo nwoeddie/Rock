@@ -21,14 +21,24 @@
 // </copyright>
 //
 
+/**
+ * Summary data for a transaction that shares the same gateway, transaction code,
+ * and authorized person as the current transaction, displayed in the Related
+ * Transactions grid on the view panel.
+ */
 export type RelatedTransactionBag = {
+    /** Gets or sets the total amount of the related transaction. */
     amount: number;
 
+    /** Gets or sets the integer Id of the related transaction. */
     id: number;
 
+    /** Gets or sets the obfuscated IdKey of the related transaction, used to build detail page links. */
     idKey?: string | null;
 
+    /** Gets or sets the date and time the related transaction was processed. */
     transactionDateTime?: string | null;
 
+    /** Gets or sets the gateway transaction code shared between the related transactions. */
     transactionReference?: string | null;
 };

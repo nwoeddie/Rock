@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -20,32 +20,38 @@ using System;
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
-    /// 
+    /// Summary data for a single refund transaction linked to an original transaction,
+    /// displayed in the Refunds grid on the view panel.
     /// </summary>
     public class RefundTransactionBag
     {
         /// <summary>
-        /// 
+        /// Gets or sets the integer Id of the refund transaction.
         /// </summary>
         public int Id { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the obfuscated IdKey of the refund transaction, used to build detail page links.
+        /// </summary>
+        public string IdKey { get; set; }
+
+        /// <summary>
+        /// Gets or sets the date and time the refund transaction was processed.
         /// </summary>
         public DateTime? Date { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the gateway transaction code for the refund.
         /// </summary>
         public string TransactionCode { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the human-readable refund reason label.
         /// </summary>
         public string Reason { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the total amount of the refund (typically negative).
         /// </summary>
         public decimal? Amount { get; set; }
     }

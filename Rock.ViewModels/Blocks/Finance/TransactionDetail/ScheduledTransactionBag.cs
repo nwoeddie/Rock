@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -18,22 +18,24 @@
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
 {
     /// <summary>
-    /// 
+    /// Lightweight reference to the scheduled transaction that generated this
+    /// financial transaction, used to render the link in the view panel.
     /// </summary>
     public class ScheduledTransactionBag
     {
         /// <summary>
-        /// 
+        /// Gets or sets the integer Id of the scheduled transaction.
         /// </summary>
         public int Id { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the text shown for the scheduled transaction link.
+        /// Prefers the gateway schedule Id; falls back to the integer Id as a string.
         /// </summary>
         public string DisplayText { get; set; }
 
         /// <summary>
-        /// 
+        /// Gets or sets the URL to the scheduled transaction detail page.
         /// </summary>
         public string Url { get; set; }
     }
