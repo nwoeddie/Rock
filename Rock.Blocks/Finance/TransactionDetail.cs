@@ -206,6 +206,15 @@ namespace Rock.Blocks.Finance
                 return false;
             }
 
+            var hasNonZeroAmount = financialTransaction.TransactionDetails?
+                .Any( d => d.Amount != 0m || ( d.FeeCoverageAmount.HasValue && d.FeeCoverageAmount.Value != 0m ) ) ?? false;
+
+            if ( !hasNonZeroAmount )
+            {
+                errorMessage = "A transaction must have at least one non-zero amount.";
+                return false;
+            }
+
             if ( financialTransaction.RefundDetails != null )
             {
                 var totalAmount = financialTransaction.TransactionDetails?.Sum( d => d.Amount ) ?? 0m;
@@ -1444,6 +1453,7 @@ namespace Rock.Blocks.Finance
             {
                 RockContext.SaveChanges();
                 entity.SaveAttributeValues( RockContext );
+                entity.FinancialPaymentDetail?.SaveAttributeValues( RockContext );
 
                 foreach ( var detail in entity.TransactionDetails )
                 {
