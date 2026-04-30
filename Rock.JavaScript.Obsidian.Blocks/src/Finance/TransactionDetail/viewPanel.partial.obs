@@ -43,9 +43,9 @@
                 <label>Comments</label>
                 <p>{{ modelValue?.summary }}</p>
             </div>
-            <div class="image-container">
-                <div class="image-wrapper" v-for="(image, index) in modelValue?.images" :key="index">
-                    <img :src="image.imageUrl || ''" :alt="`Transaction Image ${index + 1}`" @click.prevent="openImage(image.imageUrl || '')" class="cursor-pointer" />
+            <div class="row">
+                <div class="col-md-4" v-for="(image, index) in modelValue?.images" :key="index">
+                    <img :src="image.imageUrl || ''" :alt="`Transaction Image ${index + 1}`" @click.prevent="openImage(image.imageUrl || '')" class="cursor-pointer txn-image" />
                 </div>
             </div>
         </ContentSection>
@@ -295,6 +295,10 @@ label {
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
+}
+
+.txn-image {
+    width: 100%;
 }
 
 strong {
