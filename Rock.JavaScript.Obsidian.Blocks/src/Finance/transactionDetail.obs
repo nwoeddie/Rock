@@ -118,6 +118,7 @@
 
 <script setup lang="ts">
     import { computed, nextTick, onMounted, ref } from "vue";
+    import { newGuid } from "@Obsidian/Utility/guid";
     import { scrollElementStartToTop } from "@Obsidian/Utility/dom";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import DetailBlock from "@Obsidian/Templates/detailBlock";
@@ -475,6 +476,22 @@
                 return;
             }
 
+            const savedRows = transactionEditBag.value?.bag.transactionDetails?.rows ?? [];
+            const carryOverRow = options.value.carryOverAccount && savedRows.length === 1
+                ? {
+                    ...savedRows[0],
+                    id: 0,
+                    idKey: "",
+                    guid: newGuid(),
+                    amount: 0,
+                    feeAmount: undefined,
+                    feeCoverageAmount: undefined,
+                    foreignCurrencyAmount: undefined,
+                    summary: "",
+                    transactionId: 0
+                }
+                : undefined;
+
             const persistedDefaults: TransactionBag = {
                 batchId: transactionEditBag.value?.bag.batchId,
                 transactionDateTime: transactionEditBag.value?.bag.transactionDateTime,
@@ -482,6 +499,9 @@
                 sourceType: transactionEditBag.value?.bag.sourceType,
                 paymentDetail: transactionEditBag.value?.bag.paymentDetail,
                 nonCashAssetType: transactionEditBag.value?.bag.nonCashAssetType,
+                transactionDetails: carryOverRow
+                    ? { rows: [carryOverRow], rowsToDelete: [] }
+                    : undefined,
                 canRefund: false,
                 id: 0,
                 idKey: "",

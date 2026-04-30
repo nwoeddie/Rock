@@ -98,6 +98,12 @@ namespace Rock.Blocks.Finance
         Order = 7,
         Key = AttributeKey.EnableForeignCurrency )]
 
+    [BooleanField( "Carry Over Account",
+        Description = "Keep the last used account pre-populated when adding multiple transactions in the same session. Only applies when the saved transaction has exactly one account allocation.",
+        DefaultBooleanValue = true,
+        Order = 8,
+        Key = AttributeKey.CarryOverAccount )]
+
     #endregion Block Attributes
 
     [Rock.SystemGuid.EntityTypeGuid( "31989b35-624b-4529-bc55-bb251e7fb1da" )]
@@ -127,6 +133,7 @@ namespace Rock.Blocks.Finance
             public const string LocationTypes = "LocationTypes";
             public const string TransactionSourceRequired = "TransactionSourceRequired";
             public const string EnableForeignCurrency = "EnableForeignCurrency";
+            public const string CarryOverAccount = "CarryOverAccount";
         }
 
         #endregion Keys
@@ -173,6 +180,8 @@ namespace Rock.Blocks.Finance
             options.TransactionSourceRequired = GetAttributeValue( AttributeKey.TransactionSourceRequired ).AsBoolean();
 
             options.BatchDetailPageUrl = this.GetLinkedPageUrl( AttributeKey.BatchDetailPage );
+
+            options.CarryOverAccount = GetAttributeValue( AttributeKey.CarryOverAccount ).AsBoolean();
 
             return options;
         }
@@ -417,6 +426,13 @@ namespace Rock.Blocks.Finance
 
             entity.LoadAttributes( RockContext );
             bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: false );
+
+            if ( entity.FinancialPaymentDetail != null && bag.PaymentDetail != null )
+            {
+                entity.FinancialPaymentDetail.LoadAttributes( RockContext );
+                bag.PaymentDetail.Attributes = entity.FinancialPaymentDetail.GetPublicAttributesForView( RequestContext.CurrentPerson, enforceSecurity: false );
+                bag.PaymentDetail.AttributeValues = entity.FinancialPaymentDetail.GetPublicAttributeValuesForView( RequestContext.CurrentPerson, enforceSecurity: false );
+            }
 
             return bag;
         }
@@ -1087,6 +1103,12 @@ namespace Rock.Blocks.Finance
                         : null;
 
                     entity.FinancialPaymentDetail.NameOnCard = paymentBag.NameOnCard;
+
+                    if ( paymentBag.AttributeValues != null )
+                    {
+                        entity.FinancialPaymentDetail.LoadAttributes( RockContext );
+                        entity.FinancialPaymentDetail.SetPublicAttributeValues( paymentBag.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: false );
+                    }
                 } );
 
             // non-cash asset only applies to Non-Cash transactions.

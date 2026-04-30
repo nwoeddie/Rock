@@ -98,5 +98,12 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// footer action when adding a new transaction.
         /// </summary>
         public string BatchDetailPageUrl { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the last used account should be
+        /// pre-populated when adding another transaction in the same session.
+        /// Only applies when there is exactly one account allocation on the saved transaction.
+        /// </summary>
+        public bool CarryOverAccount { get; set; }
     }
 }

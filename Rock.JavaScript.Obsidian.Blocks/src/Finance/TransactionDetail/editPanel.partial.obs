@@ -258,6 +258,11 @@
                             <TextBox v-model="transactionCode" label="Transaction Reference" help="	Enter a code to reference this transaction." />
                         </div>
                     </div>
+                    <div class="row" v-if="hasPaymentDetailAttributes">
+                        <div class="col-md-6">
+                            <AttributeValuesContainer v-model="paymentDetailAttributeValues" :attributes="paymentDetailAttributes" isEditMode :numberOfColumns="1" />
+                        </div>
+                    </div>
                 </ContentStack>
 
                 <ContentStack
@@ -358,6 +363,9 @@ strong {
 
     const attributes = ref(props.modelValue.bag?.attributes ?? {});
     const attributeValues = ref(props.modelValue.bag?.attributeValues ?? {});
+
+    const paymentDetailAttributes = ref(props.modelValue.bag?.paymentDetail?.attributes ?? {});
+    const paymentDetailAttributeValues = ref(props.modelValue.bag?.paymentDetail?.attributeValues ?? {});
 
     const personOrBusinessItemBag: ListItemBag | undefined = props.modelValue.bag?.authorizedPerson
         ? {
@@ -495,6 +503,9 @@ strong {
 
     /** True when the transaction detail entity type has at least one public attribute defined. */
     const hasAttributes = computed(() => Object.keys(attributes.value).length > 0);
+
+    /** True when the payment detail entity has at least one public attribute defined. */
+    const hasPaymentDetailAttributes = computed(() => Object.keys(paymentDetailAttributes.value).length > 0);
 
     // #endregion Computed Values
 
@@ -689,6 +700,8 @@ strong {
     watch(() => props.modelValue, () => {
         updateRefValue(attributes, props.modelValue.bag?.attributes ?? {});
         updateRefValue(attributeValues, props.modelValue.bag?.attributeValues ?? {});
+        updateRefValue(paymentDetailAttributes, props.modelValue.bag?.paymentDetail?.attributes ?? {});
+        updateRefValue(paymentDetailAttributeValues, props.modelValue.bag?.paymentDetail?.attributeValues ?? {});
 
         updateRefValue(isAnonymous, props.modelValue.bag?.showAsAnonymous ?? false);
         updateRefValue(transactionDateTime, props.modelValue.bag?.transactionDateTime ?? new Date().toISOString());
@@ -729,7 +742,7 @@ strong {
 
     // Determines which values we want to track changes on (defined in the
     // array) and then emit a new object defined as newValue.
-    watch([attributeValues, ...propRefs, personOrBusiness, transactionDetails], () => {
+    watch([attributeValues, paymentDetailAttributeValues, ...propRefs, personOrBusiness, transactionDetails], () => {
         const newValue: ValidPropertiesBox<TransactionBag> = {
             bag: { ...props.modelValue.bag } as TransactionBag
         };
@@ -769,6 +782,7 @@ strong {
                     currencyType: currencyType.value,
                     isCreditCard: props.modelValue.bag?.paymentDetail?.isCreditCard ?? false,
                     creditCardType: creditCardType.value,
+                    attributeValues: paymentDetailAttributeValues.value
                 }
                 : null
         );

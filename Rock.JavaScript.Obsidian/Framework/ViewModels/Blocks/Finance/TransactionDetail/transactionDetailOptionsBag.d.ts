@@ -46,6 +46,13 @@ export type TransactionDetailOptionsBag = {
     canEdit: boolean;
 
     /**
+     * Gets or sets a value indicating whether the last used account should be
+     * pre-populated when adding another transaction in the same session.
+     * Only applies when there is exactly one account allocation on the saved transaction.
+     */
+    carryOverAccount: boolean;
+
+    /**
      * Gets or sets the Guid of the Financial Credit Card Type defined type,
      * used to populate the credit card type picker.
      */

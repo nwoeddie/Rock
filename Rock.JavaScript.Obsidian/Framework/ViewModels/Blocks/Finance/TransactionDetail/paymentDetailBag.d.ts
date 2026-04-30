@@ -22,6 +22,7 @@
 //
 
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
 /**
  * Payment method details for a financial transaction, including currency type
@@ -30,6 +31,18 @@ import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 export type PaymentDetailBag = {
     /** Gets or sets the masked account or card number (e.g. xxxx-xxxx-xxxx-1234). */
     accountNumberMasked?: string | null;
+
+    /**
+     * Gets or sets the public attribute definitions for the financial payment detail,
+     * used to render attribute fields in the view and edit panels.
+     */
+    attributes?: Record<string, PublicAttributeBag> | null;
+
+    /**
+     * Gets or sets the public attribute values for the financial payment detail,
+     * keyed by attribute key with the value formatted for public display or editing.
+     */
+    attributeValues?: Record<string, string> | null;
 
     /**
      * Gets or sets the credit card network defined value (e.g. Visa, Mastercard).

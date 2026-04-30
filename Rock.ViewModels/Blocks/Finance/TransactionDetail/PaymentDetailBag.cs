@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using System.Collections.Generic;
+
 using Rock.ViewModels.Utility;
 
 namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
@@ -56,5 +58,17 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         /// used to show or hide card-specific fields in the UI.
         /// </summary>
         public bool IsCreditCard { get; set; }
+
+        /// <summary>
+        /// Gets or sets the public attribute definitions for the financial payment detail,
+        /// used to render attribute fields in the view and edit panels.
+        /// </summary>
+        public Dictionary<string, PublicAttributeBag> Attributes { get; set; }
+
+        /// <summary>
+        /// Gets or sets the public attribute values for the financial payment detail,
+        /// keyed by attribute key with the value formatted for public display or editing.
+        /// </summary>
+        public Dictionary<string, string> AttributeValues { get; set; }
     }
 }
