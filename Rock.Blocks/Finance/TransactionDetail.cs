@@ -42,7 +42,7 @@ namespace Rock.Blocks.Finance
     [DisplayName( "Transaction Detail" )]
     [Category( "Finance" )]
     [Description( "Displays the details of a particular financial transaction." )]
-    [IconCssClass( "fa fa-question" )]
+    [IconCssClass( "fa fa-credit-card" )]
     [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
@@ -107,7 +107,8 @@ namespace Rock.Blocks.Finance
     #endregion Block Attributes
 
     [Rock.SystemGuid.EntityTypeGuid( "31989b35-624b-4529-bc55-bb251e7fb1da" )]
-    [Rock.SystemGuid.BlockTypeGuid( "f6f7a34c-c5d7-4cf9-a325-baf5300bce91" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "f6f7a34c-c5d7-4cf9-a325-baf5300bce91" )]
+    [Rock.SystemGuid.BlockTypeGuid( "1DE16F87-4A49-4A3C-A03E-B8488ECBEEBE" )]
     public class TransactionDetail : RockEntityDetailBlockType<FinancialTransaction, TransactionBag>
     {
         #region Keys
@@ -441,23 +442,45 @@ namespace Rock.Blocks.Finance
         /// <inheritdoc/>
         protected override TransactionBag GetEntityBagForEdit( FinancialTransaction entity )
         {
-            var batchParameter = PageParameter( PageParameterKey.BatchId );
-            var batchId = batchParameter.IsNullOrWhiteSpace() ? 0 : new FinancialBatchService( RockContext )
-                .GetQueryableByKey( batchParameter, !PageCache.Layout.Site.DisablePredictableIds )
-                .Select( b => b.Id )
-                .FirstOrDefault();
-
             if ( entity == null )
             {
                 return null;
             }
-            var bag = new TransactionBag();
 
-            bag.BatchId = batchId;
+            TransactionBag bag;
+
+            if ( entity.Id == 0 )
+            {
+                // New transaction: resolve the target batch from the URL and leave all
+                // other fields empty — the edit panel will apply its own defaults.
+                var batchParameter = PageParameter( PageParameterKey.BatchId );
+                var batchId = batchParameter.IsNullOrWhiteSpace() ? 0 : new FinancialBatchService( RockContext )
+                    .GetQueryableByKey( batchParameter, !PageCache.Layout.Site.DisablePredictableIds )
+                    .Select( b => b.Id )
+                    .FirstOrDefault();
+
+                bag = new TransactionBag { BatchId = batchId };
+            }
+            else
+            {
+                // Existing transaction: return the full bag so the edit panel does not
+                // have to borrow data from the view bag.
+                bag = GetBaseTransactionBag( entity );
+                bag.IdKey = bag.Id?.AsIdKey();
+                bag.TransactionDetails = GetTransactionLineItemBags( entity.Id, entity.TransactionDetails );
+                bag.Images = GetImageBags( entity.Id );
+
+                if ( entity.FinancialPaymentDetail != null && bag.PaymentDetail != null )
+                {
+                    entity.FinancialPaymentDetail.LoadAttributes( RockContext );
+                    bag.PaymentDetail.Attributes = entity.FinancialPaymentDetail.GetPublicAttributesForEdit( RequestContext.CurrentPerson, enforceSecurity: false );
+                    bag.PaymentDetail.AttributeValues = entity.FinancialPaymentDetail.GetPublicAttributeValuesForEdit( RequestContext.CurrentPerson, enforceSecurity: false );
+                }
+            }
 
             entity.LoadAttributes( RockContext );
-
             bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: false );
+
             return bag;
         }
 
@@ -735,24 +758,21 @@ namespace Rock.Blocks.Finance
                 symbol = string.Empty;
                 return string.Empty;
             }
+            symbol = string.Empty;
 
+            if ( !currencyCodeGuid.IsNotNullOrWhiteSpace() )
             {
-                symbol = string.Empty;
-
-                if ( !currencyCodeGuid.IsNotNullOrWhiteSpace() )
-                {
-                    return string.Empty;
-                }
-
-                var definedValue = DefinedValueCache.Get( currencyCodeGuid );
-                if ( definedValue == null )
-                {
-                    return string.Empty;
-                }
-
-                symbol = definedValue.GetAttributeValue( "Symbol" );
-                return $"{definedValue.Value} {symbol}".Trim();
+                return string.Empty;
             }
+
+            var definedValue = DefinedValueCache.Get( currencyCodeGuid );
+            if ( definedValue == null )
+            {
+                return string.Empty;
+            }
+
+            symbol = definedValue.GetAttributeValue( "Symbol" );
+            return $"{definedValue.Value} {symbol}".Trim();
         }
 
         /// <summary>
@@ -1494,7 +1514,6 @@ namespace Rock.Blocks.Finance
 
             // Ensure navigation properties will work now.
             entity = entityService.Get( entity.Id );
-            entity.LoadAttributes( RockContext );
 
             var bag = GetEntityBagForView( entity );
 
@@ -1632,16 +1651,19 @@ namespace Rock.Blocks.Finance
                 .Include( t => t.AuthorizedPersonAlias.Person )
                 .FirstOrDefault();
 
+            if ( transaction == null )
+            {
+                return ActionBadRequest( $"{FinancialTransaction.FriendlyTypeName} not found." );
+            }
+
             var maximumRefundAmount = GetMaxRefundAmountForTransaction( transaction );
+
             if ( bag.Amount > maximumRefundAmount )
             {
                 return ActionBadRequest( $"Refund amount cannot exceed {maximumRefundAmount.FormatAsCurrency()}." );
             }
 
-            if ( transaction == null )
-            {
-                return ActionBadRequest( $"{FinancialTransaction.FriendlyTypeName} not found." );
-            }
+            
 
             if ( !transaction.IsAuthorized( Authorization.REFUND, RequestContext.CurrentPerson ) )
             {
@@ -1734,15 +1756,19 @@ namespace Rock.Blocks.Finance
                 return ActionOk( new BatchNavigationBag() );
             }
 
-            var transactionIds = new FinancialTransactionService( RockContext )
+            var batchTransactions = new FinancialTransactionService( RockContext )
                 .Queryable()
-                .Where( t => t.BatchId == batchId )
-                .OrderBy( t => t.Id )
-                .Select( t => t.Id )
-                .ToList();
+                .Where( t => t.BatchId == batchId );
 
-            var nextId = transactionIds.FirstOrDefault( id => id > transactionId );
-            var prevId = transactionIds.LastOrDefault( id => id < transactionId );
+            var prevId = batchTransactions
+                .Where( t => t.Id < transactionId )
+                .Select( t => ( int? ) t.Id )
+                .Max() ?? 0;
+
+            var nextId = batchTransactions
+                .Where( t => t.Id > transactionId )
+                .Select( t => ( int? ) t.Id )
+                .Min() ?? 0;
 
             return ActionOk( new BatchNavigationBag
             {

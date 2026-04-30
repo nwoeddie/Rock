@@ -239,11 +239,20 @@
     /** Resolved options bag; falls back to safe defaults when config.options is absent. */
     const options = computed((): TransactionDetailOptionsBag => {
         return config.options ?? {
-            batchEditAllowed: false,
+            transactionTypesGuid: "",
+            transactionSourceTypesGuid: "",
+            refundReasonTypesGuid: "",
+            currencyTypesGuid: "",
+            currencyCodesGuid: "",
+            creditCardTypesGuid: "",
+            assetTypes: "",
             canEdit: false,
             isReadOnly: !isEditable.value,
+            batchEditAllowed: false,
             showForeignCurrencyFields: false,
             transactionSourceRequired: false,
+            batchDetailPageUrl: "",
+            carryOverAccount: false,
         };
     });
 
@@ -327,16 +336,8 @@
         });
 
         if (result.isSuccess && result.data && result.data.bag) {
-            if (result.data.bag.attributes && transactionViewBag.value) {
-                transactionViewBag.value.attributes = result.data.bag.attributes;
-            }
-
-            if (result.data.bag.attributeValues && transactionViewBag.value) {
-                transactionViewBag.value.attributeValues = result.data.bag.attributeValues;
-            }
-
             transactionEditBag.value = {
-                bag: transactionViewBag.value,
+                bag: result.data.bag,
                 validProperties: result.data.validProperties ?? Object.keys(result.data.bag)
             };
 
