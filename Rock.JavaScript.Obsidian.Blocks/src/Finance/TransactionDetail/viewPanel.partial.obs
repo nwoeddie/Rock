@@ -55,8 +55,8 @@
                         title="Transaction Details"
                         :disableCollapse="true">
 
-            <div class="d-flex justify-content-between">
-                <div style="width: 50%;">
+            <div class="row">
+                <div class="col-md-6">
 
                     <div v-if="modelValue?.sourceType?.text">
                         <label>Transaction Source</label>
@@ -67,13 +67,23 @@
                     <div v-if="modelValue?.paymentDetail?.isCreditCard">
                         <div class="multi-line">
                             <p>Credit Card - {{ modelValue?.paymentDetail?.creditCardType?.text }}</p>
+                            <p v-if="modelValue?.paymentDetail?.nameOnCard">Name on Card: {{ modelValue?.paymentDetail?.nameOnCard }}</p>
                             <p v-if="modelValue?.paymentDetail?.accountNumberMasked">Account Number: {{ modelValue?.paymentDetail?.accountNumberMasked }}</p>
                             <p v-if="modelValue?.paymentDetail?.expirationDate">Expires: {{ modelValue?.paymentDetail?.expirationDate }}</p>
                         </div>
                     </div>
 
+                    <div v-else-if="modelValue?.paymentDetail">
+                        <div class="multi-line">
+                            <p>{{ modelValue?.paymentDetail?.currencyType?.text }}</p>
+                            <p v-if="modelValue?.paymentDetail?.accountNumberMasked">Account Number: {{ modelValue?.paymentDetail?.accountNumberMasked }}</p>
+                        </div>
+                    </div>
+
                     <div v-else>
-                        <p>{{ modelValue?.paymentDetail?.currencyType?.text }}</p>
+                        <NotificationBox alertType="warning">
+                            No Payment Information found. This could be due to a transaction that was imported from an external system.
+                        </NotificationBox>
                     </div>
 
                     <div v-if="modelValue?.financialGateway">
@@ -127,13 +137,15 @@
 
                     <div class="multi-line" v-if="(modelValue?.updates && modelValue.updates.length > 0)">
                         <label>Updates</label>
-                        <div v-for="(update, index) in modelValue.updates" :key="index" v-html="update"></div>
+                        <ul>
+                            <li v-for="(update, index) in modelValue.updates" :key="index" v-html="update"></li>
+                        </ul>
                     </div>
                     <div class="row">
                         <AttributeValuesContainer :modelValue="attributeValues" :attributes="attributes" :numberOfColumns="1" :showCategoryLabel="false" />
                     </div>
                 </div>
-                <div class="w-100">
+                <div class="col-md-6">
                     <ContentStack v-if="allocationsGridData">
                         <div class="mb-4">
                             <h6>Transaction Allocations</h6>
@@ -193,7 +205,7 @@
                                             title="Amount" />
                             </Grid>
                         </div>
-                        <div v-if="modelValue?.relatedTransactions?.length && modelValue.relatedTransactions.length > 0">
+                        <div v-if="modelValue?.relatedTransactions?.length && modelValue.relatedTransactions.length > 0" class="mb-4">
                             <h6>Related Transactions</h6>
                             <Grid :data="relatedTransactionsGridData"
                                   keyField="idKey"
@@ -285,6 +297,7 @@ strong {
 <script setup lang="ts">
     import { computed, PropType, ref } from "vue";
     import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import { TransactionBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionBag";
     import { TransactionDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/TransactionDetail/transactionDetailOptionsBag";
     import ContentSection from "@Obsidian/Controls/contentSection.obs";

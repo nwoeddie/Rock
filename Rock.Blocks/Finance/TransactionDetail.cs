@@ -1723,8 +1723,8 @@ namespace Rock.Blocks.Finance
 
             return ActionOk( new BatchNavigationBag
             {
-                PreviousTransactionId = prevId == default( int ) ? ( int? ) null : prevId,
-                NextTransactionId = nextId == default( int ) ? ( int? ) null : nextId
+                PreviousTransactionIdKey = prevId == default( int ) ? null : IdHasher.Instance.GetHash( prevId ),
+                NextTransactionIdKey = nextId == default( int ) ? null : IdHasher.Instance.GetHash( nextId )
             } );
         }
 

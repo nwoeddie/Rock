@@ -3,61 +3,63 @@
     <fieldset>
         <ContentSectionContainer :sidebar="false">
             <ContentSection :light="true">
-                <div class="row">
-                    <div class="col-md-6">
-                        <PersonPicker v-model="personOrBusiness"
-                                      label="Person or Business"
-                                      :includeBusinesses="true"
-                                      help="Search for the person or business this transaction should be credited to."
-                                      rules="required" />
-                    </div>
-                    <div class="col-md-6">
-                        <CheckBox v-model="isAnonymous"
-                                  label="Display As Anonymous"
-                                  help="Hides the donor’s name anywhere this gift is shown publicly" />
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <DateTimePicker :modelValue="transactionDateTime"
-                                        @update:modelValue="onTransactionDateTimeChanged"
-                                        label="Transaction Date"
-                                        :displayCurrentOption="false"
-                                        :isCurrentDateOffset="false"
-                                        :disableForceParse="false"
-                                        :disableShowOnFocus="false"
-                                        :disableHighlightToday="false"
-                                        :disallowFutureDateSelection="false"
-                                        :disallowPastDateSelection="false"
-                                        :startView="0"
-                                        help="Enter when this transaction was received or processed."
-                                        rules="required" />
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12">
-                        <TextBox v-model="summary"
-                                 label="Comments"
-                                 textMode="multiline"
-                                 help="Add notes about this transaction for staff use only." />
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="d-flex gap-3 flex-wrap w-100">
-                            <div v-for="(image, index) in imageListItems" :key="index" style="width: fit-content;">
-                                <ImageUploader
-                                               :modelValue="image"
-                                               @imageRemoved="onImageRemove(image)" />
-                            </div>
-                            <ImageUploader
-                                           :key="currentImageKey"
-                                           v-model="currentImage"
-                                           :uploadAsTemporary="true"
-                                           uploadButtonText="Add Image" />
+                <ContentStack>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <PersonPicker v-model="personOrBusiness"
+                                          label="Person or Business"
+                                          :includeBusinesses="true"
+                                          help="Search for the person or business this transaction should be credited to."
+                                          rules="required" />
+                        </div>
+                        <div class="col-md-6">
+                            <CheckBox v-model="isAnonymous"
+                                      label="Display As Anonymous"
+                                      help="Hides the donor’s name anywhere this gift is shown publicly" />
                         </div>
                     </div>
-                </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <DateTimePicker :modelValue="transactionDateTime"
+                                            @update:modelValue="onTransactionDateTimeChanged"
+                                            label="Transaction Date"
+                                            :displayCurrentOption="false"
+                                            :isCurrentDateOffset="false"
+                                            :disableForceParse="false"
+                                            :disableShowOnFocus="false"
+                                            :disableHighlightToday="false"
+                                            :disallowFutureDateSelection="false"
+                                            :disallowPastDateSelection="false"
+                                            :startView="0"
+                                            help="Enter when this transaction was received or processed."
+                                            rules="required" />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <TextBox v-model="summary"
+                                     label="Comments"
+                                     textMode="multiline"
+                                     help="Add notes about this transaction for staff use only." />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="d-flex gap-3 flex-wrap w-100">
+                                <div v-for="(image, index) in imageListItems" :key="index" style="width: fit-content;">
+                                    <ImageUploader
+                                                   :modelValue="image"
+                                                   @imageRemoved="onImageRemove(image)" />
+                                </div>
+                                <ImageUploader
+                                               :key="currentImageKey"
+                                               v-model="currentImage"
+                                               :uploadAsTemporary="true"
+                                               uploadButtonText="Add Image" />
+                            </div>
+                        </div>
+                    </div>
+                </ContentStack>
             </ContentSection>
             <ContentSection
                             icon="ti ti-pig-money"
@@ -68,7 +70,8 @@
                         {{ transactionDetails.length }} Allocations
                     </span>
                 </template>
-                <ContentStack description="Distribute portions of this transaction to specific accounts and confirm fees and amounts."
+                <ContentStack class="allocation-stack"
+                              description="Distribute portions of this transaction to specific accounts and confirm fees and amounts."
                               headerLocation="left"
                               title="Account Distribution">
                     <Grid
@@ -240,13 +243,13 @@
                         </div>
                     </div>
 
-                    <div class="row">
+                    <div class="row" v-if="!isAddingTransaction">
                         <div class="col-md-6">
                             <FinancialGatewayPicker label="Payment Gateway"
                                                     v-model="financialGateway"
                                                     :showBlankItem="true"
                                                     :showAllGatewayComponents="true"
-                                                    :disabled="!isAddingTransaction" />
+                                                    disabled />
                         </div>
                     </div>
 
@@ -268,23 +271,32 @@
                 </ContentStack>
 
             </ContentSection>
-            <div v-if="isLoading"
-                 class="d-flex align-items-center justify-content-center p-4">
-                <i class="ti ti-loader-2 fa-spin" style="font-size: 2rem;" />
-            </div>
-            <EditTransactionDetail v-else-if="isEditTransactionDetailVisible"
-                                   :modelValue="editTransactionDetail"
-                                   :foreignCurrencyCodeGuid="showForeignCurrencyFields ? modelValue.bag?.currencyCode?.value ?? undefined : undefined"
-                                   @save="onTransactionDetailSave"
-                                   @close="onTransactionDetailClose" />
-
         </ContentSectionContainer>
+        <div v-if="isLoading"
+             class="d-flex align-items-center justify-content-center p-4">
+            <i class="ti ti-loader-2 fa-spin" style="font-size: 2rem;" />
+        </div>
+        <EditTransactionDetail v-else-if="isEditTransactionDetailVisible"
+                               :modelValue="editTransactionDetail"
+                               :foreignCurrencyCodeGuid="showForeignCurrencyFields ? modelValue.bag?.currencyCode?.value ?? undefined : undefined"
+                               @save="onTransactionDetailSave"
+                               @close="onTransactionDetailClose" />
     </fieldset>
 </template>
 
 <style scoped>
 strong {
     font-weight: var(--font-weight-semibold);
+}
+
+:deep(.contentsection-list) {
+    min-width: 0;
+}
+
+/* Contain the Grid's overflow to just the allocation stack's body on mobile. */
+.allocation-stack :deep(.contentstack-body) {
+    overflow-x: auto;
+    min-width: 0;
 }
 </style>
 

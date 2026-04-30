@@ -256,20 +256,20 @@
 
     onMounted(async () => {
         const result = await invokeBlockAction<BatchNavigationBag>("GetBatchNavigation", {
-            key: transactionViewBag.value?.id
+            key: transactionViewBag.value?.idKey
         });
 
         if (result.isSuccess && result.data) {
-            const base = window.location.pathname.replace(/\/\d+$/, "");
+            const base = window.location.pathname.replace(/\/[^/]+$/, "");
 
-            if (result.data.previousTransactionId) {
+            if (result.data.previousTransactionIdKey) {
                 previousTransactionUrl.value =
-                    `${base}/${result.data.previousTransactionId}`;
+                    `${base}/${result.data.previousTransactionIdKey}`;
             }
 
-            if (result.data.nextTransactionId) {
+            if (result.data.nextTransactionIdKey) {
                 nextTransactionUrl.value =
-                    `${base}/${result.data.nextTransactionId}`;
+                    `${base}/${result.data.nextTransactionIdKey}`;
             }
         }
     });
@@ -426,10 +426,7 @@
      */
     async function onRefundOpen(): Promise<void> {
         canProcess.value = !isNullOrWhiteSpace(transactionViewBag.value?.transactionCode) && transactionViewBag.value?.financialGateway != null;
-
-        if (!canProcess.value) {
-            processThroughGateway.value = false;
-        }
+        processThroughGateway.value = canProcess.value;
         const result = await invokeBlockAction<number>("GetMaxRefundAmount", {
             key: transactionViewBag.value?.idKey
         });

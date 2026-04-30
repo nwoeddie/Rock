@@ -27,14 +27,14 @@
  */
 export type BatchNavigationBag = {
     /**
-     * Gets or sets the integer Id of the next transaction in the batch,
+     * Gets or sets the obfuscated IdKey of the next transaction in the batch,
      * or null when the current transaction is the last in the batch.
      */
-    nextTransactionId?: number | null;
+    nextTransactionIdKey?: string | null;
 
     /**
-     * Gets or sets the integer Id of the previous transaction in the batch,
+     * Gets or sets the obfuscated IdKey of the previous transaction in the batch,
      * or null when the current transaction is the first in the batch.
      */
-    previousTransactionId?: number | null;
+    previousTransactionIdKey?: string | null;
 };

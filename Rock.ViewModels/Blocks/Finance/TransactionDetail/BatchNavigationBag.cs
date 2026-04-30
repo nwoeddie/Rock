@@ -24,15 +24,15 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
     public class BatchNavigationBag
     {
         /// <summary>
-        /// Gets or sets the integer Id of the previous transaction in the batch,
+        /// Gets or sets the obfuscated IdKey of the previous transaction in the batch,
         /// or <c>null</c> when the current transaction is the first in the batch.
         /// </summary>
-        public int? PreviousTransactionId { get; set; }
+        public string PreviousTransactionIdKey { get; set; }
 
         /// <summary>
-        /// Gets or sets the integer Id of the next transaction in the batch,
+        /// Gets or sets the obfuscated IdKey of the next transaction in the batch,
         /// or <c>null</c> when the current transaction is the last in the batch.
         /// </summary>
-        public int? NextTransactionId { get; set; }
+        public string NextTransactionIdKey { get; set; }
     }
 }
