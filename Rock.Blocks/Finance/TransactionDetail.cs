@@ -376,6 +376,7 @@ namespace Rock.Blocks.Finance
                     },
                 Status = transaction.Status,
                 StatusMessage = transaction.StatusMessage,
+                ForeignKey = transaction.ForeignKey,
                 PaymentDetail = GetPaymentDetailBag( transaction.FinancialPaymentDetail, creditCardGuid ),
                 RefundDetails = GetRefundDetailBag( transaction.RefundDetails ),
                 AuthorizedPerson = GetAuthorizedPersonBag( transaction.AuthorizedPersonAlias?.Person ),

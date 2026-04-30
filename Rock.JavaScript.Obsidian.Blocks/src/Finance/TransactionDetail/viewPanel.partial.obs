@@ -101,6 +101,11 @@
                         <p>{{ modelValue?.transactionCode }}</p>
                     </div>
 
+                    <div v-if="modelValue?.foreignKey">
+                        <label>Foreign Key</label>
+                        <p>{{ modelValue?.foreignKey }}</p>
+                    </div>
+
                     <div v-if="modelValue?.scheduledTransaction">
                         <label>Scheduled Transaction Id</label>
                         <p>

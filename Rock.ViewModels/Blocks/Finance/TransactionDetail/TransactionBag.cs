@@ -174,6 +174,11 @@ namespace Rock.ViewModels.Blocks.Finance.TransactionDetail
         public decimal? TotalForeignCurrencyAmount { get; set; }
 
         /// <summary>
+        /// Gets or sets the foreign key string used for integrations with external systems.
+        /// </summary>
+        public string ForeignKey { get; set; }
+
+        /// <summary>
         /// Gets or sets the audit-style update strings (created by, processed by, modified by)
         /// rendered in the view panel's Updates section.
         /// </summary>
