@@ -42,7 +42,7 @@ namespace Rock.Blocks.Finance
     [DisplayName( "Transaction Detail" )]
     [Category( "Finance" )]
     [Description( "Displays the details of a particular financial transaction." )]
-    [IconCssClass( "fa fa-credit-card" )]
+    [IconCssClass( "ti ti-report-money" )]
     [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
@@ -1656,18 +1656,16 @@ namespace Rock.Blocks.Finance
                 return ActionBadRequest( $"{FinancialTransaction.FriendlyTypeName} not found." );
             }
 
+            if ( !transaction.IsAuthorized( Authorization.REFUND, RequestContext.CurrentPerson ) )
+            {
+                return ActionForbidden();
+            }
+
             var maximumRefundAmount = GetMaxRefundAmountForTransaction( transaction );
 
             if ( bag.Amount > maximumRefundAmount )
             {
                 return ActionBadRequest( $"Refund amount cannot exceed {maximumRefundAmount.FormatAsCurrency()}." );
-            }
-
-            
-
-            if ( !transaction.IsAuthorized( Authorization.REFUND, RequestContext.CurrentPerson ) )
-            {
-                return ActionForbidden();
             }
 
             if ( transaction.RefundDetails != null )
