@@ -17,15 +17,15 @@
                      @delete="onDelete"
                      @edit="onEdit"
                      @save="onSave">
-            <template v-if="panelMode === DetailPanelMode.View" #headerActions>
+            <template v-if="!isNewTransaction" #headerActions>
                 <span class="label label-info">
-                    Batch: #{{ transactionViewBag?.batchId }}
+                    Batch: #{{ headerBag?.batchId }}
                 </span>
                 <span class="label label-success">
-                    ${{ transactionViewBag?.totalAmount.toFixed(2) }}
+                    ${{ headerTotalAmount.toFixed(2) }}
                 </span>
                 <span class="label label-default">
-                    {{ transactionViewBag?.transactionType?.text }}
+                    {{ headerBag?.transactionType?.text }}
                 </span>
             </template>
             <template #view>
@@ -195,6 +195,23 @@
 
     const isNewTransaction = computed((): boolean => {
         return panelMode.value === DetailPanelMode.Add;
+    });
+
+    /** The bag used to populate header labels. Edit mode uses the edit bag so labels stay accurate during editing. */
+    const headerBag = computed(() => {
+        return panelMode.value === DetailPanelMode.Edit
+            ? transactionEditBag.value.bag
+            : transactionViewBag.value;
+    });
+
+    /** Live total computed from the current allocation rows so the header amount updates as the user edits. */
+    const headerTotalAmount = computed((): number => {
+        if (panelMode.value !== DetailPanelMode.Edit) {
+            return transactionViewBag.value?.totalAmount ?? 0;
+        }
+
+        const rows = transactionEditBag.value.bag?.transactionDetails?.rows ?? [];
+        return rows.reduce((sum, row) => sum + (row.amount ?? 0), 0);
     });
 
     /** Footer actions shown in the panel. "Save & Add Another" is only available when adding a new step with a selectable person. */
@@ -471,8 +488,9 @@
         if (result.statusCode === 201) {
             if (reloadAction === "batch") {
                 const batchUrl = options.value.batchDetailPageUrl;
-                if (batchUrl && transactionViewBag?.value?.batchId != null) {
-                    window.location.href = `${batchUrl}?BatchId=${transactionViewBag.value.batchIdKey}`;
+                const batchId = transactionEditBag.value?.bag.batchId;
+                if (batchUrl && batchId) {
+                    window.location.href = `${batchUrl}?BatchId=${batchId}`;
                 }
                 return;
             }
