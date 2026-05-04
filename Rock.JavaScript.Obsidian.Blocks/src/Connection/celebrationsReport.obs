@@ -2,8 +2,11 @@
 <template>
     <Grid :definition="config.gridDefinition ?? undefined"
           :data="gridDataSource"
+          :entityTypeGuid="EntityType.Note"
+          title="Connection Celebrations"
           keyField="idKey"
           itemTerm="Celebration"
+          :showMergeTemplate="false"
           stickyHeader
           liveUpdates
           gridSettings
@@ -11,6 +14,7 @@
           @gridSettingsClick="isGridSettingsVisible = true"
           @selectItem="onSelectItem">
 
+        <SelectColumn />
         <DateColumn name="date"
                     title="Date"
                     field="date"
@@ -21,45 +25,48 @@
                       title="Requester"
                       field="requester"
                       :showAsLink="true"
+                      :filter="pickExistingValueFilter"
+                      :filterValue="getRequesterFilterValue"
+                      :quickFilterValue="getRequesterFilterValue"
                       visiblePriority="xs" />
 
-        <TextColumn v-if="!gridSettings.connectionType"
-                    name="type"
-                    title="Type"
-                    field="type"
-                    :filter="textValueFilter"
-                    visiblePriority="md" />
+        <LabelColumn v-if="!gridSettings.connectionType"
+                     name="type"
+                     title="Type"
+                     field="type"
+                     :filter="textValueFilter"
+                     visiblePriority="md" />
 
-        <TextColumn name="opportunity"
-                    title="Opportunity"
-                    field="opportunity"
-                    :filter="textValueFilter"
-                    visiblePriority="md" />
+        <LabelColumn name="opportunity"
+                     title="Opportunity"
+                     field="opportunity"
+                     defaultLabelClass="info"
+                     :filter="textValueFilter"
+                     visiblePriority="md" />
 
         <Column name="storyDetails"
                 title="Story Details"
                 field="storyDetails"
-                :filter="textValueFilter"
                 visiblePriority="xs"
                 width="35%">
             <template #format="{ row }">
-                <div class="celebration-story-cell">
+                <div class="line-clamp-6">
                     <span v-if="row.storyAuthorName" class="story-author">{{ row.storyAuthorName }}: </span>{{ row.storyDetails }}
                 </div>
             </template>
         </Column>
 
         <Column name="connectionRequestLink"
-                title=""
                 field="connectionRequestIdKey"
-                width="52px"
+                width="52"
                 :excludeFromExport="true"
+                itemClass="grid-columncommand"
                 visiblePriority="xs">
             <template #format="{ row }">
                 <a v-if="connectionRequestDetailPageUrl && row.connectionRequestIdKey"
                    :href="connectionRequestDetailPageUrl.replace('((Key))', row.connectionRequestIdKey as string)"
                    target="_blank"
-                   class="btn btn-default btn-sm btn-square"
+                   class="btn btn-default btn-sm"
                    title="View Connection Request">
                     <i class="ti ti-external-link"></i>
                 </a>
@@ -87,7 +94,8 @@
     import GridSettingsModal from "./CelebrationsReport/gridSettingsModal.partial.obs";
     import EditStoryModal from "./CelebrationsReport/editStoryModal.partial.obs";
     import { GridSettingsOptions, NavigationUrlKey, PreferenceKey } from "./CelebrationsReport/types.partial";
-    import Grid, { DateColumn, PersonColumn, TextColumn, Column, dateValueFilter, textValueFilter } from "@Obsidian/Controls/grid";
+    import Grid, { DateColumn, PersonColumn, Column, dateValueFilter, textValueFilter, pickExistingValueFilter, LabelColumn, SelectColumn } from "@Obsidian/Controls/grid";
+    import { PersonFieldBag } from "@Obsidian/ViewModels/Core/Grid/personFieldBag";
     import { useConfigurationValues, useInvokeBlockAction, usePersonPreferences } from "@Obsidian/Utility/block";
     import { RangeType, TimeUnit, parseSlidingDateRangeString, slidingDateRangeToString } from "@Obsidian/Utility/slidingDateRange";
     import { safeParseJson } from "@Obsidian/Utility/stringUtils";
@@ -95,6 +103,7 @@
     import { CelebrationsReportOptionsBag } from "@Obsidian/ViewModels/Blocks/Connection/CelebrationsReport/celebrationsReportOptionsBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { EntityType } from "@Obsidian/SystemGuids/entityType";
 
     type SelectedStory = {
         idKey: string;
@@ -146,6 +155,14 @@
     // #endregion
 
     // #region Functions
+
+    /**
+     * Gets the filter value text to use for the requester column.
+     */
+    function getRequesterFilterValue(row: Record<string, unknown>): string {
+        const person = row["requester"] as PersonFieldBag;
+        return !person ? "" : `${person.nickName} ${person.lastName}`;
+    }
 
     /**
      * Called when the grid is requesting the row data be loaded.
@@ -223,13 +240,6 @@
 </script>
 
 <style>
-.celebration-story-cell {
-    display: -webkit-box;
-    -webkit-line-clamp: 6;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
 .story-author {
     font-weight: 600;
 }

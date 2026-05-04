@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -38,7 +38,7 @@ namespace Rock.Blocks.Connection
     /// Displays a list of connection celebrations.
     /// </summary>
 
-    [DisplayName( "Celebrations Report" )]
+    [DisplayName( "Connection Celebrations Report" )]
     [Category( "Connection" )]
     [Description( "Displays a list of connection celebrations." )]
     [IconCssClass( "ti ti-trophy" )]

@@ -5,8 +5,13 @@
            saveText="Save"
            @save="onSave">
 
-        <PersonPicker v-model="selectedAuthor"
-                      label="Author" />
+        <div class="row">
+            <div class="col-md-6">
+                <PersonPicker v-model="selectedAuthor"
+                              help="Sets who should be listed as the person who recorded this story."
+                              label="Author" />
+            </div>
+        </div>
 
         <TextBox v-model="storyText"
                  label="Story Details"

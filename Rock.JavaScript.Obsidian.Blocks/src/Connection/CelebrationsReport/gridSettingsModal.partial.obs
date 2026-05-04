@@ -6,7 +6,7 @@
            @save="onSave">
 
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <DropDownList v-model="connectionTypeValue"
                               label="Request Type"
                               :items="connectionTypeItems"
