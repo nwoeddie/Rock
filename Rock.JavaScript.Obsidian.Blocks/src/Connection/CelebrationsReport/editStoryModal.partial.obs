@@ -5,11 +5,15 @@
            saveText="Save"
            @save="onSave">
 
+        <NotificationBox v-if="displayError"
+                         alertType="danger">{{ displayError }}</NotificationBox>
+
         <div class="row">
             <div class="col-md-6">
                 <PersonPicker v-model="selectedAuthor"
                               help="Sets who should be listed as the person who recorded this story."
-                              label="Author" />
+                              label="Author"
+                              rules="required" />
             </div>
         </div>
 
@@ -22,8 +26,9 @@
 </template>
 
 <script setup lang="ts">
-    import { PropType, ref, watch } from "vue";
+    import { PropType, computed, ref, watch } from "vue";
     import Modal from "@Obsidian/Controls/modal.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import PersonPicker from "@Obsidian/Controls/personPicker.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
@@ -46,6 +51,11 @@
             default: undefined
         },
 
+        errorMessage: {
+            type: String as PropType<string>,
+            default: ""
+        },
+
         visible: {
             type: Boolean as PropType<boolean>,
             required: true
@@ -61,18 +71,18 @@
     const storyText = ref(props.initialText);
     const selectedAuthor = ref<ListItemBag | undefined>(props.initialAuthor);
 
-    /** Emit save event then close. */
+    const displayError = computed(() => props.errorMessage);
+
+    /** Emit save event. Parent closes the modal on success or sets errorMessage on failure. */
     function onSave(): void {
-        emit("save", props.noteIdKey, storyText.value, selectedAuthor.value?.value ?? undefined);
-        isVisible.value = false;
+        if (!selectedAuthor.value?.value) {
+            return;
+        }
+        emit("save", props.noteIdKey, storyText.value, selectedAuthor.value.value);
     }
 
     // Resync local state when the modal is opened with a new row.
     watch(() => props.initialText, (val) => {
         storyText.value = val;
-    });
-
-    watch(() => props.initialAuthor, (val) => {
-        selectedAuthor.value = val;
     });
 </script>

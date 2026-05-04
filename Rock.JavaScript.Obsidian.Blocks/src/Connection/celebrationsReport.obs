@@ -67,7 +67,8 @@
                    :href="connectionRequestDetailPageUrl.replace('((Key))', row.connectionRequestIdKey as string)"
                    target="_blank"
                    class="btn btn-default btn-sm"
-                   title="View Connection Request">
+                   title="View Connection Request"
+                   @click.stop>
                     <i class="ti ti-external-link"></i>
                 </a>
             </template>
@@ -86,8 +87,16 @@
                     :initialAuthor="selectedStory.storyAuthorPersonAliasGuid
                         ? { value: selectedStory.storyAuthorPersonAliasGuid, text: selectedStory.storyAuthorName }
                         : undefined"
+                    :errorMessage="editStoryError"
                     @save="onStorySave" />
 </template>
+
+<style scoped>
+.story-author {
+    font-weight: 600;
+}
+</style>
+
 
 <script setup lang="ts">
     import { computed, reactive, ref, watch } from "vue";
@@ -124,6 +133,7 @@
     const isGridSettingsVisible = ref(false);
     const isEditStoryVisible = ref(false);
     const selectedStory = ref<SelectedStory | null>(null);
+    const editStoryError = ref("");
 
     const defaultDateRange = { rangeType: RangeType.Last, timeValue: 8, timeUnit: TimeUnit.Month };
     const dateRangePrefValue = preferences.getValue(PreferenceKey.FilterDateRange);
@@ -194,6 +204,7 @@
             storyAuthorName: (row["storyAuthorName"] as string) ?? "",
             storyAuthorPersonAliasGuid: (row["storyAuthorPersonAliasGuid"] as string) ?? ""
         };
+        editStoryError.value = "";
         isEditStoryVisible.value = true;
     }
 
@@ -214,6 +225,10 @@
                 row["storyAuthorName"] = result.data?.storyAuthorName ?? "";
                 row["storyAuthorPersonAliasGuid"] = result.data?.storyAuthorPersonAliasGuid ?? "";
             }
+            isEditStoryVisible.value = false;
+        }
+        else {
+            editStoryError.value = result.errorMessage ?? "An error occurred while saving the story.";
         }
     }
 
@@ -238,9 +253,3 @@
 
     gridDataSource.value = loadGridData();
 </script>
-
-<style>
-.story-author {
-    font-weight: 600;
-}
-</style>

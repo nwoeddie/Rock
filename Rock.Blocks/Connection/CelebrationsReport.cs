@@ -24,6 +24,7 @@ using System.Linq;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Enums.Controls;
+using Rock.Security;
 using Rock.Model;
 using Rock.Obsidian.UI;
 using Rock.ViewModels.Blocks;
@@ -168,10 +169,15 @@ namespace Rock.Blocks.Connection
         /// <inheritdoc/>
         protected override IQueryable<Note> GetListQueryable( RockContext rockContext )
         {
-            var celebrationNoteTypeId = NoteTypeCache.Get( Rock.SystemGuid.NoteType.CELEBRATION_NOTE.AsGuid() ).Id;
+            var celebrationNoteType = NoteTypeCache.Get( Rock.SystemGuid.NoteType.CELEBRATION_NOTE.AsGuid() );
+
+            if ( celebrationNoteType == null )
+            {
+                return new NoteService( rockContext ).Queryable().Where( n => false );
+            }
 
             var noteQuery = new NoteService( rockContext ).Queryable()
-                .Where( n => n.NoteTypeId == celebrationNoteTypeId && n.EntityId != null );
+                .Where( n => n.NoteTypeId == celebrationNoteType.Id && n.EntityId != null );
 
             var dateRange = FilterDateRange.ToActualDateRange();
             var connectionTypeGuid = FilterConnectionTypeGuid;
@@ -204,19 +210,20 @@ namespace Rock.Blocks.Connection
         /// <inheritdoc/>
         protected override List<Note> GetListItems( IQueryable<Note> queryable, RockContext rockContext )
         {
-            var notes = base.GetListItems( queryable, rockContext );
-
-            var connectionRequestIds = notes
+            // Use an IQueryable subquery so EF generates a correlated subquery rather than
+            // a WHERE IN (...) with a potentially large in-memory list.
+            var connectionRequestIdQuery = queryable
                 .Where( n => n.EntityId.HasValue )
-                .Select( n => n.EntityId.Value )
-                .ToList();
+                .Select( n => n.EntityId.Value );
 
             _connectionRequestMap = new ConnectionRequestService( rockContext )
                 .Queryable()
                 .Include( cr => cr.PersonAlias.Person.ConnectionStatusValue )
                 .Include( cr => cr.ConnectionOpportunity.ConnectionType )
-                .Where( cr => connectionRequestIds.Contains( cr.Id ) )
+                .Where( cr => connectionRequestIdQuery.Contains( cr.Id ) )
                 .ToDictionary( cr => cr.Id );
+
+            var notes = base.GetListItems( queryable, rockContext );
 
             return notes
                 .Where( n => n.EntityId.HasValue && _connectionRequestMap.ContainsKey( n.EntityId.Value ) )
@@ -255,13 +262,20 @@ namespace Rock.Blocks.Connection
                     return ActionNotFound();
                 }
 
+                if ( !note.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+                {
+                    return ActionForbidden();
+                }
+
                 note.Text = text;
                 note.EditedDateTime = RockDateTime.Now;
 
+                PersonAlias savedAlias = null;
+
                 if ( authorPersonAliasGuid.HasValue )
                 {
-                    var personAlias = new PersonAliasService( rockContext ).Get( authorPersonAliasGuid.Value );
-                    note.EditedByPersonAliasId = personAlias?.Id;
+                    savedAlias = new PersonAliasService( rockContext ).Get( authorPersonAliasGuid.Value );
+                    note.EditedByPersonAliasId = savedAlias?.Id;
                 }
                 else
                 {
@@ -270,9 +284,10 @@ namespace Rock.Blocks.Connection
 
                 rockContext.SaveChanges();
 
-                var savedAlias = note.EditedByPersonAliasId.HasValue
-                    ? new PersonAliasService( rockContext ).Get( note.EditedByPersonAliasId.Value )
-                    : null;
+                if ( savedAlias == null && note.EditedByPersonAliasId.HasValue )
+                {
+                    savedAlias = new PersonAliasService( rockContext ).Get( note.EditedByPersonAliasId.Value );
+                }
 
                 return ActionOk( new
                 {
