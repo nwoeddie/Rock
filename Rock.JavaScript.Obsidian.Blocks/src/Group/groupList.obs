@@ -254,3 +254,16 @@
 
     gridDataSource.value = loadGridData();
 </script>
+
+<style scoped>
+/*
+    Custom columns persisted from the WebForms block with header-class/item-class of
+    "grid-columncommand" receive flex: 1 1 10% from the grid by default because the
+    CustomColumnDefinitionBag has no width field. Override to match the fixed-width
+    command column convention used by built-in columns (delete, security, etc.).
+*/
+:deep(.grid-columncommand) {
+    flex: 0 0 52px !important;
+    min-width: unset !important;
+}
+</style>
