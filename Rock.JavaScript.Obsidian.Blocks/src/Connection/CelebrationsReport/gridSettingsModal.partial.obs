@@ -5,7 +5,7 @@
            saveText="Apply"
            @save="onSave">
 
-        <div class="row">
+        <div v-if="!isConnectionTypeFilterHidden" class="row">
             <div class="col-md-4">
                 <DropDownList v-model="connectionTypeValue"
                               label="Request Type"
@@ -41,6 +41,11 @@
         connectionTypeItems: {
             type: Array as PropType<ListItemBag[]>,
             required: true
+        },
+
+        isConnectionTypeFilterHidden: {
+            type: Boolean as PropType<boolean>,
+            default: false
         },
 
         visible: {

@@ -171,12 +171,22 @@ namespace Rock.Blocks.Connection
                     .FirstOrDefault()
                 : null;
 
+            // Resolve the page parameter separately so we can tell the UI whether
+            // the connection type was locked by a page parameter (vs. a saved preference).
+            string pageConnectionTypeName = null;
+            var pageParamId = Rock.Utility.IdHasher.Instance.GetId( PageParameter( PageParameterKey.ConnectionTypeId ) );
+            if ( pageParamId.HasValue )
+            {
+                pageConnectionTypeName = ConnectionTypeCache.Get( pageParamId.Value )?.Name;
+            }
+
             return new CelebrationsReportOptionsBag
             {
                 ConnectionTypes = connectionTypes
                     .Select( ct => new ListItemBag { Text = ct.Name, Value = ct.Guid.ToString() } )
                     .ToList(),
-                InitialConnectionType = initialConnectionType
+                InitialConnectionType = initialConnectionType,
+                PageConnectionTypeName = pageConnectionTypeName
             };
         }
 

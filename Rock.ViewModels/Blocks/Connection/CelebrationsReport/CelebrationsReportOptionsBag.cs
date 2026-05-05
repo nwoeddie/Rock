@@ -38,5 +38,13 @@ namespace Rock.ViewModels.Blocks.Connection.CelebrationsReport
         /// Null when no page parameter is provided.
         /// </summary>
         public ListItemBag InitialConnectionType { get; set; }
+
+        /// <summary>
+        /// Gets or sets the name of the connection type specified via the
+        /// <c>ConnectionTypeId</c> page parameter. When non-null, the block
+        /// title is set to "{Name} Celebrations" and the connection type
+        /// filter in the grid settings is hidden.
+        /// </summary>
+        public string PageConnectionTypeName { get; set; }
     }
 }

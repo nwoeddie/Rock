@@ -3,7 +3,7 @@
     <Grid :definition="config.gridDefinition ?? undefined"
           :data="gridDataSource"
           :entityTypeGuid="EntityType.Note"
-          title="Connection Celebrations"
+          :title="gridTitle"
           keyField="idKey"
           itemTerm="Celebration"
           :showMergeTemplate="false"
@@ -78,7 +78,8 @@
 
     <GridSettingsModal v-model="gridSettings"
                        v-model:visible="isGridSettingsVisible"
-                       :connectionTypeItems="connectionTypeItems" />
+                       :connectionTypeItems="connectionTypeItems"
+                       :isConnectionTypeFilterHidden="isConnectionTypeLockedByPageParam" />
 
     <EditStoryModal v-if="selectedStory"
                     v-model:visible="isEditStoryVisible"
@@ -158,10 +159,21 @@
         return config.navigationUrls?.[NavigationUrlKey.ConnectionRequestDetailPage] ?? "";
     });
 
-    /** Gear icon is active when a connection type is selected or a date range preference is explicitly saved. */
+    /** True when the block was loaded with a ConnectionTypeId page parameter, locking the type. */
+    const isConnectionTypeLockedByPageParam = computed((): boolean => {
+        return !!config.options?.pageConnectionTypeName;
+    });
+
+    const gridTitle = computed((): string => {
+        return config.options?.pageConnectionTypeName
+            ? `${config.options.pageConnectionTypeName} Celebrations`
+            : "Connection Celebrations";
+    });
+
+    /** Gear icon is active when a (user-selectable) connection type is selected or a date range preference is explicitly saved. */
     const hasActiveFilters = computed((): boolean => {
-        return !!gridSettings.value.connectionType
-            || preferences.getValue(PreferenceKey.FilterDateRange) !== "";
+        const hasConnectionTypeFilter = !isConnectionTypeLockedByPageParam.value && !!gridSettings.value.connectionType;
+        return hasConnectionTypeFilter || preferences.getValue(PreferenceKey.FilterDateRange) !== "";
     });
 
     // #endregion

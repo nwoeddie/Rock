@@ -32,8 +32,17 @@ export type CelebrationsReportOptionsBag = {
     connectionTypes?: ListItemBag[] | null;
 
     /**
-     * Gets or sets the connection type to pre-select on load, populated when
-     * the ConnectionTypeGuid page parameter is present. Null otherwise.
+     * Gets or sets the connection type that should be pre-selected on load,
+     * populated when the ConnectionTypeGuid page parameter is present.
+     * Null when no page parameter is provided.
      */
     initialConnectionType?: ListItemBag | null;
+
+    /**
+     * Gets or sets the name of the connection type specified via the
+     * ConnectionTypeId page parameter. When non-null, the block
+     * title is set to "{Name} Celebrations" and the connection type
+     * filter in the grid settings is hidden.
+     */
+    pageConnectionTypeName?: string | null;
 };
