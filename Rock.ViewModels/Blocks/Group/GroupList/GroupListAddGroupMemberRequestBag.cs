@@ -1,4 +1,4 @@
-﻿// <copyright>
+// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -13,29 +13,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // </copyright>
+//
 
-using Rock.Model;
-
-namespace Rock.Utility.Enums
+namespace Rock.ViewModels.Blocks.Group.GroupList
 {
     /// <summary>
-    /// Used by the group to determine what <see cref="AccountProtectionProfile"/> a <see cref="Person"/> should assigned.
+    /// The request bag for adding a group member from the Group List block.
     /// </summary>
-    public enum ElevatedSecurityLevel
+    public class GroupListAddGroupMemberRequestBag
     {
         /// <summary>
-        /// The group members of this type will get an AccountProtectionProfile of Low.
+        /// Gets or sets the IdKey of the group to add the person to.
         /// </summary>
-        None = 0,
+        public string GroupIdKey { get; set; }
 
         /// <summary>
-        /// The group members of this type will get an AccountProtectionProfile of High.
+        /// Gets or sets the IdKey of the group type role for the new member.
         /// </summary>
-        High = 1,
+        public string RoleIdKey { get; set; }
 
         /// <summary>
-        /// The group members of this type will get an AccountProtectionProfile of Extreme.
+        /// Gets or sets a value indicating whether to skip the archived member check
+        /// and force creation of a new group member record. Used when the person has
+        /// been prompted about an existing archived record and chose not to restore it.
         /// </summary>
-        Extreme = 2,
+        public bool SkipArchiveCheck { get; set; }
     }
 }

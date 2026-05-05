@@ -28,6 +28,7 @@ using Rock.Enums.Communication.Chat;
 using Rock.Enums.Group;
 using Rock.Model;
 using Rock.Security;
+using Rock.Utility;
 using Rock.Utility.Enums;
 
 namespace Rock.Web.Cache

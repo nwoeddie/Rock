@@ -30,6 +30,7 @@ using Rock.Enums.Group;
 using Rock.Lava;
 using Rock.Security;
 using Rock.UniversalSearch;
+using Rock.Utility;
 using Rock.Utility.Enums;
 using Rock.Web.Cache;
 

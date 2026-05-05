@@ -395,13 +395,13 @@ namespace Rock.Model
                             
                              */
 
-                            if ( Entity.Group.ElevatedSecurityLevel >= Utility.Enums.ElevatedSecurityLevel.Extreme
+                            if ( Entity.Group.ElevatedSecurityLevel >= Utility.ElevatedSecurityLevel.Extreme
                                 && Entity.Person.AccountProtectionProfile < Utility.Enums.AccountProtectionProfile.Extreme )
                             {
                                 Entity.Person.AccountProtectionProfile = Utility.Enums.AccountProtectionProfile.Extreme;
                                 rockContext.SaveChanges();
                             }
-                            else if ( Entity.Group.ElevatedSecurityLevel >= Utility.Enums.ElevatedSecurityLevel.High
+                            else if ( Entity.Group.ElevatedSecurityLevel >= Utility.ElevatedSecurityLevel.High
                                 && Entity.Person.AccountProtectionProfile < Utility.Enums.AccountProtectionProfile.High )
                             {
                                 Entity.Person.AccountProtectionProfile = Utility.Enums.AccountProtectionProfile.High;

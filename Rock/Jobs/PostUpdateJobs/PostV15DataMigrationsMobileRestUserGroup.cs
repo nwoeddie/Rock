@@ -275,7 +275,7 @@ namespace Rock.Jobs
                 Description = "Group of mobile application people to use for endpoint authorization.",
                 IsSecurityRole = true,
                 IsActive = true,
-                ElevatedSecurityLevel = Utility.Enums.ElevatedSecurityLevel.Extreme,
+                ElevatedSecurityLevel = Utility.ElevatedSecurityLevel.Extreme,
                 IsPublic = true
             };
         }
