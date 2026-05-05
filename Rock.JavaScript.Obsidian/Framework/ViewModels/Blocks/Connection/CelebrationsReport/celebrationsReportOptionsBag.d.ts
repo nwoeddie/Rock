@@ -30,4 +30,10 @@ export type CelebrationsReportOptionsBag = {
      * Only connection types with celebrations enabled are included.
      */
     connectionTypes?: ListItemBag[] | null;
+
+    /**
+     * Gets or sets the connection type to pre-select on load, populated when
+     * the ConnectionTypeGuid page parameter is present. Null otherwise.
+     */
+    initialConnectionType?: ListItemBag | null;
 };

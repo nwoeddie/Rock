@@ -74,6 +74,11 @@ namespace Rock.Blocks.Connection
             public const string FilterConnectionTypeGuid = "filter-connection-type-guid";
         }
 
+        private static class PageParameterKey
+        {
+            public const string ConnectionTypeId = "ConnectionTypeId";
+        }
+
         #endregion Keys
 
         #region Fields
@@ -108,10 +113,24 @@ namespace Rock.Blocks.Connection
 
         /// <summary>
         /// Gets the connection type Guid to filter results by.
+        /// The ConnectionTypeId page parameter (IdKey) takes precedence over the saved person preference.
         /// </summary>
-        private Guid? FilterConnectionTypeGuid => GetBlockPersonPreferences()
-            .GetValue( PreferenceKey.FilterConnectionTypeGuid )
-            .FromJsonOrNull<ListItemBag>()?.Value?.AsGuidOrNull();
+        private Guid? FilterConnectionTypeGuid
+        {
+            get
+            {
+                var pageParamId = Rock.Utility.IdHasher.Instance.GetId( PageParameter( PageParameterKey.ConnectionTypeId ) );
+
+                if ( pageParamId.HasValue )
+                {
+                    return ConnectionTypeCache.Get( pageParamId.Value )?.Guid;
+                }
+
+                return GetBlockPersonPreferences()
+                    .GetValue( PreferenceKey.FilterConnectionTypeGuid )
+                    .FromJsonOrNull<ListItemBag>()?.Value?.AsGuidOrNull();
+            }
+        }
 
         #endregion Properties
 
@@ -139,16 +158,26 @@ namespace Rock.Blocks.Connection
         /// <returns>The options that provide additional details to the block.</returns>
         private CelebrationsReportOptionsBag GetBoxOptions()
         {
-            var options = new CelebrationsReportOptionsBag
-            {
-                ConnectionTypes = ConnectionTypeCache.All()
-                    .Where( ct => ct.IsActive && ct.EnabledFeatures.HasFlag( Rock.Enums.Connection.EnabledFeatureFlags.Celebration ) )
-                    .OrderBy( ct => ct.Name )
-                    .Select( ct => new ListItemBag { Text = ct.Name, Value = ct.Guid.ToString() } )
-                    .ToList()
-            };
+            var connectionTypes = ConnectionTypeCache.All()
+                .Where( ct => ct.IsActive && ct.EnabledFeatures.HasFlag( Rock.Enums.Connection.EnabledFeatureFlags.Celebration ) )
+                .OrderBy( ct => ct.Name )
+                .ToList();
 
-            return options;
+            var filterGuid = FilterConnectionTypeGuid;
+            var initialConnectionType = filterGuid.HasValue
+                ? connectionTypes
+                    .Where( ct => ct.Guid == filterGuid.Value )
+                    .Select( ct => new ListItemBag { Text = ct.Name, Value = ct.Guid.ToString() } )
+                    .FirstOrDefault()
+                : null;
+
+            return new CelebrationsReportOptionsBag
+            {
+                ConnectionTypes = connectionTypes
+                    .Select( ct => new ListItemBag { Text = ct.Name, Value = ct.Guid.ToString() } )
+                    .ToList(),
+                InitialConnectionType = initialConnectionType
+            };
         }
 
         /// <summary>

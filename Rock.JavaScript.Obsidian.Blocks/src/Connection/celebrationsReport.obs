@@ -141,7 +141,9 @@
 
     const gridSettings = ref<GridSettingsOptions>({
         slidingDateRange: savedDateRange ?? defaultDateRange,
-        connectionType: safeParseJson<ListItemBag>(preferences.getValue(PreferenceKey.FilterConnectionTypeGuid)) ?? null
+        connectionType: config.options?.initialConnectionType
+            ?? safeParseJson<ListItemBag>(preferences.getValue(PreferenceKey.FilterConnectionTypeGuid))
+            ?? null
     });
 
     // #endregion

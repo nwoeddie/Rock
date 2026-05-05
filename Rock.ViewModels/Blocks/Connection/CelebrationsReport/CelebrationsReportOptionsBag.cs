@@ -31,5 +31,12 @@ namespace Rock.ViewModels.Blocks.Connection.CelebrationsReport
         /// Only connection types with celebrations enabled are included.
         /// </summary>
         public List<ListItemBag> ConnectionTypes { get; set; }
+
+        /// <summary>
+        /// Gets or sets the connection type that should be pre-selected on load,
+        /// populated when the ConnectionTypeGuid page parameter is present.
+        /// Null when no page parameter is provided.
+        /// </summary>
+        public ListItemBag InitialConnectionType { get; set; }
     }
 }
