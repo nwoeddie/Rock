@@ -85,4 +85,8 @@
     watch(() => props.initialText, (val) => {
         storyText.value = val;
     });
+
+    watch(() => props.initialAuthor, (val) => {
+        selectedAuthor.value = val;
+    });
 </script>

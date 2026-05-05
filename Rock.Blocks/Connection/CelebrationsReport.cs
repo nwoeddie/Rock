@@ -171,13 +171,12 @@ namespace Rock.Blocks.Connection
                     .FirstOrDefault()
                 : null;
 
-            // Resolve the page parameter separately so we can tell the UI whether
-            // the connection type was locked by a page parameter (vs. a saved preference).
+            // Populate the locked title name only when the connection type came from a page parameter
+            // (not a saved preference) so the UI can hide the filter and update the panel title.
             string pageConnectionTypeName = null;
-            var pageParamId = Rock.Utility.IdHasher.Instance.GetId( PageParameter( PageParameterKey.ConnectionTypeId ) );
-            if ( pageParamId.HasValue )
+            if ( PageParameter( PageParameterKey.ConnectionTypeId ).IsNotNullOrWhiteSpace() && filterGuid.HasValue )
             {
-                pageConnectionTypeName = ConnectionTypeCache.Get( pageParamId.Value )?.Name;
+                pageConnectionTypeName = connectionTypes.FirstOrDefault( ct => ct.Guid == filterGuid.Value )?.Name;
             }
 
             return new CelebrationsReportOptionsBag
@@ -266,8 +265,13 @@ namespace Rock.Blocks.Connection
 
             return notes
                 .Where( n => n.EntityId.HasValue && _connectionRequestMap.ContainsKey( n.EntityId.Value ) )
-                .OrderByDescending( n => n.CreatedDateTime )
                 .ToList();
+        }
+
+        /// <inheritdoc/>
+        protected override IQueryable<Note> GetOrderedListQueryable( IQueryable<Note> queryable, RockContext rockContext )
+        {
+            return queryable.OrderByDescending( n => n.CreatedDateTime );
         }
 
         /// <inheritdoc/>
@@ -344,7 +348,7 @@ namespace Rock.Blocks.Connection
         /// <returns>The associated <see cref="ConnectionRequest"/>, or <c>null</c> if not found.</returns>
         private ConnectionRequest GetConnectionRequest( Note note )
         {
-            if ( !note.EntityId.HasValue )
+            if ( !note.EntityId.HasValue || _connectionRequestMap == null )
             {
                 return null;
             }
