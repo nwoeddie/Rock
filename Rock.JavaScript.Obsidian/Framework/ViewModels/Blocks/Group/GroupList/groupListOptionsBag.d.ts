@@ -81,6 +81,13 @@ export type GroupListOptionsBag = {
     /** Gets or sets a value indicating whether the Description column should be shown. */
     showDescriptionColumn: boolean;
 
+    /**
+     * Gets or sets a value indicating whether the Elevated Security Level column
+     * should be shown. Only true when the block is limited to security role groups
+     * and is in GroupList mode (not person mode).
+     */
+    showElevatedSecurityColumn: boolean;
+
     /** Gets or sets a value indicating whether the filter panel should be shown. */
     showFilter: boolean;
 

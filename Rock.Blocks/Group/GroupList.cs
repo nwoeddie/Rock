@@ -254,11 +254,12 @@ namespace Rock.Blocks.Group
         {
             var isPersonMode = IsPersonMode;
             var showFilter = GetAttributeValue( AttributeKey.DisplayFilter ).AsBoolean();
-            var groupTypeIds = GetAvailableGroupTypeIds();
+            var groupTypeIds = GetAvailableGroupTypeIds( RockContext );
 
             var options = new GroupListOptionsBag
             {
                 IsPersonMode = isPersonMode,
+                ShowElevatedSecurityColumn = !isPersonMode && GetAttributeValue( AttributeKey.LimitToSecurityRoleGroups ).AsBoolean(),
                 ShowGroupTypeColumn = GetAttributeValue( AttributeKey.DisplayGroupTypeColumn ).AsBoolean(),
                 ShowDescriptionColumn = GetAttributeValue( AttributeKey.DisplayDescriptionColumn ).AsBoolean(),
                 ShowActiveStatusColumn = GetAttributeValue( AttributeKey.DisplayActiveStatusColumn ).AsBoolean(),
@@ -275,29 +276,26 @@ namespace Rock.Blocks.Group
 
             if ( showFilter )
             {
-                using ( var rockContext = new RockContext() )
+                // Only include the group type filter when more than one type is available.
+                if ( groupTypeIds.Count > 1 )
                 {
-                    // Only include the group type filter when more than one type is available.
-                    if ( groupTypeIds.Count > 1 )
-                    {
-                        options.FilterGroupTypeItems = new GroupTypeService( rockContext )
-                            .Queryable()
-                            .Where( gt => groupTypeIds.Contains( gt.Id ) )
-                            .OrderBy( gt => gt.Order )
-                            .ThenBy( gt => gt.Name )
-                            .ToList()
-                            .Select( gt => new ListItemBag { Value = gt.IdKey, Text = gt.Name } )
-                            .ToList();
-                    }
+                    options.FilterGroupTypeItems = new GroupTypeService( RockContext )
+                        .Queryable()
+                        .Where( gt => groupTypeIds.Contains( gt.Id ) )
+                        .OrderBy( gt => gt.Order )
+                        .ThenBy( gt => gt.Name )
+                        .ToList()
+                        .Select( gt => new ListItemBag { Value = gt.IdKey, Text = gt.Name } )
+                        .ToList();
+                }
 
-                    var purposeDefinedType = DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.GROUPTYPE_PURPOSE.AsGuid() );
-                    if ( purposeDefinedType != null )
-                    {
-                        options.FilterPurposeItems = purposeDefinedType.DefinedValues
-                            .OrderBy( dv => dv.Order )
-                            .Select( dv => new ListItemBag { Value = dv.IdKey, Text = dv.Value } )
-                            .ToList();
-                    }
+                var purposeDefinedType = DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.GROUPTYPE_PURPOSE.AsGuid() );
+                if ( purposeDefinedType != null )
+                {
+                    options.FilterPurposeItems = purposeDefinedType.DefinedValues
+                        .OrderBy( dv => dv.Order )
+                        .Select( dv => new ListItemBag { Value = dv.IdKey, Text = dv.Value } )
+                        .ToList();
                 }
             }
 
@@ -311,13 +309,10 @@ namespace Rock.Blocks.Group
             var rootGroupGuid = GetAttributeValue( AttributeKey.RootGroup ).AsGuidOrNull();
             if ( rootGroupGuid.HasValue )
             {
-                using ( var rockContext = new RockContext() )
+                var rootGroup = new GroupService( RockContext ).Get( rootGroupGuid.Value );
+                if ( rootGroup != null )
                 {
-                    var rootGroup = new GroupService( rockContext ).Get( rootGroupGuid.Value );
-                    if ( rootGroup != null )
-                    {
-                        options.RootGroupIdKey = rootGroup.IdKey;
-                    }
+                    options.RootGroupIdKey = rootGroup.IdKey;
                 }
             }
 
@@ -356,7 +351,7 @@ namespace Rock.Blocks.Group
         /// <inheritdoc/>
         protected override IQueryable<GroupListRowBag> GetListQueryable( RockContext rockContext )
         {
-            var groupTypeIds = GetAvailableGroupTypeIds();
+            var groupTypeIds = GetAvailableGroupTypeIds( rockContext );
             var preferences = GetBlockPersonPreferences();
 
             // Apply filter preferences.
@@ -680,17 +675,6 @@ namespace Rock.Blocks.Group
         /// <summary>
         /// Gets the list of available group type IDs based on the block attribute settings.
         /// </summary>
-        private List<int> GetAvailableGroupTypeIds()
-        {
-            using ( var rockContext = new RockContext() )
-            {
-                return GetAvailableGroupTypeIds( rockContext );
-            }
-        }
-
-        /// <summary>
-        /// Gets the list of available group type IDs based on the block attribute settings.
-        /// </summary>
         private List<int> GetAvailableGroupTypeIds( RockContext rockContext )
         {
             var groupTypeService = new GroupTypeService( rockContext );
@@ -754,29 +738,26 @@ namespace Rock.Blocks.Group
         /// </summary>
         private List<ListItemBag> GetAvailableGroupsForDropdown( List<int> groupTypeIds )
         {
-            using ( var rockContext = new RockContext() )
+            var onlySecurityGroups = GetAttributeValue( AttributeKey.LimitToSecurityRoleGroups ).AsBoolean();
+            var limitToActiveStatus = GetAttributeValue( AttributeKey.LimitToActiveStatus );
+
+            var qry = new GroupService( RockContext )
+                .Queryable()
+                .Where( g => groupTypeIds.Contains( g.GroupTypeId ) && ( !onlySecurityGroups || g.IsSecurityRole ) );
+
+            if ( limitToActiveStatus == "active" )
             {
-                var onlySecurityGroups = GetAttributeValue( AttributeKey.LimitToSecurityRoleGroups ).AsBoolean();
-                var limitToActiveStatus = GetAttributeValue( AttributeKey.LimitToActiveStatus );
-
-                var qry = new GroupService( rockContext )
-                    .Queryable()
-                    .Where( g => groupTypeIds.Contains( g.GroupTypeId ) && ( !onlySecurityGroups || g.IsSecurityRole ) );
-
-                if ( limitToActiveStatus == "active" )
-                {
-                    qry = qry.Where( g => g.IsActive );
-                }
-
-                var currentPerson = RequestContext.CurrentPerson;
-                return qry
-                    .OrderBy( g => g.Name )
-                    .ToList()
-                    .Where( g => g.IsAuthorized( Authorization.EDIT, currentPerson )
-                        || g.IsAuthorized( Authorization.MANAGE_MEMBERS, currentPerson ) )
-                    .Select( g => new ListItemBag { Value = g.IdKey, Text = g.Name } )
-                    .ToList();
+                qry = qry.Where( g => g.IsActive );
             }
+
+            var currentPerson = RequestContext.CurrentPerson;
+            return qry
+                .OrderBy( g => g.Name )
+                .ToList()
+                .Where( g => g.IsAuthorized( Authorization.EDIT, currentPerson )
+                    || g.IsAuthorized( Authorization.MANAGE_MEMBERS, currentPerson ) )
+                .Select( g => new ListItemBag { Value = g.IdKey, Text = g.Name } )
+                .ToList();
         }
 
         #endregion
@@ -790,53 +771,50 @@ namespace Rock.Blocks.Group
         [BlockAction]
         public BlockActionResult Delete( string key )
         {
-            using ( var rockContext = new RockContext() )
+            var groupService = new GroupService( RockContext );
+            var group = groupService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( group == null )
             {
-                var groupService = new GroupService( rockContext );
-                var group = groupService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+                return ActionBadRequest( "Group not found." );
+            }
 
-                if ( group == null )
+            if ( group.IsSystem )
+            {
+                return ActionBadRequest( "System groups cannot be deleted." );
+            }
+
+            if ( !group.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( "You are not authorized to delete this group." );
+            }
+
+            bool needsArchive = group.GroupType.EnableGroupHistory
+                && new GroupHistoricalService( RockContext ).Queryable().Any( h => h.GroupId == group.Id );
+
+            if ( needsArchive )
+            {
+                groupService.Archive( group, RequestContext.CurrentPerson?.PrimaryAliasId, true );
+            }
+            else
+            {
+                string errorMessage;
+                if ( !groupService.CanDelete( group, out errorMessage ) )
                 {
-                    return ActionBadRequest( "Group not found." );
+                    return ActionBadRequest( errorMessage );
                 }
 
-                if ( group.IsSystem )
+                if ( group.IsSecurityRoleOrSecurityGroupType() )
                 {
-                    return ActionBadRequest( "System groups cannot be deleted." );
-                }
-
-                if ( !group.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
-                {
-                    return ActionBadRequest( "You are not authorized to delete this group." );
-                }
-
-                bool needsArchive = group.GroupType.EnableGroupHistory
-                    && new GroupHistoricalService( rockContext ).Queryable().Any( h => h.GroupId == group.Id );
-
-                if ( needsArchive )
-                {
-                    groupService.Archive( group, RequestContext.CurrentPerson?.PrimaryAliasId, true );
+                    GroupService.DeleteSecurityRoleGroup( group.Id );
                 }
                 else
                 {
-                    string errorMessage;
-                    if ( !groupService.CanDelete( group, out errorMessage ) )
-                    {
-                        return ActionBadRequest( errorMessage );
-                    }
-
-                    if ( group.IsSecurityRoleOrSecurityGroupType() )
-                    {
-                        GroupService.DeleteSecurityRoleGroup( group.Id );
-                    }
-                    else
-                    {
-                        groupService.Delete( group );
-                    }
+                    groupService.Delete( group );
                 }
-
-                rockContext.SaveChanges();
             }
+
+            RockContext.SaveChanges();
 
             return ActionOk();
         }
@@ -848,58 +826,55 @@ namespace Rock.Blocks.Group
         [BlockAction]
         public BlockActionResult DeleteMember( string key )
         {
-            using ( var rockContext = new RockContext() )
+            var groupMemberService = new GroupMemberService( RockContext );
+            var groupMember = groupMemberService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( groupMember == null )
             {
-                var groupMemberService = new GroupMemberService( rockContext );
-                var groupMember = groupMemberService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
-
-                if ( groupMember == null )
-                {
-                    return ActionBadRequest( "Group member not found." );
-                }
-
-                var group = groupMember.Group ?? new GroupService( rockContext ).Get( groupMember.GroupId );
-
-                // Prevent removing synced members — caller should have disabled the button but double-check here.
-                bool isSynced = new GroupSyncService( rockContext )
-                    .Queryable()
-                    .Any( s => s.GroupId == groupMember.GroupId && s.GroupTypeRoleId == groupMember.GroupRoleId );
-
-                if ( isSynced )
-                {
-                    return ActionBadRequest( "This member is managed by group sync and cannot be manually removed." );
-                }
-
-                var currentPerson = RequestContext.CurrentPerson;
-                bool hasAuth = group != null
-                    && ( group.IsAuthorized( Authorization.EDIT, currentPerson )
-                        || group.IsAuthorized( Authorization.MANAGE_MEMBERS, currentPerson ) );
-
-                if ( !hasAuth )
-                {
-                    return ActionBadRequest( "You are not authorized to remove members from this group." );
-                }
-
-                bool needsArchive = group?.GroupType.EnableGroupHistory == true
-                    && new GroupMemberHistoricalService( rockContext ).Queryable().Any( h => h.GroupMemberId == groupMember.Id );
-
-                if ( needsArchive )
-                {
-                    groupMemberService.Archive( groupMember, currentPerson?.PrimaryAliasId, true );
-                }
-                else
-                {
-                    string errorMessage;
-                    if ( !groupMemberService.CanDelete( groupMember, out errorMessage ) )
-                    {
-                        return ActionBadRequest( errorMessage );
-                    }
-
-                    groupMemberService.Delete( groupMember, true );
-                }
-
-                rockContext.SaveChanges();
+                return ActionBadRequest( "Group member not found." );
             }
+
+            var group = groupMember.Group ?? new GroupService( RockContext ).Get( groupMember.GroupId );
+
+            // Prevent removing synced members — caller should have disabled the button but double-check here.
+            bool isSynced = new GroupSyncService( RockContext )
+                .Queryable()
+                .Any( s => s.GroupId == groupMember.GroupId && s.GroupTypeRoleId == groupMember.GroupRoleId );
+
+            if ( isSynced )
+            {
+                return ActionBadRequest( "This member is managed by group sync and cannot be manually removed." );
+            }
+
+            var currentPerson = RequestContext.CurrentPerson;
+            bool hasAuth = group != null
+                && ( group.IsAuthorized( Authorization.EDIT, currentPerson )
+                    || group.IsAuthorized( Authorization.MANAGE_MEMBERS, currentPerson ) );
+
+            if ( !hasAuth )
+            {
+                return ActionBadRequest( "You are not authorized to remove members from this group." );
+            }
+
+            bool needsArchive = group?.GroupType.EnableGroupHistory == true
+                && new GroupMemberHistoricalService( RockContext ).Queryable().Any( h => h.GroupMemberId == groupMember.Id );
+
+            if ( needsArchive )
+            {
+                groupMemberService.Archive( groupMember, currentPerson?.PrimaryAliasId, true );
+            }
+            else
+            {
+                string errorMessage;
+                if ( !groupMemberService.CanDelete( groupMember, out errorMessage ) )
+                {
+                    return ActionBadRequest( errorMessage );
+                }
+
+                groupMemberService.Delete( groupMember, true );
+            }
+
+            RockContext.SaveChanges();
 
             return ActionOk();
         }
@@ -912,34 +887,31 @@ namespace Rock.Blocks.Group
         [BlockAction]
         public BlockActionResult GetGroupRoles( string groupIdKey )
         {
-            using ( var rockContext = new RockContext() )
+            var group = new GroupService( RockContext ).Get( groupIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( group == null )
             {
-                var group = new GroupService( rockContext ).Get( groupIdKey, !PageCache.Layout.Site.DisablePredictableIds );
-                if ( group == null )
-                {
-                    return ActionBadRequest( "Group not found." );
-                }
-
-                var syncedRoleIds = new GroupSyncService( rockContext )
-                    .Queryable()
-                    .Where( s => s.GroupId == group.Id )
-                    .Select( s => s.GroupTypeRoleId )
-                    .ToList();
-
-                var roles = new GroupTypeRoleService( rockContext )
-                    .Queryable()
-                    .Where( r => r.GroupTypeId == group.GroupTypeId && !syncedRoleIds.Contains( r.Id ) )
-                    .OrderBy( r => r.Order )
-                    .ThenBy( r => r.Name )
-                    .Select( r => new ListItemBag { Value = r.IdKey, Text = r.Name } )
-                    .ToList();
-
-                return ActionOk( new
-                {
-                    Roles = roles,
-                    HasSyncedRoles = syncedRoleIds.Count > 0
-                } );
+                return ActionBadRequest( "Group not found." );
             }
+
+            var syncedRoleIds = new GroupSyncService( RockContext )
+                .Queryable()
+                .Where( s => s.GroupId == group.Id )
+                .Select( s => s.GroupTypeRoleId )
+                .ToList();
+
+            var roles = new GroupTypeRoleService( RockContext )
+                .Queryable()
+                .Where( r => r.GroupTypeId == group.GroupTypeId && !syncedRoleIds.Contains( r.Id ) )
+                .OrderBy( r => r.Order )
+                .ThenBy( r => r.Name )
+                .Select( r => new ListItemBag { Value = r.IdKey, Text = r.Name } )
+                .ToList();
+
+            return ActionOk( new
+            {
+                Roles = roles,
+                HasSyncedRoles = syncedRoleIds.Count > 0
+            } );
         }
 
         /// <summary>
@@ -955,70 +927,67 @@ namespace Rock.Blocks.Group
                 return ActionBadRequest( "No person context found." );
             }
 
-            using ( var rockContext = new RockContext() )
+            var groupService = new GroupService( RockContext );
+            var group = groupService.Get( bag.GroupIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( group == null )
             {
-                var groupService = new GroupService( rockContext );
-                var group = groupService.Get( bag.GroupIdKey, !PageCache.Layout.Site.DisablePredictableIds );
-
-                if ( group == null )
-                {
-                    return ActionBadRequest( "Group not found." );
-                }
-
-                var currentPerson = RequestContext.CurrentPerson;
-                bool hasAuth = group.IsAuthorized( Authorization.EDIT, currentPerson )
-                    || group.IsAuthorized( Authorization.MANAGE_MEMBERS, currentPerson );
-
-                if ( !hasAuth )
-                {
-                    return ActionBadRequest( "You are not authorized to add members to this group." );
-                }
-
-                var role = new GroupTypeRoleService( rockContext ).Get( bag.RoleIdKey, !PageCache.Layout.Site.DisablePredictableIds );
-                if ( role == null )
-                {
-                    return ActionBadRequest( "Role not found." );
-                }
-
-                // Check for an existing archived group member with the same person and role,
-                // unless the caller explicitly skipped this check (i.e. the user chose not to restore).
-                GroupMember archivedGroupMember;
-                if ( !bag.SkipArchiveCheck && groupService.ExistsAsArchived( group, personContext.Id, role.Id, out archivedGroupMember ) )
-                {
-                    return ActionOk( new
-                    {
-                        Status = "ArchiveFound",
-                        ArchivedMemberIdKey = archivedGroupMember.IdKey,
-                        Message = $"There is an archived record for {personContext} as a {role.Name} in this group. Do you want to restore the previous settings? Notes will be retained."
-                    } );
-                }
-
-                // Check for duplicate active member.
-                var groupMemberService = new GroupMemberService( rockContext );
-                if ( !GroupService.AllowsDuplicateMembers()
-                    && groupMemberService.Queryable().Any( m => m.PersonId == personContext.Id && m.GroupId == group.Id && m.GroupRoleId == role.Id ) )
-                {
-                    return ActionBadRequest( "This person is already a member of the selected group in the selected role." );
-                }
-
-                var groupMember = new GroupMember
-                {
-                    Id = 0,
-                    GroupId = group.Id,
-                    PersonId = personContext.Id,
-                    GroupRoleId = role.Id,
-                    GroupMemberStatus = GroupMemberStatus.Active
-                };
-
-                if ( !groupMember.IsValidGroupMember( rockContext ) )
-                {
-                    var errors = groupMember.ValidationResults.Select( r => r.ErrorMessage ).ToList().AsDelimited( " " );
-                    return ActionBadRequest( errors );
-                }
-
-                groupMemberService.Add( groupMember );
-                rockContext.SaveChanges();
+                return ActionBadRequest( "Group not found." );
             }
+
+            var currentPerson = RequestContext.CurrentPerson;
+            bool hasAuth = group.IsAuthorized( Authorization.EDIT, currentPerson )
+                || group.IsAuthorized( Authorization.MANAGE_MEMBERS, currentPerson );
+
+            if ( !hasAuth )
+            {
+                return ActionBadRequest( "You are not authorized to add members to this group." );
+            }
+
+            var role = new GroupTypeRoleService( RockContext ).Get( bag.RoleIdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            if ( role == null )
+            {
+                return ActionBadRequest( "Role not found." );
+            }
+
+            // Check for an existing archived group member with the same person and role,
+            // unless the caller explicitly skipped this check (i.e. the user chose not to restore).
+            GroupMember archivedGroupMember;
+            if ( !bag.SkipArchiveCheck && groupService.ExistsAsArchived( group, personContext.Id, role.Id, out archivedGroupMember ) )
+            {
+                return ActionOk( new
+                {
+                    Status = "ArchiveFound",
+                    ArchivedMemberIdKey = archivedGroupMember.IdKey,
+                    Message = $"There is an archived record for {personContext} as a {role.Name} in this group. Do you want to restore the previous settings? Notes will be retained."
+                } );
+            }
+
+            // Check for duplicate active member.
+            var groupMemberService = new GroupMemberService( RockContext );
+            if ( !GroupService.AllowsDuplicateMembers()
+                && groupMemberService.Queryable().Any( m => m.PersonId == personContext.Id && m.GroupId == group.Id && m.GroupRoleId == role.Id ) )
+            {
+                return ActionBadRequest( "This person is already a member of the selected group in the selected role." );
+            }
+
+            var groupMember = new GroupMember
+            {
+                Id = 0,
+                GroupId = group.Id,
+                PersonId = personContext.Id,
+                GroupRoleId = role.Id,
+                GroupMemberStatus = GroupMemberStatus.Active
+            };
+
+            if ( !groupMember.IsValidGroupMember( RockContext ) )
+            {
+                var errors = groupMember.ValidationResults.Select( r => r.ErrorMessage ).ToList().AsDelimited( " " );
+                return ActionBadRequest( errors );
+            }
+
+            groupMemberService.Add( groupMember );
+            RockContext.SaveChanges();
 
             return ActionOk( new { Status = "Added" } );
         }
@@ -1030,40 +999,37 @@ namespace Rock.Blocks.Group
         [BlockAction]
         public BlockActionResult RestoreArchivedMember( string archivedMemberIdKey )
         {
-            using ( var rockContext = new RockContext() )
+            var groupMemberService = new GroupMemberService( RockContext );
+            var archivedMemberId = IdHasher.Instance.GetId( archivedMemberIdKey );
+            var groupMember = groupMemberService.GetArchived()
+                .FirstOrDefault( m => m.Id == archivedMemberId );
+
+            if ( groupMember == null )
             {
-                var groupMemberService = new GroupMemberService( rockContext );
-                var archivedMemberId = IdHasher.Instance.GetId( archivedMemberIdKey );
-                var groupMember = groupMemberService.GetArchived()
-                    .FirstOrDefault( m => m.Id == archivedMemberId );
-
-                if ( groupMember == null )
-                {
-                    return ActionBadRequest( "Archived group member not found." );
-                }
-
-                var group = groupMember.Group ?? new GroupService( rockContext ).Get( groupMember.GroupId );
-                var currentPerson = RequestContext.CurrentPerson;
-
-                bool hasAuth = group != null
-                    && ( group.IsAuthorized( Authorization.EDIT, currentPerson )
-                        || group.IsAuthorized( Authorization.MANAGE_MEMBERS, currentPerson ) );
-
-                if ( !hasAuth )
-                {
-                    return ActionBadRequest( "You are not authorized to restore members to this group." );
-                }
-
-                groupMemberService.Restore( groupMember );
-
-                if ( !groupMember.IsValidGroupMember( rockContext ) )
-                {
-                    var errors = groupMember.ValidationResults.Select( r => r.ErrorMessage ).ToList().AsDelimited( " " );
-                    return ActionBadRequest( errors );
-                }
-
-                rockContext.SaveChanges();
+                return ActionBadRequest( "Archived group member not found." );
             }
+
+            var group = groupMember.Group ?? new GroupService( RockContext ).Get( groupMember.GroupId );
+            var currentPerson = RequestContext.CurrentPerson;
+
+            bool hasAuth = group != null
+                && ( group.IsAuthorized( Authorization.EDIT, currentPerson )
+                    || group.IsAuthorized( Authorization.MANAGE_MEMBERS, currentPerson ) );
+
+            if ( !hasAuth )
+            {
+                return ActionBadRequest( "You are not authorized to restore members to this group." );
+            }
+
+            groupMemberService.Restore( groupMember );
+
+            if ( !groupMember.IsValidGroupMember( RockContext ) )
+            {
+                var errors = groupMember.ValidationResults.Select( r => r.ErrorMessage ).ToList().AsDelimited( " " );
+                return ActionBadRequest( errors );
+            }
+
+            RockContext.SaveChanges();
 
             return ActionOk( new { Status = "Restored" } );
         }

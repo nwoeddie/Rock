@@ -6,6 +6,7 @@
           :itemTerm="options.isPersonMode ? 'Group Membership' : 'Group'"
           :entityTypeGuid="options.isPersonMode ? EntityType.GroupMember : EntityType.Group"
           stickyHeader
+          :title="options.panelTitle ?? 'Group List'"
           liveUpdates
           :gridSettings="options.showFilter"
           :gridSettingsActive="hasActiveFilters"
@@ -17,6 +18,7 @@
                     :title="options.showGroupPath ? 'Path' : 'Name'"
                     :field="options.showGroupPath ? 'path' : 'name'"
                     :filter="textValueFilter"
+                    width="15%"
                     visiblePriority="xs" />
 
         <TextColumn v-if="options.showGroupTypeColumn"
@@ -30,6 +32,7 @@
                     name="description"
                     title="Description"
                     field="description"
+                    width="40%"
                     :filter="textValueFilter"
                     visiblePriority="lg" />
 
@@ -40,6 +43,23 @@
                     field="groupRole"
                     :filter="textValueFilter"
                     visiblePriority="sm" />
+
+        <!-- Elevated security badge — GroupList mode only, only when block is limited to security role groups -->
+        <Column v-if="options.showElevatedSecurityColumn"
+                name="elevatedSecurityLevel"
+                title="Elevated Security Level"
+                headerClass="text-center"
+                itemClass="justify-content-center"
+                visiblePriority="xs">
+            <template #format="{ row }">
+                <span v-if="row['isSecurityRole'] && row['elevatedSecurityLevel'] === 2"
+                      class="label label-danger"
+                      title="Extreme Security">Security Level: Extreme</span>
+                <span v-else-if="row['isSecurityRole'] && row['elevatedSecurityLevel'] === 1"
+                      class="label label-warning"
+                      title="High Security">Security Level: High</span>
+            </template>
+        </Column>
 
         <!-- Date Added — person mode only -->
         <DateColumn v-if="options.isPersonMode"
@@ -54,14 +74,16 @@
                       title="Members"
                       field="memberCount"
                       :filter="numberValueFilter"
-                      headerClass="text-right"
+                      headerClass="text-right w-fit"
                       itemClass="justify-content-end text-right"
+                      width="150"
                       visiblePriority="md" />
 
         <BooleanColumn v-if="options.showSystemColumn"
                        name="isSystem"
                        title="System"
                        field="isSystem"
+                       width="150"
                        :filter="booleanValueFilter"
                        headerClass="text-center"
                        itemClass="justify-content-center text-center"
@@ -76,11 +98,11 @@
                        itemClass="justify-content-center text-center"
                        visiblePriority="xs" />
 
-        <!-- Sync icon column — GroupList mode only (separate from delete, bug fix) -->
-        <Column v-if="!options.isPersonMode"
+        <!-- Sync icon column — GroupList mode only; only rendered when at least one group in the result set is synced -->
+        <Column v-if="!options.isPersonMode && hasSyncedRows"
                 name="syncStatus"
                 title=""
-                width="42px"
+                width="42"
                 itemClass="grid-columncommand"
                 visiblePriority="xs">
             <template #format="{ row }">
@@ -133,6 +155,8 @@
 
     const options = computed(() => config.options ?? {} as GroupListOptionsBag);
 
+    const hasSyncedRows = ref(false);
+
     const isGridSettingsVisible = ref(false);
     const isAddMemberVisible = ref(false);
 
@@ -148,6 +172,8 @@
         || (options.value.showActiveFilter && gridSettings.value.activeStatus !== "all")
     );
 
+    console.log("Options: ", options.value);
+
     // #endregion
 
     // #region Functions
@@ -157,13 +183,15 @@
 
         if (result.isSuccess && result.data) {
             gridData = reactive(result.data);
+            hasSyncedRows.value = gridData.rows?.some(r => r["isSynced"] === true) ?? false;
+            console.log("gridData", gridData);
+
             return gridData;
         }
         else {
             throw new Error(result.errorMessage ?? "Unknown error while trying to load grid data.");
         }
     }
-
     // #endregion
 
     // #region Event Handlers

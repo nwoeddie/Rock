@@ -65,6 +65,13 @@ namespace Rock.ViewModels.Blocks.Group.GroupList
         public bool ShowSecurityColumn { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the Elevated Security Level column
+        /// should be shown. Only true when the block is limited to security role groups
+        /// and is in GroupList mode (not person mode).
+        /// </summary>
+        public bool ShowElevatedSecurityColumn { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether to show the full group ancestor path
         /// instead of just the group name.
         /// </summary>
