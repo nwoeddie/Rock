@@ -1,0 +1,33 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <span v-if="row['isSynced'] === true" :title="syncTooltip" style="cursor: default;">
+        <span class="btn btn-danger btn-sm sync-indicator">
+            <i class="ti ti-switch-3"></i>
+        </span>
+    </span>
+    <DeleteCell v-else
+                :column="column"
+                :row="row"
+                :grid="grid" />
+</template>
+
+<script setup lang="ts">
+    import { computed } from "vue";
+    import { standardCellProps } from "@Obsidian/Core/Controls/grid";
+    import { DeleteCell } from "@Obsidian/Controls/grid";
+
+    const props = defineProps(standardCellProps);
+
+    const syncTooltip = computed((): string => {
+        const role = props.row["groupRole"] as string;
+        return role
+            ? `Managed by group sync for role "${role}".`
+            : "Managed by group sync.";
+    });
+</script>
+
+<style scoped>
+.sync-indicator {
+    pointer-events: none;
+}
+</style>
