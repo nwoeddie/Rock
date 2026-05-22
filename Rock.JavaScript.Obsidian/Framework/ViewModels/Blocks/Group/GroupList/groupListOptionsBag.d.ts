@@ -21,6 +21,7 @@
 // </copyright>
 //
 
+import { Guid } from "@Obsidian/Types";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /** The additional configuration options for the Group List block. */
@@ -44,6 +45,13 @@ export type GroupListOptionsBag = {
     groupPickerType?: string | null;
 
     /**
+     * Gets or sets the GroupType Guids the add-member tree picker should be
+     * restricted to. Mirrors the WebForms gpGroup.IncludedGroupTypeIds
+     * setup so users can only browse groups of the block's configured types.
+     */
+    includedGroupTypeGuids?: Guid[] | null;
+
+    /**
      * Gets or sets a value indicating whether the block is in person mode
      * (i.e., a Person context entity is present and the grid lists groups
      * the person is a member of rather than a plain group list).
@@ -63,10 +71,12 @@ export type GroupListOptionsBag = {
     panelTitle?: string | null;
 
     /**
-     * Gets or sets the root group IdKey used as the tree starting point
-     * when the GroupPickerType is "GroupPicker".
+     * Gets or sets the root group Guid used as the tree starting point when the
+     * GroupPickerType is "GroupPicker". The Obsidian GroupPicker control expects
+     * a Guid (not an Id or IdKey), so this is stored as the raw Guid the block
+     * attribute already returns from AsGuidOrNull().
      */
-    rootGroupIdKey?: string | null;
+    rootGroupGuid?: Guid | null;
 
     /**
      * Gets or sets a value indicating whether the active status filter dropdown

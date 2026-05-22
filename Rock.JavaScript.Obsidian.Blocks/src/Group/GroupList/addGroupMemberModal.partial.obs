@@ -13,8 +13,16 @@
                      v-model="selectedGroup"
                      label="Group"
                      rules="required"
-                     :rootGroupId="options.rootGroupIdKey"
+                     :includedGroupTypeGuids="options.includedGroupTypeGuids ?? []"
+                     :rootGroupGuid="options.rootGroupGuid ?? null"
                      @update:modelValue="onGroupChanged" />
+
+        <NotificationBox v-if="hasSyncedRoles"
+                         alertType="info"
+                         heading="Synced Group!">
+            The selected group uses Group Sync. Only roles that are not being synced are listed.
+            Please make sure this person needs to be added manually instead of meeting the sync conditions.
+        </NotificationBox>
 
         <DropDownList v-else
                       v-model="selectedGroupIdKey"
@@ -25,10 +33,6 @@
                       blankValue=""
                       @update:modelValue="onGroupIdKeyChanged" />
 
-        <NotificationBox v-if="hasSyncedRoles"
-                         alertType="info">
-            This group has some roles that are managed by group sync and are not available for manual assignment.
-        </NotificationBox>
 
         <DropDownList v-model="selectedRoleIdKey"
                       label="Role"
@@ -39,14 +43,15 @@
                       :disabled="availableRoles.length === 0" />
     </Modal>
 
-    <!-- Restore archived member confirmation -->
     <Modal v-model="isRestoreVisible"
            title="Restore Archived Record"
            saveText="Restore"
-           cancelText="Don't Restore"
            @save="onRestoreConfirm"
-           @cancel="onAddWithoutRestore">
+           @closeModal="onRestoreCancel">
         <p>{{ restoreMessage }}</p>
+        <template #customButtons>
+            <RockButton btnType="default" @click="onAddWithoutRestore">Don't Restore</RockButton>
+        </template>
     </Modal>
 </template>
 
@@ -55,12 +60,26 @@
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import DropDownList from "@Obsidian/Controls/dropDownList.obs";
     import GroupPicker from "@Obsidian/Controls/groupPicker.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
     import { ref, computed, PropType } from "vue";
     import { GroupListOptionsBag } from "@Obsidian/ViewModels/Blocks/Group/GroupList/groupListOptionsBag";
     import { GroupListAddGroupMemberRequestBag } from "@Obsidian/ViewModels/Blocks/Group/GroupList/groupListAddGroupMemberRequestBag";
     import { useVModelPassthrough } from "@Obsidian/Utility/component";
     import { useInvokeBlockAction } from "@Obsidian/Utility/block";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+
+    /** Shape returned by the parent's AddGroupMember handler. */
+    type AddGroupMemberResponse = {
+        status: string;
+        archivedMemberIdKey?: string;
+        message?: string;
+    };
+
+    type BlockActionResultLike<T> = {
+        isSuccess: boolean;
+        data?: T | null;
+        errorMessage?: string | null;
+    };
 
     const props = defineProps({
         visible: {
@@ -70,6 +89,15 @@
 
         options: {
             type: Object as PropType<GroupListOptionsBag>,
+            required: true
+        },
+
+        /**
+         * Parent-supplied handler that invokes the AddGroupMember block action.
+         * The modal stays presentation-focused; the parent owns the action call.
+         */
+        onAddMember: {
+            type: Function as PropType<(bag: GroupListAddGroupMemberRequestBag) => Promise<BlockActionResultLike<AddGroupMemberResponse>>>,
             required: true
         }
     });
@@ -112,11 +140,15 @@
         }
     }
 
-    function onGroupChanged(group: ListItemBag | null): void {
+    function onGroupChanged(value: ListItemBag | ListItemBag[] | null): void {
+        const group = Array.isArray(value) ? (value[0] ?? null) : value;
         loadRoles(group?.value ?? "");
     }
 
-    function onGroupIdKeyChanged(idKey: string): void {
+    function onGroupIdKeyChanged(value: string | string[]): void {
+        // DropDownList's update:modelValue is typed as string | string[] for multi-select
+        // support; this instance is single-select, so collapse arrays to their first entry.
+        const idKey = Array.isArray(value) ? (value[0] ?? "") : value;
         loadRoles(idKey);
     }
 
@@ -139,10 +171,11 @@
 
         const bag: GroupListAddGroupMemberRequestBag = {
             groupIdKey,
-            roleIdKey: selectedRoleIdKey.value
+            roleIdKey: selectedRoleIdKey.value,
+            skipArchiveCheck: false
         };
 
-        const result = await invokeBlockAction<{ status: string; archivedMemberIdKey?: string; message?: string }>("AddGroupMember", bag);
+        const result = await props.onAddMember(bag);
 
         if (result.isSuccess && result.data) {
             if (result.data.status === "ArchiveFound") {
@@ -178,6 +211,10 @@
         }
     }
 
+    function onRestoreCancel(): void {
+        resetForm();
+    }
+
     async function onAddWithoutRestore(): Promise<void> {
         isRestoreVisible.value = false;
 
@@ -185,7 +222,7 @@
             return;
         }
 
-        const result = await invokeBlockAction("AddGroupMember", { ...pendingBag, skipArchiveCheck: true });
+        const result = await props.onAddMember({ ...pendingBag, skipArchiveCheck: true });
 
         if (result.isSuccess) {
             resetForm();

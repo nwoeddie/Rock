@@ -15,6 +15,7 @@
 // </copyright>
 //
 
+using System;
 using System.Collections.Generic;
 
 using Rock.ViewModels.Utility;
@@ -107,10 +108,19 @@ namespace Rock.ViewModels.Blocks.Group.GroupList
         public string GroupPickerType { get; set; }
 
         /// <summary>
-        /// Gets or sets the root group IdKey used as the tree starting point
-        /// when the GroupPickerType is "GroupPicker".
+        /// Gets or sets the root group Guid used as the tree starting point when the
+        /// GroupPickerType is "GroupPicker". The Obsidian GroupPicker control expects
+        /// a Guid (not an Id or IdKey), so this is stored as the raw Guid the block
+        /// attribute already returns from <c>AsGuidOrNull()</c>.
         /// </summary>
-        public string RootGroupIdKey { get; set; }
+        public Guid? RootGroupGuid { get; set; }
+
+        /// <summary>
+        /// Gets or sets the GroupType Guids the add-member tree picker should be
+        /// restricted to. Mirrors the WebForms <c>gpGroup.IncludedGroupTypeIds</c>
+        /// setup so users can only browse groups of the block's configured types.
+        /// </summary>
+        public List<Guid> IncludedGroupTypeGuids { get; set; }
 
         /// <summary>
         /// Gets or sets the available group type items for the filter panel.

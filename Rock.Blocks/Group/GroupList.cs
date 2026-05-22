@@ -210,6 +210,17 @@ namespace Rock.Blocks.Group
             public const string DetailPage = "DetailPage";
         }
 
+        private static class PageParameterKey
+        {
+            /// <summary>
+            /// Optional ?GroupTypeId= query string parameter. When supplied, the grid
+            /// is scoped to just that one group type — overriding both the configured
+            /// Include/Exclude attributes and the user's saved filter preference.
+            /// Accepts Id, IdKey, or Guid (resolved via GroupTypeCache.Get).
+            /// </summary>
+            public const string GroupTypeId = "GroupTypeId";
+        }
+
         private static class PreferenceKey
         {
             public const string FilterGroupTypeIdKey = "filter-group-type-id-key";
@@ -221,10 +232,6 @@ namespace Rock.Blocks.Group
 
         #region Properties
 
-        /// <summary>
-        /// Gets a value indicating whether the block is in person mode (a Person
-        /// context entity is present so the grid lists groups the person is a member of).
-        /// </summary>
         private bool IsPersonMode => RequestContext.GetContextEntity<Person>() != null;
 
         #endregion
@@ -305,16 +312,22 @@ namespace Rock.Blocks.Group
                 options.AvailableGroups = GetAvailableGroupsForDropdown( groupTypeIds );
             }
 
-            // Set root group IdKey for the tree picker.
-            var rootGroupGuid = GetAttributeValue( AttributeKey.RootGroup ).AsGuidOrNull();
-            if ( rootGroupGuid.HasValue )
+            // Restrict the tree picker to the configured group types. Mirrors the
+            // WebForms gpGroup.IncludedGroupTypeIds = groupTypeIds setup so users
+            // can only browse groups of the block's configured types when adding.
+            if ( isPersonMode && GetAttributeValue( AttributeKey.GroupPickerType ) == "GroupPicker" )
             {
-                var rootGroup = new GroupService( RockContext ).Get( rootGroupGuid.Value );
-                if ( rootGroup != null )
-                {
-                    options.RootGroupIdKey = rootGroup.IdKey;
-                }
+                options.IncludedGroupTypeGuids = groupTypeIds
+                    .Select( id => GroupTypeCache.Get( id )?.Guid )
+                    .Where( g => g.HasValue )
+                    .Select( g => g.Value )
+                    .ToList();
             }
+
+            // Set root group Guid for the tree picker. The Obsidian GroupPicker control
+            // expects a Guid, so we hand it the attribute value directly without a
+            // GroupService lookup.
+            options.RootGroupGuid = GetAttributeValue( AttributeKey.RootGroup ).AsGuidOrNull();
 
             return options;
         }
@@ -366,6 +379,19 @@ namespace Rock.Blocks.Group
                 if ( filterGroupType != null && groupTypeIds.Contains( filterGroupType.Id ) )
                 {
                     groupTypeIds = new List<int> { filterGroupType.Id };
+                }
+            }
+
+            // Apply the ?GroupTypeId= query string override last. Mirrors the WebForms
+            // behavior of clearing the include list and scoping the grid to just the
+            // requested type, even if it isn't in the configured Include attribute.
+            var groupTypeIdParam = PageParameter( PageParameterKey.GroupTypeId );
+            if ( groupTypeIdParam.IsNotNullOrWhiteSpace() )
+            {
+                var requestedGroupType = GroupTypeCache.Get( groupTypeIdParam, !PageCache.Layout.Site.DisablePredictableIds );
+                if ( requestedGroupType != null )
+                {
+                    groupTypeIds = new List<int> { requestedGroupType.Id };
                 }
             }
 
@@ -532,10 +558,9 @@ namespace Rock.Blocks.Group
         /// <inheritdoc/>
         protected override IQueryable<GroupListRowBag> GetOrderedListQueryable( IQueryable<GroupListRowBag> queryable, RockContext rockContext )
         {
-            return queryable
-                .OrderBy( r => r.GroupTypeOrder )
-                .ThenBy( r => r.GroupOrder )
-                .ThenBy( r => r.Name );
+            // Default sort matches the WebForms block (Name ascending). Users can override
+            // by clicking column headers; this only applies when no sort is selected.
+            return queryable.OrderBy( r => r.Name );
         }
 
         /// <inheritdoc/>
@@ -554,9 +579,12 @@ namespace Rock.Blocks.Group
             }
 
             // Batch-load all relevant Group entities for auth checks to avoid N+1 queries.
+            // AsNoFilter is required so archived groups still resolve here — qryGroups
+            // is also AsNoFilter, so a regular Queryable() would silently drop archived
+            // groups from the final result set
             var groupIds = projectedRows.Select( r => r.Id ).Distinct().ToList();
             var groupsById = new GroupService( rockContext )
-                .Queryable()
+                .AsNoFilter()
                 .Where( g => groupIds.Contains( g.Id ) )
                 .ToDictionary( g => g.Id );
 
@@ -628,14 +656,15 @@ namespace Rock.Blocks.Group
                 {
                     row.HasChatChannel = chatChannelGroupIds != null && chatChannelGroupIds.Contains( row.Id );
                     row.CanDelete = !row.IsSystem
+                        && !row.IsArchived
                         && group != null
                         && group.IsAuthorized( Authorization.EDIT, currentPerson );
                 }
                 else
                 {
-                    // In person mode: delete (remove membership) allowed if not synced and user
-                    // has EDIT or MANAGE_MEMBERS on the group.
-                    if ( !row.IsSynced )
+                    // In person mode: delete (remove membership) allowed if not synced,
+                    // not already archived, and user has EDIT or MANAGE_MEMBERS on the group.
+                    if ( !row.IsSynced && !row.IsArchived )
                     {
                         row.CanDelete = group != null
                             && ( group.IsAuthorized( Authorization.EDIT, currentPerson )
@@ -650,6 +679,8 @@ namespace Rock.Blocks.Group
         /// <inheritdoc/>
         protected override GridBuilder<GroupListRowBag> GetGridBuilder()
         {
+            var isPersonMode = IsPersonMode;
+
             return new GridBuilder<GroupListRowBag>()
                 .WithBlock( this, new GridBuilderGridOptions<GroupListRowBag>
                 {
@@ -674,7 +705,8 @@ namespace Rock.Blocks.Group
                         r.HasChatChannel
                     }
                 } )
-                .AddTextField( "idKey", r => r.GroupIdKey )
+                .AddTextField( "idKey", r => isPersonMode ? r.GroupMemberIdKey : r.GroupIdKey )
+                .AddTextField( "groupIdKey", r => r.GroupIdKey )
                 .AddTextField( "groupMemberIdKey", r => r.GroupMemberIdKey )
                 .AddTextField( "name", r => r.Name )
                 .AddTextField( "path", r => r.Path )
@@ -926,6 +958,7 @@ namespace Rock.Blocks.Group
                 .Where( r => r.GroupTypeId == group.GroupTypeId && !syncedRoleIds.Contains( r.Id ) )
                 .OrderBy( r => r.Order )
                 .ThenBy( r => r.Name )
+                .ToList()
                 .Select( r => new ListItemBag { Value = r.IdKey, Text = r.Name } )
                 .ToList();
 
