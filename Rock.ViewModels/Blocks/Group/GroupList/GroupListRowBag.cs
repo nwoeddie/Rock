@@ -29,9 +29,10 @@ namespace Rock.ViewModels.Blocks.Group.GroupList
     public class GroupListRowBag
     {
         /// <summary>
-        /// Gets or sets the integer Id of the group.
+        /// Gets or sets the integer Id of the group. Exposed as <c>Id</c> to match the
+        /// field name used in WebForms custom Lava column templates (e.g. <c>{{Row.Id}}</c>).
         /// </summary>
-        public int GroupId { get; set; }
+        public int Id { get; set; }
 
         /// <summary>
         /// Gets or sets the IdKey of the group. Used as the primary grid row key

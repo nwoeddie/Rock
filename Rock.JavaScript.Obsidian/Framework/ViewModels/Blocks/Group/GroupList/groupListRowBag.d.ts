@@ -62,9 +62,6 @@ export type GroupListRowBag = {
      */
     enableGroupHistory: boolean;
 
-    /** Gets or sets the integer Id of the group. */
-    groupId: number;
-
     /**
      * Gets or sets the IdKey of the group. Used as the primary grid row key
      * and for Detail Page navigation in both modes.
@@ -110,6 +107,12 @@ export type GroupListRowBag = {
      * Only relevant in GroupList mode and used to include a warning in the delete confirmation.
      */
     hasChatChannel: boolean;
+
+    /**
+     * Gets or sets the integer Id of the group. Exposed as Id to match the
+     * field name used in WebForms custom Lava column templates (e.g. {{Row.Id}}).
+     */
+    id: number;
 
     /**
      * Gets or sets a value indicating whether the group (and group membership in

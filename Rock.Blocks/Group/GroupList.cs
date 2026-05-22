@@ -438,7 +438,7 @@ namespace Rock.Blocks.Group
 
             return qryGroups.Select( g => new GroupListRowBag
             {
-                GroupId = g.Id,
+                Id = g.Id,
                 GroupIdKey = null,
                 GroupMemberId = null,
                 GroupMemberIdKey = null,
@@ -502,7 +502,7 @@ namespace Rock.Blocks.Group
 
             return qry.Select( x => new GroupListRowBag
             {
-                GroupId = x.Group.Id,
+                Id = x.Group.Id,
                 GroupIdKey = null,
                 GroupMemberId = x.GroupMember.Id,
                 GroupMemberIdKey = null,
@@ -546,7 +546,7 @@ namespace Rock.Blocks.Group
 
             foreach ( var row in projectedRows )
             {
-                row.GroupIdKey = IdHasher.Instance.GetHash( row.GroupId );
+                row.GroupIdKey = IdHasher.Instance.GetHash( row.Id );
                 if ( row.GroupMemberId.HasValue )
                 {
                     row.GroupMemberIdKey = IdHasher.Instance.GetHash( row.GroupMemberId.Value );
@@ -554,7 +554,7 @@ namespace Rock.Blocks.Group
             }
 
             // Batch-load all relevant Group entities for auth checks to avoid N+1 queries.
-            var groupIds = projectedRows.Select( r => r.GroupId ).Distinct().ToList();
+            var groupIds = projectedRows.Select( r => r.Id ).Distinct().ToList();
             var groupsById = new GroupService( rockContext )
                 .Queryable()
                 .Where( g => groupIds.Contains( g.Id ) )
@@ -562,11 +562,11 @@ namespace Rock.Blocks.Group
 
             // Auth filter — mirrors the source block's .Where(g => g.IsAuthorized(VIEW, CurrentPerson))
             var rows = projectedRows
-                .Where( r => groupsById.TryGetValue( r.GroupId, out var g ) && g.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                .Where( r => groupsById.TryGetValue( r.Id, out var g ) && g.IsAuthorized( Authorization.VIEW, currentPerson ) )
                 .ToList();
 
             // Refresh the working set of group IDs after auth filtering.
-            groupIds = rows.Select( r => r.GroupId ).Distinct().ToList();
+            groupIds = rows.Select( r => r.Id ).Distinct().ToList();
 
             // Determine groups that have history records (different service depending on mode).
             HashSet<int> groupsWithHistory;
@@ -617,16 +617,16 @@ namespace Rock.Blocks.Group
 
                 if ( showGroupPath && groupService != null )
                 {
-                    row.Path = groupService.GroupAncestorPathName( row.GroupId );
+                    row.Path = groupService.GroupAncestorPathName( row.Id );
                 }
 
-                row.NeedsArchive = row.EnableGroupHistory && groupsWithHistory.Contains( row.GroupId );
+                row.NeedsArchive = row.EnableGroupHistory && groupsWithHistory.Contains( row.Id );
 
-                groupsById.TryGetValue( row.GroupId, out var group );
+                groupsById.TryGetValue( row.Id, out var group );
 
                 if ( !IsPersonMode )
                 {
-                    row.HasChatChannel = chatChannelGroupIds != null && chatChannelGroupIds.Contains( row.GroupId );
+                    row.HasChatChannel = chatChannelGroupIds != null && chatChannelGroupIds.Contains( row.Id );
                     row.CanDelete = !row.IsSystem
                         && group != null
                         && group.IsAuthorized( Authorization.EDIT, currentPerson );
@@ -651,7 +651,29 @@ namespace Rock.Blocks.Group
         protected override GridBuilder<GroupListRowBag> GetGridBuilder()
         {
             return new GridBuilder<GroupListRowBag>()
-                .WithBlock( this )
+                .WithBlock( this, new GridBuilderGridOptions<GroupListRowBag>
+                {
+                    LavaObject = r => new
+                    {
+                        r.Id,
+                        r.Name,
+                        r.Description,
+                        r.GroupTypeName,
+                        r.GroupTypeId,
+                        r.IsActive,
+                        r.IsArchived,
+                        r.IsSynced,
+                        r.IsSecurityRole,
+                        r.IsSystem,
+                        r.MemberCount,
+                        r.GroupRole,
+                        r.DateAdded,
+                        r.Path,
+                        r.ElevatedSecurityLevel,
+                        r.GroupMemberId,
+                        r.HasChatChannel
+                    }
+                } )
                 .AddTextField( "idKey", r => r.GroupIdKey )
                 .AddTextField( "groupMemberIdKey", r => r.GroupMemberIdKey )
                 .AddTextField( "name", r => r.Name )
