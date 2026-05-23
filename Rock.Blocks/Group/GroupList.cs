@@ -232,7 +232,29 @@ namespace Rock.Blocks.Group
 
         #region Properties
 
-        private bool IsPersonMode => RequestContext.GetContextEntity<Person>() != null;
+        /// <summary>
+        /// Cached result of the person-context lookup. Evaluated lazily on first access and
+        /// reused for the rest of the request — block instances are scoped per-request so
+        /// this cache lives exactly as long as it should.
+        /// </summary>
+        private bool? _isPersonMode;
+
+        /// <summary>
+        /// Gets a value indicating whether the block is in person mode (a Person context
+        /// entity is present so the grid lists groups the person is a member of).
+        /// </summary>
+        private bool IsPersonMode
+        {
+            get
+            {
+                if ( !_isPersonMode.HasValue )
+                {
+                    _isPersonMode = RequestContext.GetContextEntity<Person>() != null;
+                }
+
+                return _isPersonMode.Value;
+            }
+        }
 
         #endregion
 
@@ -596,22 +618,21 @@ namespace Rock.Blocks.Group
             // Refresh the working set of group IDs after auth filtering.
             groupIds = rows.Select( r => r.Id ).Distinct().ToList();
 
-            // Determine groups that have history records (different service depending on mode).
-            HashSet<int> groupsWithHistory;
+            HashSet<int> rowsWithHistory;
             if ( IsPersonMode )
             {
                 var groupMemberIds = rows.Where( r => r.GroupMemberId.HasValue ).Select( r => r.GroupMemberId.Value ).ToList();
-                groupsWithHistory = new HashSet<int>(
+                rowsWithHistory = new HashSet<int>(
                     new GroupMemberHistoricalService( rockContext )
                         .Queryable()
                         .Where( h => groupMemberIds.Contains( h.GroupMemberId ) )
-                        .Select( h => h.GroupId )
+                        .Select( h => h.GroupMemberId )
                         .Distinct()
                         .ToList() );
             }
             else
             {
-                groupsWithHistory = new HashSet<int>(
+                rowsWithHistory = new HashSet<int>(
                     new GroupHistoricalService( rockContext )
                         .Queryable()
                         .Where( h => groupIds.Contains( h.GroupId ) )
@@ -633,7 +654,6 @@ namespace Rock.Blocks.Group
 
             // Compute per-row CanDelete, NeedsArchive, path, and display name.
             var showGroupPath = GetAttributeValue( AttributeKey.DisplayGroupPath ).AsBoolean();
-            var groupService = showGroupPath ? new GroupService( rockContext ) : null;
 
             foreach ( var row in rows )
             {
@@ -643,12 +663,19 @@ namespace Rock.Blocks.Group
                     row.Name = "GROUP - " + row.Name;
                 }
 
-                if ( showGroupPath && groupService != null )
+                if ( showGroupPath )
                 {
-                    row.Path = groupService.GroupAncestorPathName( row.Id );
+                    // Walk the ancestor chain in-memory via GroupCache instead of running
+                    // a recursive SQL CTE per row (the WebForms block used
+                    // GroupService.GroupAncestorPathName which did one DB round-trip per
+                    // call — N+1 across the grid).
+                    row.Path = BuildGroupAncestorPath( row.Id );
                 }
 
-                row.NeedsArchive = row.EnableGroupHistory && groupsWithHistory.Contains( row.Id );
+                // Person mode keys the history set by GroupMemberId (per-membership snapshots);
+                // GroupList mode keys it by GroupId (per-group snapshots).
+                var historyKey = IsPersonMode ? ( row.GroupMemberId ?? 0 ) : row.Id;
+                row.NeedsArchive = row.EnableGroupHistory && rowsWithHistory.Contains( historyKey );
 
                 groupsById.TryGetValue( row.Id, out var group );
 
@@ -757,6 +784,44 @@ namespace Rock.Blocks.Group
             }
 
             return qry.Select( t => t.Id ).ToList();
+        }
+
+        /// <summary>
+        /// Builds the " > "-joined ancestor path for the specified group by walking
+        /// <see cref="GroupCache"/> in memory. Avoids the per-row SQL CTE that the WebForms
+        /// block ran via <c>GroupService.GroupAncestorPathName</c>, which was an N+1 query
+        /// across the grid whenever DisplayGroupPath was on. Mirrors the original SQL's
+        /// behavior of returning an empty string when any group in the chain is missing or
+        /// archived (those rows broke the WHERE ParentGroupId IS NULL clause of the CTE).
+        /// </summary>
+        /// <param name="groupId">The leaf group whose ancestor path to build.</param>
+        private static string BuildGroupAncestorPath( int groupId )
+        {
+            var segments = new Stack<string>();
+            var visited = new HashSet<int>();
+            int? currentId = groupId;
+
+            while ( currentId.HasValue )
+            {
+                // Cycle guard — pathological parent loops would otherwise spin forever.
+                if ( !visited.Add( currentId.Value ) )
+                {
+                    return string.Empty;
+                }
+
+                var cache = GroupCache.Get( currentId.Value );
+                if ( cache == null || cache.IsArchived )
+                {
+                    // Original SQL returned no rows when any link in the chain was archived
+                    // or missing; reproduce that by abandoning the partial path.
+                    return string.Empty;
+                }
+
+                segments.Push( cache.Name );
+                currentId = cache.ParentGroupId;
+            }
+
+            return string.Join( " > ", segments );
         }
 
         /// <summary>

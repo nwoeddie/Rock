@@ -129,11 +129,11 @@
         </Column>
 
         <SecurityColumn v-if="options.showSecurityColumn"
+                        itemTitle="name"
                         :formatComponent="options.isPersonMode ? GroupSecurityCell : undefined" />
 
-        <DeleteColumn :rowDisabled="isRowDeleteDisabled"
-                      disableConfirmation
-                      :formatComponent="options.isPersonMode ? SyncOrDeleteCell : DeleteOrArchiveCell"
+
+        <DeleteColumn :formatComponent="options.isPersonMode ? SyncOrDeleteCell : DeleteOrArchiveCell"
                       @click="onDeleteClick" />
     </Grid>
 
@@ -152,6 +152,7 @@
 
 <script setup lang="ts">
     import { useConfigurationValues, useInvokeBlockAction, usePersonPreferences } from "@Obsidian/Utility/block";
+    import { HttpResult } from "@Obsidian/Types/Utility/http";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import Grid, { BooleanColumn, Column, TextColumn, NumberColumn, textValueFilter, numberValueFilter, booleanValueFilter, pickExistingValueFilter, DeleteColumn, SecurityColumn } from "@Obsidian/Controls/grid";
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
@@ -160,13 +161,6 @@
     import { GroupListOptionsBag } from "@Obsidian/ViewModels/Blocks/Group/GroupList/groupListOptionsBag";
     import { GroupListAddGroupMemberRequestBag } from "@Obsidian/ViewModels/Blocks/Group/GroupList/groupListAddGroupMemberRequestBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-
-    /** Shape returned by the AddGroupMember block action. */
-    type AddGroupMemberResponse = {
-        status: string;
-        archivedMemberIdKey?: string;
-        message?: string;
-    };
     import { NavigationUrlKey, PreferenceKey, GridSettingsOptions } from "./GroupList/types.partial";
     import { computed, reactive, ref, watch } from "vue";
     import GridSettingsModal from "./GroupList/gridSettingsModal.partial.obs";
@@ -174,6 +168,13 @@
     import SyncOrDeleteCell from "./GroupList/syncOrDeleteCell.partial.obs";
     import DeleteOrArchiveCell from "./GroupList/deleteOrArchiveCell.partial.obs";
     import GroupSecurityCell from "./GroupList/groupSecurityCell.partial.obs";
+
+    /** Shape returned by the AddGroupMember block action. */
+    type AddGroupMemberResponse = {
+        status: string;
+        archivedMemberIdKey?: string;
+        message?: string;
+    };
 
     const config = useConfigurationValues<ListBlockBox<GroupListOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
@@ -252,10 +253,6 @@
         window.location.href = config.navigationUrls[NavigationUrlKey.DetailPage].replace("((Key))", groupIdKey);
     }
 
-    function isRowDeleteDisabled(row: Record<string, unknown>): boolean {
-        return row["canDelete"] === false;
-    }
-
     async function onDeleteClick(key: string): Promise<void> {
         const row = gridData?.rows?.find(r => r["idKey"] === key);
         if (!row) {
@@ -330,7 +327,7 @@
         block. The modal still awaits the response (including the "ArchiveFound" status
         path) so its restore-prompt UX stays self-contained.
     */
-    async function addGroupMember(bag: GroupListAddGroupMemberRequestBag): ReturnType<typeof invokeBlockAction<AddGroupMemberResponse>> {
+    async function addGroupMember(bag: GroupListAddGroupMemberRequestBag): Promise<HttpResult<AddGroupMemberResponse>> {
         return await invokeBlockAction<AddGroupMemberResponse>("AddGroupMember", { bag });
     }
 
