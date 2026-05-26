@@ -488,16 +488,45 @@ namespace RockWeb.Blocks.Groups
         }
 
         /// <summary>
+        /// Reads the GroupId page parameter, accepting either an integer Id or an IdKey.
+        /// IdKey support lets Obsidian blocks (e.g. the converted Group List) deep-link to
+        /// this WebForms detail page using the modern key format. Falls back to the legacy
+        /// integer Id when callers still pass it. This shim can be removed when this block
+        /// is itself converted to Obsidian.
+        /// </summary>
+        /// <param name="pageReference">Optional page reference (used by breadcrumb generation).</param>
+        private int? GetGroupIdFromPageParameter( PageReference pageReference = null )
+        {
+            var raw = pageReference != null
+                ? PageParameter( pageReference, PageParameterKey.GroupId )
+                : PageParameter( PageParameterKey.GroupId );
+
+            if ( string.IsNullOrWhiteSpace( raw ) )
+            {
+                return null;
+            }
+
+            var intId = raw.AsIntegerOrNull();
+            if ( intId.HasValue )
+            {
+                return intId;
+            }
+
+            if ( IdHasher.Instance.TryGetId( raw, out var idFromKey ) )
+            {
+                return idFromKey;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Raises the <see cref="E:System.Web.UI.Control.Load" /> event.
         /// </summary>
         /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnLoad( EventArgs e )
         {
-            int? groupId = 0;
-            if ( !string.IsNullOrWhiteSpace( PageParameter( PageParameterKey.GroupId ) ) )
-            {
-                groupId = PageParameter( PageParameterKey.GroupId ).AsIntegerOrNull();
-            }
+            int? groupId = GetGroupIdFromPageParameter();
 
             if ( !Page.IsPostBack )
             {
@@ -593,7 +622,7 @@ namespace RockWeb.Blocks.Groups
         {
             var breadCrumbs = new List<BreadCrumb>();
 
-            int? groupId = PageParameter( pageReference, PageParameterKey.GroupId ).AsIntegerOrNull();
+            int? groupId = GetGroupIdFromPageParameter( pageReference );
             if ( groupId != null )
             {
                 Group group = new GroupService( new RockContext() ).Get( groupId.Value );
@@ -1660,10 +1689,10 @@ namespace RockWeb.Blocks.Groups
             }
             else
             {
-                string groupId = PageParameter( PageParameterKey.GroupId );
-                if ( !string.IsNullOrWhiteSpace( groupId ) )
+                var groupId = GetGroupIdFromPageParameter();
+                if ( groupId.HasValue )
                 {
-                    ShowDetail( groupId.AsInteger(), PageParameter( PageParameterKey.ParentGroupId ).AsIntegerOrNull() );
+                    ShowDetail( groupId.Value, PageParameter( PageParameterKey.ParentGroupId ).AsIntegerOrNull() );
                 }
                 else
                 {
@@ -5041,7 +5070,7 @@ namespace RockWeb.Blocks.Groups
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void cbIsSecurityRole_CheckedChanged( object sender, EventArgs e )
         {
-            var groupId = PageParameter( PageParameterKey.GroupId ).AsIntegerOrNull();
+            var groupId = GetGroupIdFromPageParameter();
             if ( !groupId.HasValue )
             {
                 return;

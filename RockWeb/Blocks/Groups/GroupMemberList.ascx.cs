@@ -170,7 +170,16 @@ namespace RockWeb.Blocks.Groups
 
             if ( groupGuid == Guid.Empty )
             {
-                groupId = PageParameter( "GroupId" ).AsInteger();
+                var groupIdParam = PageParameter( "GroupId" );
+                groupId = groupIdParam.AsInteger();
+
+                if ( groupId == 0 )
+                {
+                    if ( IdHasher.Instance.TryGetId( groupIdParam, out var idFromKey ) )
+                    {
+                        groupId = idFromKey;
+                    }
+                }
 
                 /*
                  * 1/15/2020 - JPH
