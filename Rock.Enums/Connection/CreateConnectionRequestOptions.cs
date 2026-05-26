@@ -15,13 +15,15 @@
 // </copyright>
 //
 
+using Rock.Enums;
+
 namespace Rock.Utility
 {
     /// <summary>
     /// Controls whether campaign connection requests are created all at once
     /// or only as needed to meet the daily connection limit.
     /// </summary>
-    [Enums.EnumDomain( "Connection" )]
+    [EnumDomain( "Connection" )]
     public enum CreateConnectionRequestOptions
     {
         /// <summary>

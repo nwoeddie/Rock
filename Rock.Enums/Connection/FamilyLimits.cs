@@ -15,13 +15,15 @@
 // </copyright>
 //
 
+using Rock.Enums;
+
 namespace Rock.Utility
 {
     /// <summary>
     /// Determines whether a Campaign Connection creates requests for every
     /// person in the data view or limits them to the head of household.
     /// </summary>
-    [Enums.EnumDomain( "Connection" )]
+    [EnumDomain( "Connection" )]
     public enum FamilyLimits
     {
         /// <summary>
