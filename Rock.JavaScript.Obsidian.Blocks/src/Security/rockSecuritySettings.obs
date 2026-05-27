@@ -1,6 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <NotificationBox v-if="blockError" alertType="warning">{{ blockError }}</NotificationBox>
+    <NotificationBox v-if="serverError" alertType="danger">{{ serverError }}</NotificationBox>
 
     <Panel v-else type="block" title="Security Settings">
         <RockForm ref="rockForm" @submit="onSave">
@@ -56,6 +57,9 @@
                             </div>
 
                             <hr />
+                            <NotificationBox v-if="showDuplicateDetectionWarning" alertType="danger">
+                                We highly recommend that you prevent duplicate detection for individuals with an Account Protection Profile of High and Extreme
+                            </NotificationBox>
                             <div class="row mt-3">
                                 <div class="col-md-6 col-sm-12 col-xs-12">
                                     <CheckBoxList v-model="ignoredProfiles"
@@ -121,12 +125,6 @@
                         </template>
                     </ContentStack>
                 </ContentSection>
-
-                <NotificationBox v-if="showDuplicateDetectionWarning" alertType="danger">
-                    We highly recommend that you prevent duplicate detection for individuals with an Account Protection Profile of High and Extreme
-                </NotificationBox>
-
-                <NotificationBox v-if="serverError" alertType="danger">{{ serverError }}</NotificationBox>
 
                 <ContentSection title="Authentication Settings"
                                 :isCollapsed="true"
@@ -421,21 +419,10 @@
         }
     });
 
-    /*
-        Duplicate-detection warning: matches the WebForms scope exactly. The original
-        showHideWarningBox() JS scans the union of three CBLs that carry the
-        "js-ignored-protection-profile" class (Ignored + DisableTokens + RequireTwoFactor)
-        and hides the warning only when both High and Extreme appear somewhere in that union.
-        DisablePasswordless is intentionally excluded; its CBL does not carry the marker class.
-    */
     const showDuplicateDetectionWarning = computed((): boolean => {
-        const selected = new Set<AccountProtectionProfile>([
-            ...(bag.value.accountProtectionProfilesForDuplicateDetectionToIgnore ?? []),
-            ...(bag.value.disableTokensForAccountProtectionProfiles ?? []),
-            ...(bag.value.requireTwoFactorAuthenticationForAccountProtectionProfiles ?? [])
-        ]);
+        const selected = (bag.value.accountProtectionProfilesForDuplicateDetectionToIgnore ?? []);
 
-        return !selected.has(AccountProtectionProfile.High) || !selected.has(AccountProtectionProfile.Extreme);
+        return !selected.includes(AccountProtectionProfile.High) || !selected.includes(AccountProtectionProfile.Extreme);
     });
 
     // #endregion Computed Values
