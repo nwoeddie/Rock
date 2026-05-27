@@ -190,18 +190,16 @@ namespace Rock.Blocks.Security
         /// Persists the provided Rock security settings.
         /// </summary>
         /// <param name="bag">The bag containing the new security settings values.</param>
-        /// <returns>A <see cref="RockSecuritySettingsSaveResultBag"/> describing the outcome.</returns>
+        /// <returns>
+        /// <see cref="BlockActionResult"/> with the success message on success, or a
+        /// <c>BadRequest</c> result whose body is the user-facing error message on failure.
+        /// </returns>
         [BlockAction]
         public BlockActionResult Save( RockSecuritySettingsBag bag )
         {
             if ( bag == null )
             {
-                return ActionOk( new RockSecuritySettingsSaveResultBag
-                {
-                    IsSuccess = false,
-                    Message = "No security settings were provided.",
-                    ValidationErrors = new List<string>()
-                } );
+                return ActionBadRequest( "No security settings were provided." );
             }
 
             var highRole = bag.HighRoleId.HasValue ? RoleCache.Get( bag.HighRoleId.Value ) : null;
@@ -209,12 +207,7 @@ namespace Rock.Blocks.Security
 
             if ( highRole == null || extremeRole == null )
             {
-                return ActionOk( new RockSecuritySettingsSaveResultBag
-                {
-                    IsSuccess = false,
-                    Message = "A security role must be selected for both the High and Extreme Account Protection Profiles.",
-                    ValidationErrors = new List<string>()
-                } );
+                return ActionBadRequest( "A security role must be selected for both the High and Extreme Account Protection Profiles." );
             }
 
             var requireTwoFactor = bag.RequireTwoFactorAuthenticationForAccountProtectionProfiles ?? new List<AccountProtectionProfile>();
@@ -230,12 +223,7 @@ namespace Rock.Blocks.Security
                     ? $"{lockedOutProtectionProfiles[0]} account Protection Profile has"
                     : $"{lockedOutProtectionProfiles.Humanize()} account Protection Profiles have";
 
-                return ActionOk( new RockSecuritySettingsSaveResultBag
-                {
-                    IsSuccess = false,
-                    Message = $"{messagePrefix} passwordless sign-in disabled while requiring two-factor authentication. If two-factor authentication (2FA) is enabled without Passwordless login, someone could get locked out.",
-                    ValidationErrors = new List<string>()
-                } );
+                return ActionBadRequest( $"{messagePrefix} passwordless sign-in disabled while requiring two-factor authentication. If two-factor authentication (2FA) is enabled without Passwordless login, someone could get locked out." );
             }
 
             var service = new SecuritySettingsService();
@@ -273,23 +261,19 @@ namespace Rock.Blocks.Security
 
             if ( service.Save() )
             {
-                return ActionOk( new RockSecuritySettingsSaveResultBag
-                {
-                    IsSuccess = true,
-                    Message = "Your Security Settings have been saved.",
-                    ValidationErrors = new List<string>()
-                } );
+                return ActionOk( "Your Security Settings have been saved." );
             }
 
-            return ActionOk( new RockSecuritySettingsSaveResultBag
-            {
-                IsSuccess = false,
-                Message = "The following errors occurred while trying to save:",
-                ValidationErrors = service.ValidationResults
-                    .Select( r => r.ErrorMessage )
-                    .Where( m => !string.IsNullOrWhiteSpace( m ) )
-                    .ToList()
-            } );
+            var validationErrors = service.ValidationResults
+                .Select( r => r.ErrorMessage )
+                .Where( m => !string.IsNullOrWhiteSpace( m ) )
+                .ToList();
+
+            var errorMessage = validationErrors.Count > 0
+                ? "The following errors occurred while trying to save:\n- " + string.Join( "\n- ", validationErrors )
+                : "An error occurred while trying to save the security settings.";
+
+            return ActionBadRequest( errorMessage );
         }
 
         #endregion Block Actions

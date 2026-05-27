@@ -1,7 +1,7 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <NotificationBox v-if="blockError" alertType="warning">{{ blockError }}</NotificationBox>
-    <NotificationBox v-if="serverError" alertType="danger">{{ serverError }}</NotificationBox>
+    <NotificationBox v-if="serverError" alertType="danger" style="white-space: pre-line">{{ serverError }}</NotificationBox>
 
     <Panel v-else type="block" title="Security Settings">
         <RockForm ref="rockForm" @submit="onSave">
@@ -415,7 +415,7 @@
             return bag.value.messageForDisabledPasswordlessSignIn ?? "";
         },
         set(val: string) {
-            bag.value.messageForDisabledPasswordlessSignIn = val ? val : null;
+            bag.value.messageForDisabledPasswordlessSignIn = val;
         }
     });
 
@@ -440,7 +440,7 @@
         serverError.value = "";
 
         try {
-            const result = await invokeBlockAction("Save", { bag: bag.value });
+            const result = await invokeBlockAction<string>("Save", { bag: bag.value });
 
             if (!result.isSuccess) {
                 serverError.value = result.errorMessage ?? "An error occurred while saving the security settings.";
