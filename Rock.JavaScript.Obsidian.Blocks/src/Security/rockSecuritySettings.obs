@@ -2,51 +2,61 @@
 <template>
     <NotificationBox v-if="blockError" alertType="warning">{{ blockError }}</NotificationBox>
 
-    <Panel v-else type="block" title="Security Settings" titleIconCssClass="ti ti-shield-half">
-        <h3 class="mt-0">Rock Security Settings</h3>
-        <p>
-            The settings below allow you to adjust how security in Rock is configured in your instance. Be sure that you fully understand each setting to ensure proper configuration.
-        </p>
-        <hr />
-        <label class="control-label m-0">Account Protection Profile Levels</label>
-        <div class="mb-3">Below is a listing of the criteria for the account protection profile levels.</div>
+    <Panel v-else type="block" title="Security Settings">
+        <ContentSection
+                        title="Rock Security Settings"
+                        icon="ti ti-shield-cog"
+                        :disableCollapse="true">
+            <template #description>
+                <span class="text-sm">The settings below allow you to adjust how security in Rock is configured in your instance. Be sure that you fully understand each setting to ensure proper configuration.</span>
+            </template>
 
-        <div class="row d-flex flex-wrap">
-            <div class="col-xs-6 col-md-3">
-                <div class="well-message well-message-info text-left h-100 border border-info p-3">
-                    <h4 class="mt-0">Low</h4>
-                    <ul>
-                        <li>No risk items</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="col-xs-6 col-md-3">
-                <div class="well-message well-message-warning text-left h-100 border border-warning p-3">
-                    <h4 class="mt-0">Medium</h4>
-                    <ul>
-                        <li>Has login account</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="col-xs-6 col-md-3">
-                <div class="well-message well-message-critical text-left h-100 border border-critical p-3">
-                    <h4 class="mt-0">High</h4>
-                    <ul>
-                        <li>Active Scheduled Financial Transaction</li>
-                        <li>Saved Payment Account</li>
-                        <li>In a Security Role Marked w/ High Elevated Security</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="col-xs-6 col-md-3">
-                <div class="well-message well-message-danger text-left h-100 border border-danger p-3">
-                    <h4 class="mt-0">Extreme</h4>
-                    <ul>
-                        <li>In a Security Role Marked w/ Extreme Elevated Security</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+            <ContentStack
+                          title="Account Protection Profile Levels"
+                          description="Below is a listing of the criteria for the account protection profile levels."
+                          headerLocation="top">
+
+                <template #default>
+                    <div class="row d-flex flex-wrap">
+                        <div class="col-xs-6 col-md-3 mb-3 mb-md-0">
+                            <div class="profile-card profile-card--low h-100">
+                                <h5>Low</h5>
+                                <ul>
+                                    <li>No risk items</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-xs-6 col-md-3 mb-3 mb-md-0">
+                            <div class="profile-card profile-card--medium h-100">
+                                <h5>Medium</h5>
+                                <ul>
+                                    <li>Has login account</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-xs-6 col-md-3 mb-3 mb-md-0">
+                            <div class="profile-card profile-card--high h-100">
+                                <h5>High</h5>
+                                <ul>
+                                    <li>Active Scheduled Financial Transaction</li>
+                                    <li>Saved Payment Account</li>
+                                    <li>In a Security Role Marked w/ High Elevated Security</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-xs-6 col-md-3 mb-3 mb-md-0">
+                            <div class="profile-card profile-card--extreme h-100">
+                                <h5>Extreme</h5>
+                                <ul>
+                                    <li>In a Security Role Marked w/ Extreme Elevated Security</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </ContentStack>
+        </ContentSection>
+
         <hr />
 
         <NotificationBox v-if="showDuplicateDetectionWarning" alertType="danger">
@@ -128,7 +138,7 @@
                     <div class="col-md-6">
                         <NumberBox v-model="bag.passwordlessSignInDailyIpThrottle"
                                    label="Passwordless Sign-In Daily IP Throttle"
-                                   help="The maximum number of passwordless attempts that are allowed from a single IP address in a single day."
+                                   help="The maximum number of passwordless attempts that are allowed from a single IP address in a single day. *Default: 1000*"
                                    inputGroupClasses="input-width-sm"
                                    rules="required|gte:1" />
                     </div>
@@ -191,6 +201,57 @@
     </Panel>
 </template>
 
+<style scoped>
+.profile-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
+    padding: 1rem 1rem 1rem 1.25rem;
+}
+
+.profile-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 4px;
+}
+
+.profile-card--low {
+    background-color: var(--color-info-soft);
+}
+
+.profile-card--low::before {
+    background-color: var(--color-info-strong);
+    ;
+}
+
+.profile-card--medium {
+    background-color: var(--color-warning-soft);
+}
+
+.profile-card--medium::before {
+    background-color: var(--color-warning-strong);
+}
+
+.profile-card--extreme {
+    background-color: var(--color-danger-soft);
+}
+
+.profile-card--extreme::before {
+    background-color: var(--color-danger-strong);
+}
+
+.profile-card--high {
+    background-color: var(--color-critical-soft);
+}
+
+.profile-card--high::before {
+    background-color: var(--color-critical-strong);
+}
+</style>
+
 <script setup lang="ts">
     import { computed, ref } from "vue";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
@@ -210,6 +271,8 @@
     import { RockSecuritySettingsBag } from "@Obsidian/ViewModels/Blocks/Security/RockSecuritySettings/rockSecuritySettingsBag";
     import { RockSecuritySettingsOptionsBag } from "@Obsidian/ViewModels/Blocks/Security/RockSecuritySettings/rockSecuritySettingsOptionsBag";
     import { RockSecuritySettingsSaveResultBag } from "@Obsidian/ViewModels/Blocks/Security/RockSecuritySettings/rockSecuritySettingsSaveResultBag";
+    import ContentSection from "@Obsidian/Controls/contentSection.obs";
+    import ContentStack from "@Obsidian/Controls/contentStack.obs";
 
     const config = useConfigurationValues<CustomBlockBox<RockSecuritySettingsBag, RockSecuritySettingsOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
