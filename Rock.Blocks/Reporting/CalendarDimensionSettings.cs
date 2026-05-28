@@ -19,6 +19,8 @@ using System;
 using System.ComponentModel;
 
 using Rock.Attribute;
+using Rock.Model;
+using Rock.SystemKey;
 using Rock.ViewModels.Blocks.Reporting.CalendarDimensionSettings;
 
 namespace Rock.Blocks.Reporting
@@ -40,15 +42,54 @@ namespace Rock.Blocks.Reporting
         {
             var bag = new CalendarDimensionSettingsBag
             {
-                StartDate = Rock.Web.SystemSettings.GetValue( Rock.SystemKey.SystemSetting.ANALYTICS_CALENDAR_DIMENSION_START_DATE ).AsDateTime()
+                StartDate = Rock.Web.SystemSettings.GetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_START_DATE ).AsDateTime()
                     ?? new DateTime( RockDateTime.Today.AddYears( -150 ).Year, 1, 1 ),
-                EndDate = Rock.Web.SystemSettings.GetValue( Rock.SystemKey.SystemSetting.ANALYTICS_CALENDAR_DIMENSION_END_DATE ).AsDateTime()
+                EndDate = Rock.Web.SystemSettings.GetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_END_DATE ).AsDateTime()
                     ?? new DateTime( RockDateTime.Today.AddYears( 101 ).Year, 1, 1 ).AddDays( -1 ),
-                FiscalStartMonth = Rock.Web.SystemSettings.GetValue( Rock.SystemKey.SystemSetting.ANALYTICS_CALENDAR_DIMENSION_FISCAL_START_MONTH ).AsIntegerOrNull() ?? 1,
-                IsGivingMonthUseSundayDate = Rock.Web.SystemSettings.GetValue( Rock.SystemKey.SystemSetting.ANALYTICS_CALENDAR_DIMENSION_GIVING_MONTH_USE_SUNDAY_DATE ).AsBoolean()
+                FiscalStartMonth = Rock.Web.SystemSettings.GetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_FISCAL_START_MONTH ).AsIntegerOrNull() ?? 1,
+                IsGivingMonthUseSundayDate = Rock.Web.SystemSettings.GetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_GIVING_MONTH_USE_SUNDAY_DATE ).AsBoolean()
             };
 
             return bag;
+        }
+
+        #endregion
+
+        #region Block Actions
+
+        /// <summary>
+        /// Validates, saves, and regenerates the AnalyticsSourceDate table using the provided settings.
+        /// </summary>
+        /// <param name="bag">The settings to apply.</param>
+        /// <returns>The saved settings bag, or a bad request result if validation fails.</returns>
+        [BlockAction]
+        public BlockActionResult GenerateDimension( CalendarDimensionSettingsBag bag )
+        {
+            var maximumStartDate = RockDateTime.Now.AddYears( -120 ).Date;
+
+            if ( bag.StartDate > maximumStartDate )
+            {
+                return ActionBadRequest( $"Start Date must be at least 120 years before today ({maximumStartDate:d} or earlier)." );
+            }
+
+            if ( bag.EndDate <= bag.StartDate )
+            {
+                return ActionBadRequest( "End Date must be after Start Date." );
+            }
+
+            if ( bag.FiscalStartMonth < 1 || bag.FiscalStartMonth > 12 )
+            {
+                return ActionBadRequest( "Fiscal Start Month must be a valid Month." );
+            }
+
+            Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_START_DATE, bag.StartDate.ToString( "o" ) );
+            Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_END_DATE, bag.EndDate.ToString( "o" ) );
+            Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_FISCAL_START_MONTH, bag.FiscalStartMonth.ToString() );
+            Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_GIVING_MONTH_USE_SUNDAY_DATE, bag.IsGivingMonthUseSundayDate.ToString() );
+
+            AnalyticsSourceDate.GenerateAnalyticsSourceDateData( bag.FiscalStartMonth, bag.IsGivingMonthUseSundayDate, bag.StartDate, bag.EndDate );
+
+            return ActionOk( bag );
         }
 
         #endregion

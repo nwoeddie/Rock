@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -29,12 +29,12 @@ namespace Rock.ViewModels.Blocks.Reporting.CalendarDimensionSettings
         /// <summary>
         /// Gets or sets the start date for the analytics source date range.
         /// </summary>
-        public DateTime? StartDate { get; set; }
+        public DateTime StartDate { get; set; }
 
         /// <summary>
         /// Gets or sets the end date for the analytics source date range.
         /// </summary>
-        public DateTime? EndDate { get; set; }
+        public DateTime EndDate { get; set; }
 
         /// <summary>
         /// Gets or sets the month number (1-12) on which the fiscal year begins.

@@ -23,6 +23,7 @@
 
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
+/** Contains the settings that can be edited for the Calendar Dimension Settings block. */
 export type CalendarDimensionSettingsBag = {
     /** Gets or sets the attributes. */
     attributes?: Record<string, PublicAttributeBag> | null;
@@ -30,14 +31,21 @@ export type CalendarDimensionSettingsBag = {
     /** Gets or sets the attribute values. */
     attributeValues?: Record<string, string> | null;
 
+    /** Gets or sets the end date for the analytics source date range. */
     endDate?: string | null;
 
+    /** Gets or sets the month number (1-12) on which the fiscal year begins. */
     fiscalStartMonth: number;
 
     /** Gets or sets the identifier key of this entity. */
     idKey?: string | null;
 
+    /**
+     * Gets or sets a value indicating whether the giving month should use
+     * the Sunday date rather than the calendar date.
+     */
     isGivingMonthUseSundayDate: boolean;
 
+    /** Gets or sets the start date for the analytics source date range. */
     startDate?: string | null;
 };
