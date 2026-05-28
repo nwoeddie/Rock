@@ -108,26 +108,41 @@
 
     // #region Watchers
 
-    watch(startDate, (value) => {
-        if (!value) {
-            errorMessage.value = "";
+    watch([startDate, endDate], ([newStart, newEnd]) => {
+        errorMessage.value = "";
+
+        if (!newStart) {
             return;
         }
 
-        const selected = RockDateTime.parseISO(value);
+        const start = RockDateTime.parseISO(newStart);
         const maximumStartDate = RockDateTime.now().addYears(-120);
 
-        if (selected === null) {
+        if (start === null) {
             errorMessage.value = "Start Date is not a valid date.";
             return;
         }
 
-        if (selected > maximumStartDate) {
+        if (start > maximumStartDate) {
             errorMessage.value = `Start Date must be earlier than ${maximumStartDate.month}/${maximumStartDate.day}/${maximumStartDate.year}.`;
             return;
         }
 
-        errorMessage.value = "";
+        if (!newEnd) {
+            return;
+        }
+
+        const end = RockDateTime.parseISO(newEnd);
+
+        if (end === null) {
+            errorMessage.value = "End Date is not a valid date.";
+            return;
+        }
+
+        if (end <= start) {
+            errorMessage.value = "End Date must be after Start Date.";
+            return;
+        }
     });
 
     // #endregion
@@ -147,14 +162,22 @@
         };
 
         isGenerating.value = true;
-        const result = await invokeBlockAction("GenerateDimension", { bag });
 
-        if (!result.isSuccess) {
-            errorMessage.value = result.errorMessage ?? "An unknown error occurred while generating the dimension.";
+        try {
+            const result = await invokeBlockAction("GenerateDimension", { bag });
+
+            if (!result.isSuccess) {
+                errorMessage.value = result.errorMessage ?? "An unknown error occurred while generating the dimension.";
+                return;
+            }
+        }
+        catch {
+            errorMessage.value = "An unexpected error occurred. Please try again.";
             return;
         }
-
-        isGenerating.value = false;
+        finally {
+            isGenerating.value = false;
+        }
 
         saveSuccess.value = true;
         setTimeout(() => {
