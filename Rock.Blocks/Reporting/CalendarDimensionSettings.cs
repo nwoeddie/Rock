@@ -65,14 +65,19 @@ namespace Rock.Blocks.Reporting
         [BlockAction]
         public BlockActionResult GenerateDimension( CalendarDimensionSettingsBag bag )
         {
+            if ( bag.StartDate == null || bag.EndDate == null )
+            {
+                return ActionBadRequest( "Start Date and End Date are required." );
+            }
+
             var maximumStartDate = RockDateTime.Now.AddYears( -120 ).Date;
 
-            if ( bag.StartDate > maximumStartDate )
+            if ( bag.StartDate.Value > maximumStartDate )
             {
                 return ActionBadRequest( $"Start Date must be at least 120 years before today ({maximumStartDate:d} or earlier)." );
             }
 
-            if ( bag.EndDate <= bag.StartDate )
+            if ( bag.EndDate.Value <= bag.StartDate.Value )
             {
                 return ActionBadRequest( "End Date must be after Start Date." );
             }
@@ -82,12 +87,12 @@ namespace Rock.Blocks.Reporting
                 return ActionBadRequest( "Fiscal Start Month must be a valid Month." );
             }
 
-            Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_START_DATE, bag.StartDate.ToString( "o" ) );
-            Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_END_DATE, bag.EndDate.ToString( "o" ) );
+            Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_START_DATE, bag.StartDate.Value.ToString( "o" ) );
+            Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_END_DATE, bag.EndDate.Value.ToString( "o" ) );
             Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_FISCAL_START_MONTH, bag.FiscalStartMonth.ToString() );
             Rock.Web.SystemSettings.SetValue( SystemSetting.ANALYTICS_CALENDAR_DIMENSION_GIVING_MONTH_USE_SUNDAY_DATE, bag.IsGivingMonthUseSundayDate.ToString() );
 
-            AnalyticsSourceDate.GenerateAnalyticsSourceDateData( bag.FiscalStartMonth, bag.IsGivingMonthUseSundayDate, bag.StartDate, bag.EndDate );
+            AnalyticsSourceDate.GenerateAnalyticsSourceDateData( bag.FiscalStartMonth, bag.IsGivingMonthUseSundayDate, bag.StartDate.Value, bag.EndDate.Value );
 
             return ActionOk( bag );
         }

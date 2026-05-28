@@ -1,48 +1,50 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <Panel title="Calendar Dimension Settings">
-        <template #default>
-            <NotificationBox :alertType="AlertType.Info">This will populate the AnalyticsSourceData table (and associated Views). It will first empty the AnalyticsSourceDate table if there is already data in it.</NotificationBox>
-            <NotificationBox v-if="errorMessage" :alertType="AlertType.Danger">{{ errorMessage }}</NotificationBox>
-            <div class="row">
-                <div class="col-md-6">
-                    <DatePicker v-model="config.startDate"
-                                label="Start Date"
-                                rules="required" />
-                </div>
-
-                <div class="col-md-6">
-                    <DatePicker v-model="config.endDate"
-                                label="End Date"
-                                rules="required" />
-                </div>
-            </div>
-
-            <DropDownList v-model="fiscalStartMonth"
-                          :items="monthItems"
-                          inputClasses="input-width-md"
-                          label="Fiscal Start Month"
-                          rules="required"
-                          :showBlankItem="false" />
-
-
-            <CheckBox v-model="config.isGivingMonthUseSundayDate" label="Use Sunday Date for Giving Month" help="This and Fiscal Start Month are used to determine the GivingMonth of a particular date. If 'Use Sunday Date for Giving Month' is enabled, it will be whatever the SundayDate of the Date is, but not if it crosses the Fiscal Year. For example, if their Fiscal year starts on April 1st, it won't use the SundayDate for any of the last days of March if it ends up being in April." />
-        </template>
-        <template #footerActions>
-            <div class="d-flex gap-3">
-                <RockButton type="button" class="btn btn-primary" :disabled="isGenerating" @click="onSave">
-                    <i v-if="isGenerating" class="ti ti-rotate-clockwise-2 ti-spin"></i>
-                    {{ isGenerating ? "Generating..." : "Generate Dimension" }}
-                </RockButton>
-                <Transition name="fade">
-                    <div v-if="saveSuccess" class="d-flex gap-1 align-items-center text-success">
-                        <span>Dimension Generated</span>
-                        <i class="ti ti-circle-check"></i>
+    <RockForm @submit="onSave">
+        <Panel title="Calendar Dimension Settings">
+            <template #default>
+                <NotificationBox :alertType="AlertType.Info">This will populate the AnalyticsSourceDate table (and associated Views). It will first empty the AnalyticsSourceDate table if there is already data in it.</NotificationBox>
+                <NotificationBox v-if="errorMessage" :alertType="AlertType.Danger">{{ errorMessage }}</NotificationBox>
+                <div class="row">
+                    <div class="col-md-6">
+                        <DatePicker v-model="startDate"
+                                    label="Start Date"
+                                    rules="required" />
                     </div>
-                </Transition>
-            </div>
-        </template>
-    </Panel>
+
+                    <div class="col-md-6">
+                        <DatePicker v-model="endDate"
+                                    label="End Date"
+                                    rules="required" />
+                    </div>
+                </div>
+
+                <DropDownList v-model="fiscalStartMonth"
+                              :items="monthItems"
+                              inputClasses="input-width-md"
+                              label="Fiscal Start Month"
+                              rules="required"
+                              :showBlankItem="false" />
+
+
+                <CheckBox v-model="isGivingMonthUseSundayDate" label="Use Sunday Date for Giving Month" help="This and Fiscal Start Month are used to determine the GivingMonth of a particular date. If 'Use Sunday Date for Giving Month' is enabled, it will be whatever the SundayDate of the Date is, but not if it crosses the Fiscal Year. For example, if their Fiscal year starts on April 1st, it won't use the SundayDate for any of the last days of March if it ends up being in April." />
+            </template>
+            <template #footerActions>
+                <div class="d-flex gap-3">
+                    <RockButton type="submit" class="btn btn-primary" :disabled="isGenerating">
+                        <i v-if="isGenerating" class="ti ti-rotate-clockwise-2 ti-spin"></i>
+                        {{ isGenerating ? "Generating..." : "Generate Dimension" }}
+                    </RockButton>
+                    <Transition name="fade">
+                        <div v-if="saveSuccess" class="d-flex gap-1 align-items-center text-success">
+                            <span>Dimension Generated</span>
+                            <i class="ti ti-circle-check"></i>
+                        </div>
+                    </Transition>
+                </div>
+            </template>
+        </Panel>
+    </RockForm>
 </template>
 
 <style scoped>
@@ -70,6 +72,7 @@
     import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
     import Panel from "@Obsidian/Controls/panel.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
 
     const config = useConfigurationValues<CalendarDimensionSettingsBag>();
 
@@ -81,7 +84,10 @@
 
     const errorMessage = ref("");
     const isGenerating = ref(false);
+    const startDate = ref(config.startDate ?? "");
+    const endDate = ref(config.endDate ?? "");
     const fiscalStartMonth = ref(config.fiscalStartMonth?.toString() ?? "1");
+    const isGivingMonthUseSundayDate = ref(config.isGivingMonthUseSundayDate ?? false);
     const saveSuccess = ref(false);
 
     const monthItems = [
@@ -102,7 +108,7 @@
 
     // #region Watchers
 
-    watch(() => config.startDate, (value) => {
+    watch(startDate, (value) => {
         if (!value) {
             errorMessage.value = "";
             return;
@@ -134,23 +140,21 @@
         }
 
         const bag: CalendarDimensionSettingsBag = {
-            ...config,
-            fiscalStartMonth: parseInt(fiscalStartMonth.value)
+            startDate: startDate.value,
+            endDate: endDate.value,
+            fiscalStartMonth: parseInt(fiscalStartMonth.value),
+            isGivingMonthUseSundayDate: isGivingMonthUseSundayDate.value
         };
 
         isGenerating.value = true;
+        const result = await invokeBlockAction("GenerateDimension", { bag });
 
-        try {
-            const result = await invokeBlockAction("GenerateDimension", { bag });
+        if (!result.isSuccess) {
+            errorMessage.value = result.errorMessage ?? "An unknown error occurred while generating the dimension.";
+            return;
+        }
 
-            if (!result.isSuccess) {
-                errorMessage.value = result.errorMessage ?? "An unknown error occurred while generating the dimension.";
-                return;
-            }
-        }
-        finally {
-            isGenerating.value = false;
-        }
+        isGenerating.value = false;
 
         saveSuccess.value = true;
         setTimeout(() => {
