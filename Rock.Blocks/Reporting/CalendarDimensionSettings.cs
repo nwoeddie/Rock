@@ -32,7 +32,8 @@ namespace Rock.Blocks.Reporting
     [SupportedSiteTypes( Model.SiteType.Web )]
 
     [SystemGuid.EntityTypeGuid( "df6324dc-1e42-4556-b337-d4e416868a01" )]
-    [Rock.SystemGuid.BlockTypeGuid( "a4c6b9df-5034-40f6-958a-342921142ffb" )]
+    //WAS [Rock.SystemGuid.BlockTypeGuid( "a4c6b9df-5034-40f6-958a-342921142ffb" )]
+    [Rock.SystemGuid.BlockTypeGuid( "7711EAE9-5CF0-46E4-A4E6-26C05A71FE43" )]
     internal class CalendarDimensionSettings : RockBlockType
     {
         #region Methods
