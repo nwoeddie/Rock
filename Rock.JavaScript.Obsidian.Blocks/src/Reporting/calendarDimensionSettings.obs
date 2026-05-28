@@ -1,0 +1,56 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <DetailBlock v-model:mode="panelMode"
+                 name="Calendar Dimension Settings"
+                 :isAuditHidden="true"
+                 @cancelEdit="onCancelEdit"
+                 @save="onSave">
+        <template #edit>
+            <!-- form fields go here -->
+        </template>
+    </DetailBlock>
+</template>
+
+<script setup lang="ts">
+    import DetailBlock from "@Obsidian/Templates/detailBlock";
+    import { DetailPanelMode } from "@Obsidian/Enums/Controls/detailPanelMode";
+    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
+    import { ref } from "vue";
+    import { CalendarDimensionSettingsBag } from "@Obsidian/ViewModels/Blocks/Reporting/CalendarDimensionSettings/calendarDimensionSettingsBag";
+
+    const config = useConfigurationValues<CalendarDimensionSettingsBag>();
+
+    console.log("config", config);
+    const invokeBlockAction = useInvokeBlockAction();
+
+    onConfigurationValuesChanged(useReloadBlock());
+
+    // #region Values
+
+    const panelMode = ref<DetailPanelMode>(DetailPanelMode.Edit);
+
+    // #endregion
+
+    // #region Event Handlers
+
+    async function onCancelEdit(): Promise<boolean | string> {
+        return false;
+    }
+
+    async function onSave(): Promise<boolean | string> {
+        const bag: CalendarDimensionSettingsBag = {
+            fiscalStartMonth: 0,
+            isGivingMonthUseSundayDate: false
+        };
+
+        const result = await invokeBlockAction("Save", { bag });
+
+        if (result.isSuccess) {
+            return false;
+        }
+
+        return false;
+    }
+
+    // #endregion
+</script>
