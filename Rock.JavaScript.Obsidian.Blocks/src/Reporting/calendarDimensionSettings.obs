@@ -37,7 +37,7 @@
                     </RockButton>
                     <Transition name="fade">
                         <div v-if="saveSuccess" class="d-flex gap-1 align-items-center text-success">
-                            <span>Dimension Generated</span>
+                            <span>AnalyticsSourceDate Records Generated</span>
                             <i class="ti ti-circle-check"></i>
                         </div>
                     </Transition>

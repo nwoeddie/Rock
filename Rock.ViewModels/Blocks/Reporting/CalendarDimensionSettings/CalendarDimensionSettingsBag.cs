@@ -24,7 +24,7 @@ namespace Rock.ViewModels.Blocks.Reporting.CalendarDimensionSettings
     /// <summary>
     /// Contains the settings that can be edited for the Calendar Dimension Settings block.
     /// </summary>
-    public class CalendarDimensionSettingsBag : EntityBagBase
+    public class CalendarDimensionSettingsBag
     {
         /// <summary>
         /// Gets or sets the start date for the analytics source date range.
