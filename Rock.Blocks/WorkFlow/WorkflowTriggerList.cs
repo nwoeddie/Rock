@@ -46,7 +46,8 @@ namespace Rock.Blocks.Workflow
         Key = AttributeKey.DetailPage )]
 
     [Rock.SystemGuid.EntityTypeGuid( "dcca7838-dd89-4c66-8554-531cf9b171eb" )]
-    [Rock.SystemGuid.BlockTypeGuid( "b6ad6421-dfa6-41ac-a097-6738f92cdc1d" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "b6ad6421-dfa6-41ac-a097-6738f92cdc1d" )]
+    [Rock.SystemGuid.BlockTypeGuid( "72F48121-2CE2-4696-840C-CF404EAF7EEE" )]
     [CustomizedGrid]
     public class WorkflowTriggerList : RockEntityListBlockType<WorkflowTrigger>
     {
