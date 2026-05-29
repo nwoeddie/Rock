@@ -13,7 +13,7 @@
           :onAddItem="config.isAddEnabled ? onAddItem : undefined"
           @selectItem="onSelectItem">
 
-        <TextColumn name=" entityType"
+        <TextColumn name="entityType"
                     title="Entity"
                     field="entityType"
                     :filter="textValueFilter"
@@ -33,7 +33,6 @@
 
         <Column name="qualifierValue"
                 title="Qualifier Value"
-                :filter="textValueFilter"
                 visiblePriority="xs">
             <template #format="{ row }">
                 <span v-if="row.qualifierValuePrevious">{{ row.qualifierValuePrevious }} <i class="ti ti-chevrons-right"></i></span>
