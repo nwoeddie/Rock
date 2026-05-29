@@ -124,12 +124,16 @@ namespace Rock.Blocks.Workflow
         {
             var showInactive = GetBlockPersonPreferences().GetValue( PersonPreferenceKey.FilterIncludeInactive ).AsBoolean();
 
-            if( showInactive )
+            var queryable = base.GetListQueryable( rockContext )
+                .Include( a => a.EntityType )
+                .Include( a => a.WorkflowType );
+
+            if ( showInactive )
             {
-               return base.GetListQueryable( rockContext );
+                return queryable;
             }
 
-            return base.GetListQueryable( rockContext ).Where( a => a.IsActive == true );
+            return queryable.Where( a => a.IsActive == true );
         }
 
         /// <inheritdoc/>
@@ -141,7 +145,7 @@ namespace Rock.Blocks.Workflow
         /// <inheritdoc/>
         protected override GridBuilder<WorkflowTrigger> GetGridBuilder()
         {
-            return new GridBuilder<WorkflowTrigger>()
+            var grid = new GridBuilder<WorkflowTrigger>()
                 .WithBlock( this )
                 .AddTextField( "idKey", a => a.IdKey )
                 .AddTextField("entityType", a => a.EntityType.FriendlyName)
@@ -154,6 +158,8 @@ namespace Rock.Blocks.Workflow
                 .AddTextField( "workflow", a => a.WorkflowType.Name )
                 .AddField( "isActive", a => a.IsActive )
                 .AddField( "isSystem", a => a.IsSystem );
+
+            return grid;
         }
 
         #endregion

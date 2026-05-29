@@ -35,7 +35,7 @@
                 title="Qualifier Value"
                 visiblePriority="xs">
             <template #format="{ row }">
-                <span v-if="row.qualifierValuePrevious">{{ row.qualifierValuePrevious }} <i class="ti ti-chevrons-right"></i></span>
+                <span v-if="row.qualifierValuePrevious">{{ row.qualifierValuePrevious }}<i class="ti ti-chevrons-right"></i> </span>
                 <span v-if="row.qualifierValue">{{ row.qualifierValue }}</span>
             </template>
         </Column>
