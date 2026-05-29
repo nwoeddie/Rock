@@ -10,35 +10,35 @@
           :onAddItem="config.isAddEnabled ? onAddItem : undefined"
           @selectItem="onSelectItem">
 
-        <TextColumn name="entityType"
+        <TextColumn name=" entityType"
                     title="Entity"
                     field="entityType"
                     :filter="textValueFilter"
-                    visiblePriority="md" />
+                    visiblePriority="xs" />
 
         <TextColumn name="triggerType"
-                    title="Trigger Type"
+                    title="Type"
                     field="triggerType"
                     :filter="textValueFilter"
-                    visiblePriority="md" />
+                    visiblePriority="xs" />
 
         <TextColumn name="qualifier"
                     title="Qualifier Column"
                     field="qualifier"
                     :filter="textValueFilter"
-                    visiblePriority="md" />
+                    visiblePriority="xs" />
 
         <TextColumn name="qualifierValue"
                     title="Qualifier Value"
                     field="qualifierValue"
                     :filter="textValueFilter"
-                    visiblePriority="md" />
+                    visiblePriority="xs" />
 
         <TextColumn name="workflow"
                     title="Workflow"
                     field="workflow"
                     :filter="textValueFilter"
-                    visiblePriority="md" />
+                    visiblePriority="xs" />
 
         <BooleanColumn name="isSystem"
                        title="System"

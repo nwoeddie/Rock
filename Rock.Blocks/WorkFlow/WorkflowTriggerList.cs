@@ -121,6 +121,12 @@ namespace Rock.Blocks.Workflow
         }
 
         /// <inheritdoc/>
+        protected override IQueryable<WorkflowTrigger> GetOrderedListQueryable( IQueryable<WorkflowTrigger> queryable, RockContext rockContext )
+        {
+            return queryable.OrderBy( a => a.EntityType.Name ).ThenBy( a => a.EntityTypeQualifierColumn ).ThenBy( a => a.EntityTypeQualifierValue );
+        }
+
+        /// <inheritdoc/>
         protected override GridBuilder<WorkflowTrigger> GetGridBuilder()
         {
             return new GridBuilder<WorkflowTrigger>()
