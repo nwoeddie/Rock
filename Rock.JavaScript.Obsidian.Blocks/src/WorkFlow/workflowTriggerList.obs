@@ -3,10 +3,13 @@
     <Grid :definition="config.gridDefinition ?? undefined"
           :data="gridDataSource"
           keyField="idKey"
-          itemTerm="Item"
+          itemTerm="Workflow Trigger"
           :entityTypeGuid="EntityType.WorkflowTrigger"
           :showLaunchWorkflow="false"
           liveUpdates
+          gridSettings
+          :gridSettingsActive="hasSettingsFilters"
+          @gridSettingsClick="isGridSettingsVisible = true"
           :onAddItem="config.isAddEnabled ? onAddItem : undefined"
           @selectItem="onSelectItem">
 
@@ -54,21 +57,26 @@
 
         <DeleteColumn v-if="config.isDeleteEnabled" @click="onDeleteClick" />
     </Grid>
+
+    <GridSettingsModal v-model="gridSettings"
+                       v-model:visible="isGridSettingsVisible" />
 </template>
 
 <script setup lang="ts">
-    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
+    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, usePersonPreferences, useReloadBlock } from "@Obsidian/Utility/block";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
     import Grid, { BooleanColumn, booleanValueFilter, DeleteColumn, TextColumn, textValueFilter } from "@Obsidian/Controls/grid";
     import { alert } from "@Obsidian/Utility/dialogs";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { WorkflowTriggerListOptionsBag } from "@Obsidian/ViewModels/Blocks/Workflow/WorkflowTriggerList/workflowTriggerListOptionsBag";
     import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-    import { NavigationUrlKey } from "./WorkflowTriggerList/types.partial";
-    import { reactive, ref } from "vue";
+    import { GridSettingsOptions, NavigationUrlKey, PreferenceKey } from "./WorkflowTriggerList/types.partial";
+    import GridSettingsModal from "./WorkflowTriggerList/gridSettingsModal.partial.obs";
+    import { computed, reactive, ref, watch } from "vue";
 
     const config = useConfigurationValues<ListBlockBox<WorkflowTriggerListOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
+    const preferences = usePersonPreferences().blockPreferences;
 
     // All blocks auto reload when changing block settings unless there is an
     // explicit reason not to (like using a custom reload function instead),
@@ -79,6 +87,20 @@
 
     const gridDataSource = ref<Promise<GridDataBag>>();
     let gridData: GridDataBag | undefined;
+
+    const isGridSettingsVisible = ref(false);
+    const gridSettings = ref<GridSettingsOptions>({
+        includeInactive: preferences.getValue(PreferenceKey.FilterIncludeInactive) === "true",
+    });
+
+    // #endregion
+
+    // #region Computed Values
+
+    /** `true` if the grid settings is performing any filtering. */
+    const hasSettingsFilters = computed((): boolean => {
+        return !!gridSettings.value.includeInactive;
+    });
 
     // #endregion
 
@@ -92,7 +114,6 @@
 
         if (result.isSuccess && result.data) {
             gridData = reactive(result.data);
-            console.log("Grid data", gridData);
             return gridData;
         }
         else {
@@ -148,6 +169,14 @@
     }
 
     // #endregion
+
+    watch(gridSettings, async () => {
+        preferences.setValue(PreferenceKey.FilterIncludeInactive, gridSettings.value.includeInactive?.toString() ?? "");
+
+        await preferences.save();
+
+        gridDataSource.value = loadGridData();
+    });
 
     gridDataSource.value = loadGridData();
 </script>

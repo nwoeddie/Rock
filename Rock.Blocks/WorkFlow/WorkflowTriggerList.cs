@@ -62,6 +62,11 @@ namespace Rock.Blocks.Workflow
             public const string DetailPage = "DetailPage";
         }
 
+        private static class PersonPreferenceKey
+        {
+            public const string FilterIncludeInactive = "filter-include-inactive";
+        }
+
         #endregion Keys
 
         #region Methods
@@ -117,7 +122,14 @@ namespace Rock.Blocks.Workflow
         /// <inheritdoc/>
         protected override IQueryable<WorkflowTrigger> GetListQueryable( RockContext rockContext )
         {
-            return base.GetListQueryable( rockContext );
+            var showInactive = GetBlockPersonPreferences().GetValue( PersonPreferenceKey.FilterIncludeInactive ).AsBoolean();
+
+            if( showInactive )
+            {
+               return base.GetListQueryable( rockContext );
+            }
+
+            return base.GetListQueryable( rockContext ).Where( a => a.IsActive == true );
         }
 
         /// <inheritdoc/>
