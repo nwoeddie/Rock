@@ -31,11 +31,15 @@
                     :filter="textValueFilter"
                     visiblePriority="xs" />
 
-        <TextColumn name="qualifierValue"
-                    title="Qualifier Value"
-                    field="qualifierValue"
-                    :filter="textValueFilter"
-                    visiblePriority="xs" />
+        <Column name="qualifierValue"
+                title="Qualifier Value"
+                :filter="textValueFilter"
+                visiblePriority="xs">
+            <template #format="{ row }">
+                <span v-if="row.qualifierValuePrevious">{{ row.qualifierValuePrevious }} <i class="ti ti-chevrons-right"></i></span>
+                <span v-if="row.qualifierValue">{{ row.qualifierValue }}</span>
+            </template>
+        </Column>
 
         <TextColumn name="workflow"
                     title="Workflow"
@@ -46,13 +50,13 @@
         <BooleanColumn name="isSystem"
                        title="System"
                        field="isSystem"
-                       :filter="booleanValueFilter"
+                       width="120px"
                        visiblePriority="xs" />
 
         <BooleanColumn name="isActive"
                        title="Active"
                        field="isActive"
-                       :filter="booleanValueFilter"
+                       width="120px"
                        visiblePriority="xs" />
 
         <DeleteColumn v-if="config.isDeleteEnabled" @click="onDeleteClick" />
@@ -65,7 +69,7 @@
 <script setup lang="ts">
     import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, usePersonPreferences, useReloadBlock } from "@Obsidian/Utility/block";
     import { EntityType } from "@Obsidian/SystemGuids/entityType";
-    import Grid, { BooleanColumn, booleanValueFilter, DeleteColumn, TextColumn, textValueFilter } from "@Obsidian/Controls/grid";
+    import Grid, { BooleanColumn, DeleteColumn, TextColumn, textValueFilter, Column } from "@Obsidian/Controls/grid";
     import { alert } from "@Obsidian/Utility/dialogs";
     import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
     import { WorkflowTriggerListOptionsBag } from "@Obsidian/ViewModels/Blocks/Workflow/WorkflowTriggerList/workflowTriggerListOptionsBag";

@@ -148,6 +148,9 @@ namespace Rock.Blocks.Workflow
                 .AddTextField( "triggerType", a => a.WorkflowTriggerType.GetDisplayName())
                 .AddTextField( "qualifier", a => a.EntityTypeQualifierColumn)
                 .AddTextField( "qualifierValue", a => a.EntityTypeQualifierValue )
+                .AddTextField( "qualifierValuePrevious", a => a.WorkflowTriggerValueChangeType == WorkflowTriggerValueChangeType.ChangeFromTo
+                        ? a.EntityTypeQualifierValuePrevious
+                        : null )
                 .AddTextField( "workflow", a => a.WorkflowType.Name )
                 .AddField( "isActive", a => a.IsActive )
                 .AddField( "isSystem", a => a.IsSystem );
