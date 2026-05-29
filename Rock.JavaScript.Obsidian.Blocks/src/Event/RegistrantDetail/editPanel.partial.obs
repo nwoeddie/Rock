@@ -39,7 +39,7 @@
                                           :attributes="attributes"
                                           isEditMode
                                           :numberOfColumns="1" />
-                <FileUploader v-if="props.modelValue.bag?.signatureDocumentTemplateName && !props.modelValue.bag?.hasExistingSignatureDocument"
+                <FileUploader v-if="props.modelValue.bag?.signatureDocumentTemplateName"
                               v-model="signatureDocumentBinaryFile"
                               :label="props.modelValue.bag?.signatureDocumentTemplateName ?? 'Signature Document'"
                               :binaryFileTypeGuid="props.modelValue.bag?.signatureDocumentTemplateBinaryFileTypeGuid ?? undefined"
