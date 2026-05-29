@@ -7,6 +7,7 @@
     <Wizard v-if="!blockError && wizardItems.length > 0" :items="wizardItems" />
 
     <DetailBlock v-if="!blockError"
+                 ref="detailBlock"
                  v-model:mode="panelMode"
                  :name="panelName"
                  :entityKey="entityKey"
@@ -15,6 +16,7 @@
                  :isDeleteVisible="false"
                  :isEditVisible="false"
                  :isFollowVisible="false"
+                 :editFooterActions="editFooterActions"
                  :isSecurityHidden="true"
                  @cancelEdit="onCancelEdit"
                  @save="onSave">
@@ -35,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-    import { computed, ref } from "vue";
+    import { computed, nextTick, ref } from "vue";
     import Dialog from "@Obsidian/Controls/dialog.obs";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import RockButton from "@Obsidian/Controls/rockButton.obs";
@@ -49,14 +51,17 @@
     import { RegistrantBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantBag";
     import { RegistrantDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantDetailOptionsBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
+    import { PanelAction } from "@Obsidian/Types/Controls/panelAction";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
 
     const config = useConfigurationValues<DetailBlockBox<RegistrantBag, RegistrantDetailOptionsBag>>();
     const invokeBlockAction = useInvokeBlockAction();
 
-    onConfigurationValuesChanged(useReloadBlock());
+    const reloadBlock = useReloadBlock();
+
+    onConfigurationValuesChanged(reloadBlock);
 
     // #region Values
-
     const blockError = ref("");
     const errorMessage = ref("");
 
@@ -64,13 +69,16 @@
     const groupMemberWarningOldName = ref("");
     const groupMemberWarningNewName = ref("");
 
+    const detailBlock = ref();
+    const isSaveThenAdd = ref(false);
+
     const registrantEditBag = ref<ValidPropertiesBox<RegistrantBag>>({
         bag: config.entity ?? {} as RegistrantBag,
         validProperties: ["PersonAlias", "Cost", "DiscountApplies", "IsOnWaitList",
             "Fees", "SignatureDocumentBinaryFileId", "AttributeValues"]
     });
 
-    const panelMode = ref<DetailPanelMode>(DetailPanelMode.Edit);
+    const panelMode = ref<DetailPanelMode>(registrantEditBag.value.bag?.idKey ? DetailPanelMode.Edit : DetailPanelMode.Add);
 
     const baseBlock = useEntityDetailBlock({
         blockConfig: config,
@@ -80,6 +88,22 @@
     // #endregion
 
     // #region Computed Values
+
+    const editFooterActions = computed((): PanelAction[] => {
+        if (panelMode.value !== DetailPanelMode.Add) {
+            return [];
+        }
+
+        return [
+            {
+                title: "Save Then Add",
+                type: BtnType.Link,
+                disabled: isSaveThenAdd.value,
+                handler: saveThenAdd
+            }
+        ];
+    });
+
 
     const panelName = computed((): string => {
         return registrantEditBag.value.bag?.idKey ? "Edit Registrant" : "Add Registrant";
@@ -175,6 +199,17 @@
         return await performSave();
     }
 
+    async function saveThenAdd(): Promise<void> {
+        isSaveThenAdd.value = true;
+
+        try {
+            await detailBlock.value?.onSaveClick();
+        }
+        finally {
+            isSaveThenAdd.value = false;
+        }
+    }
+
     /**
      * Called when the user confirms the group member change warning. Closes
      * the dialog and proceeds with the deferred save.
@@ -208,6 +243,17 @@
         });
 
         if (result.isSuccess && result.data) {
+
+            // if save then add chosen, reload block after save for next entry
+            if (isSaveThenAdd.value) {
+                registrantEditBag.value.bag = {} as RegistrantBag;
+
+                await nextTick();
+                reloadBlock();
+
+                return false;
+            }
+
             return result.data;
         }
 

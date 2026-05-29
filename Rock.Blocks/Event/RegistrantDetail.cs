@@ -819,7 +819,7 @@ namespace Rock.Blocks.Event
                 {
                     HandleGroupMember( entity, registration, template, newPerson.Id, registrantChanges );
                 }
-                 
+
                 if ( ( isNew || personChanged ) && template?.GroupTypeId.HasValue == true )
                 {
                     if ( registration.FirstName.IsNotNullOrWhiteSpace() && registration.LastName.IsNotNullOrWhiteSpace() )
