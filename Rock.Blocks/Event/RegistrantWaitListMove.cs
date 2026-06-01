@@ -17,6 +17,8 @@
 
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data.Entity;
+using System.Linq;
 
 using Rock.Attribute;
 using Rock.Data;
@@ -48,7 +50,7 @@ namespace Rock.Blocks.Event
 
         private static class PageParameterKey
         {
-            public const string EntitySetId = "EntitySetId";
+            public const string EntitySetId = "WaitListSetId";
         }
 
         private static class MergeFieldKey
@@ -66,7 +68,47 @@ namespace Rock.Blocks.Event
         /// <inheritdoc/>
         public override object GetObsidianBlockInitialization()
         {
-            var bag = new RegistrantWaitListMoveBag();
+            var bag = new RegistrantWaitListMoveBag
+            {
+                HasPageTitle = PageCache.PageTitle.Equals( "Wait List Confirmation", System.StringComparison.OrdinalIgnoreCase )
+            };
+
+            var registrants = GetRegistrantsFromEntitySet();
+
+            if ( registrants == null || !registrants.Any() )
+            {
+                bag.UpdateMessage = "No registrants found.";
+                return bag;
+            }
+
+            MoveRegistrantsOffWaitList( registrants );
+
+            bag.UpdateMessage = registrants.Count == 1
+                ? "1 individual was moved from the wait list."
+                : $"{registrants.Count} individuals were moved from the wait list.";
+
+            var firstRegistration = registrants
+                .Where( r => r.Registration != null )
+                .Select( r => r.Registration )
+                .FirstOrDefault();
+
+            var template = registrants.Where( r =>
+                        r.Registration != null &&
+                        r.Registration.RegistrationInstance != null &&
+                        r.Registration.RegistrationInstance.RegistrationTemplate != null )
+                    .Select( r => r.Registration.RegistrationInstance.RegistrationTemplate )
+                    .FirstOrDefault();
+
+            bag.Recipients = BuildRecipientBags( registrants );
+
+            // build email bag based on first registration if valid email template is present
+            if ( firstRegistration != null && template != null )
+            {
+                var movedRegistrants = registrants.Where( r => r.RegistrationId == firstRegistration.Id ).ToList();
+                var mergeFields = BuildMergeFields( firstRegistration, firstRegistration.RegistrationInstance, movedRegistrants );
+                bag.EmailBag = ResolveEmailTemplate( template, mergeFields );
+            }
+
 
             return bag;
         }
@@ -78,6 +120,23 @@ namespace Rock.Blocks.Event
         /// </summary>
         private List<RegistrationRegistrant> GetRegistrantsFromEntitySet()
         {
+            var entitySetId = PageParameter( PageParameterKey.EntitySetId ).AsIntegerOrNull();
+
+            if ( entitySetId.HasValue )
+            {
+                var registrantIds = new EntitySetItemService( RockContext ).Queryable().AsNoTracking()
+                    .Where( i => i.EntitySetId == entitySetId )
+                    .Select( i => i.EntityId )
+                    .ToList();
+
+                // get the registrants
+                var registrants = new RegistrationRegistrantService( RockContext )
+                    .Queryable()
+                    .Where( r => registrantIds.Contains( r.Id ) )
+                    .ToList();
+
+                return registrants;
+            }
             return null;
         }
 
@@ -89,6 +148,20 @@ namespace Rock.Blocks.Event
         /// </summary>
         private void MoveRegistrantsOffWaitList( List<RegistrationRegistrant> registrants )
         {
+            foreach ( var registrant in registrants )
+            {
+                var groupMemberId = AddRegistrantToGroup( registrant );
+
+                if ( groupMemberId.HasValue )
+                {
+                    registrant.GroupMemberId = groupMemberId.Value;
+                }
+
+                registrant.OnWaitList = false;
+                registrant.Registration.LastPaymentReminderDateTime = RockDateTime.Now;
+            }
+
+            RockContext.SaveChanges();
         }
 
         /// <summary>
@@ -96,8 +169,54 @@ namespace Rock.Blocks.Event
         /// instance, using the appropriate group role and member status from the template.
         /// A no-op when no group is configured or the person is already a member.
         /// </summary>
-        private void AddRegistrantToGroup( RegistrationRegistrant registrant )
+        private int? AddRegistrantToGroup( RegistrationRegistrant registrant )
         {
+            var template = registrant.Registration?.RegistrationInstance?.RegistrationTemplate;
+
+            if ( !registrant.PersonAliasId.HasValue ||
+                registrant.Registration?.Group == null ||
+                registrant.Registration.Group.GroupType == null ||
+                template == null )
+            {
+                return null;
+            }
+
+            var group = registrant.Registration.Group;
+            var personAliasService = new PersonAliasService( RockContext );
+            var groupMemberService = new GroupMemberService( RockContext );
+
+            var personAlias = personAliasService.Get( registrant.PersonAliasId.Value );
+            var groupMember = group.Members.FirstOrDefault( m => m.PersonId == personAlias.PersonId );
+
+            if ( groupMember == null )
+            {
+                groupMember = new GroupMember
+                {
+                    GroupId = group.Id,
+                    PersonId = personAlias.PersonId
+                };
+
+                if ( template.GroupTypeId.HasValue &&
+                    template.GroupTypeId == group.GroupTypeId &&
+                    template.GroupMemberRoleId.HasValue )
+                {
+                    groupMember.GroupRoleId = template.GroupMemberRoleId.Value;
+                }
+                else if ( group.GroupType.DefaultGroupRoleId.HasValue )
+                {
+                    groupMember.GroupRoleId = group.GroupType.DefaultGroupRoleId.Value;
+                }
+                else
+                {
+                    groupMember.GroupRoleId = group.GroupType.Roles.Select( r => r.Id ).FirstOrDefault();
+                }
+
+                groupMemberService.Add( groupMember );
+            }
+
+            groupMember.GroupMemberStatus = template.GroupMemberStatus;
+
+            return groupMember.Id;
         }
 
         /// <summary>
@@ -107,7 +226,22 @@ namespace Rock.Blocks.Event
         /// </summary>
         private Dictionary<string, object> BuildMergeFields( Registration registration, RegistrationInstance registrationInstance, List<RegistrationRegistrant> transitionedRegistrants )
         {
-            return null;
+            var additionalFieldsNeeded = registrationInstance.RegistrationTemplate.Forms
+                .SelectMany( f => f.Fields )
+                .Any( f => !f.ShowOnWaitlist );
+
+            if ( !additionalFieldsNeeded )
+            {
+                additionalFieldsNeeded = registrationInstance.RegistrationTemplate.Fees.Any();
+            }
+
+            return new Dictionary<string, object>
+            {
+                { MergeFieldKey.RegistrationInstance, registrationInstance },
+                { MergeFieldKey.Registration, registration },
+                { MergeFieldKey.TransitionedRegistrants, transitionedRegistrants },
+                { MergeFieldKey.AdditionalFieldsNeeded, additionalFieldsNeeded }
+            };
         }
 
         /// <summary>
@@ -116,9 +250,22 @@ namespace Rock.Blocks.Event
         /// for display in the email recipient list. Email template fields are resolved
         /// against each registration's merge fields using the first registrant as a sample.
         /// </summary>
-        private List<RegistrantWaitListMoveBag> BuildRecipientBags( List<RegistrationRegistrant> registrants, RegistrationInstance registrationInstance )
+        private List<RegistrantWaitListMoveRecipientBag> BuildRecipientBags( List<RegistrationRegistrant> registrants )
         {
-            return null;
+            var recipients = registrants
+                .Where( r => r.Registration != null )
+                .GroupBy( r => r.Registration )
+                .Select( g => new RegistrantWaitListMoveRecipientBag
+                {
+                    IdKey = g.Key.Id.AsIdKey(),
+                    RegistrantName = $"{g.Key.FirstName} {g.Key.LastName}",
+                    Email = g.Key.ConfirmationEmail,
+                    IsSelected = true,
+                    RegisteredNames = g.Select( r => r.PersonAlias?.Person?.FullName ?? string.Empty ).ToList()
+                } )
+                .ToList();
+
+            return recipients;
         }
 
         /// <summary>
@@ -126,9 +273,18 @@ namespace Rock.Blocks.Event
         /// from the <see cref="RegistrationTemplate"/> against the supplied
         /// <paramref name="mergeFields"/>.
         /// </summary>
-        private (string FromName, string FromEmail, string Subject, string Body) ResolveEmailTemplate( RegistrationTemplate template, Dictionary<string, object> mergeFields )
+        private RegistrantWaitListMoveEmailBag ResolveEmailTemplate( RegistrationTemplate template, Dictionary<string, object> mergeFields )
         {
-            return default;
+            var body = template.WaitListTransitionEmailTemplate ?? string.Empty;
+
+            return new RegistrantWaitListMoveEmailBag
+            {
+                FromName = template.WaitListTransitionFromName?.ResolveMergeFields( mergeFields ) ?? string.Empty,
+                FromEmail = template.WaitListTransitionFromEmail?.ResolveMergeFields( mergeFields ) ?? string.Empty,
+                Subject = template.WaitListTransitionSubject?.ResolveMergeFields( mergeFields ) ?? string.Empty,
+                Body = body,
+                PreviewHtml = body.ResolveMergeFields( mergeFields )
+            };
         }
 
         /// <summary>

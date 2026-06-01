@@ -1,0 +1,190 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <Panel title="Wait List Confirmation" :hasTitle="!config.hasPageTitle">
+        <ContentSection :disableCollapse="true">
+            <template #title>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex align-items-center justify-content-center rounded" :class="moveFailed ? 'failed' : 'success'" style="padding: var(--spacing-xsmall)">
+                        <i :class="resultIcon" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <div class="fw-semibold mb-1">{{ moveFailed ? 'Move Failed' : 'Wait List Updated' }}</div>
+                        <div class="text-muted text-sm fw-light">{{ config.updateMessage ?? '' }}</div>
+                    </div>
+                </div>
+            </template>
+            <ContentStack v-if="!moveFailed" headerLocation="top">
+                <template #header>
+                    <Toggle label="Send Email to Individuals" v-model="isShowEmail" trueText="Yes" falseText="No" :btnSize="BtnSize.Small" />
+                </template>
+                <template #default>
+                    <RockForm v-if="isShowEmail">
+                        <h4>Recipients</h4>
+                        <div class="recipient-grid">
+                            <template v-for="recipient in recipients">
+                                <div v-if="recipient.idKey"
+                                     :key="recipient.idKey"
+                                     class="card recipient-card"
+                                     style="cursor: pointer;"
+                                     @click="recipient.isSelected = !recipient.isSelected">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="recipient-info">
+                                                <h5 class="card-title mb-1">{{ recipient.registrantName }}</h5>
+                                                <p class="card-text text-sm mb-1">{{ recipient.email }}</p>
+                                                <small class="text-semibold">Registrants: </small>
+                                                <small>{{ recipient.registeredNames?.join(', ') }}</small>
+                                            </div>
+                                            <CheckBox v-model="recipient.isSelected" label="" @click.prevent.stop />
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                    </RockForm>
+                </template>
+            </ContentStack>
+        </ContentSection>
+    </Panel>
+</template>
+
+<style scoped>
+.failed {
+    background-color: var(--color-danger-soft);
+    color: var(--color-danger-strong);
+}
+
+.success {
+    background-color: var(--color-success-soft);
+    color: var(--color-success-strong);
+}
+
+.recipient-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.recipient-card {
+    flex: 1 1 280px;
+    min-width: 0;
+}
+
+@media (min-width: 576px) {
+    .recipient-card {
+        max-width: calc(50% - 6px);
+    }
+}
+
+.recipient-info {
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    flex: 1;
+    margin-right: 8px;
+}
+</style>
+
+<script setup lang="ts">
+    import { computed, ref } from "vue";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import ContentSectionContainer from "@Obsidian/Controls/contentSectionContainer.obs";
+    import ContentSection from "@Obsidian/Controls/contentSection.obs";
+    import ContentStack from "@Obsidian/Controls/contentStack.obs";
+    import DisplayCard from "@Obsidian/Controls/displayCard.obs";
+    import DisplayCardContainer from "@Obsidian/Controls/displayCardContainer.obs";
+    import CheckBox from "@Obsidian/Controls/checkBox.obs";
+    import CodeEditor from "@Obsidian/Controls/codeEditor.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import Toggle from "@Obsidian/Controls/toggle.obs";
+    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
+    import { alert } from "@Obsidian/Utility/dialogs";
+    import { RegistrantWaitListMoveBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantWaitListMove/registrantWaitListMoveBag";
+    import { RegistrantWaitListMoveEmailBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantWaitListMove/registrantWaitListMoveEmailBag";
+    import { RegistrantWaitListMoveRecipientBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantWaitListMove/registrantWaitListMoveRecipientBag";
+    import { BtnSize } from "@Obsidian/Enums/Controls/btnSize";
+
+    const config = useConfigurationValues<RegistrantWaitListMoveBag>();
+    const invokeBlockAction = useInvokeBlockAction();
+
+    // #region Values
+
+    const fromName = ref(config.emailBag?.fromName ?? "");
+    const fromEmail = ref(config.emailBag?.fromEmail ?? "");
+    const subject = ref(config.emailBag?.subject ?? "");
+    const messageBody = ref(config.emailBag?.body ?? "");
+    const previewHtml = ref(config.emailBag?.previewHtml ?? "");
+
+    console.log("config:", config);
+
+    const isPreviewMode = ref(true);
+    const isShowEmail = ref(false);
+    const isSending = ref(false);
+    const isComplete = ref(false);
+    const moveFailed = ref(!config.recipients || config.recipients.length === 0);
+
+    // #endregion
+
+    // #region Computed Values
+
+    const resultIcon = computed(() => moveFailed.value ? "ti ti-x" : "ti ti-check");
+
+    // #endregion
+
+    const recipients = ref<RegistrantWaitListMoveRecipientBag[]>([...(config.recipients ?? [])]);
+
+    // #endregion
+
+    // #region Event Handlers
+
+    /**
+     * Invokes the SendEmails block action and switches the block to its
+     * completion state on success.
+     */
+    async function onSendClick(): Promise<void> {
+        const selectedRecipients = recipients.value.filter(r => r.isSelected);
+
+        if (selectedRecipients.length === 0) {
+            await alert("Select at least one recipient before sending.");
+            return;
+        }
+
+        if (!messageBody.value) {
+            await alert("Message body is required.");
+            return;
+        }
+
+        isSending.value = true;
+
+        try {
+            const result = await invokeBlockAction("SendEmails", {
+                request: {
+                    fromName: fromName.value,
+                    fromEmail: fromEmail.value,
+                    subject: subject.value,
+                    body: messageBody.value,
+                    previewHtml: previewHtml.value
+                } as RegistrantWaitListMoveEmailBag
+            });
+
+            if (result.isSuccess) {
+                isComplete.value = true;
+                window.scrollTo(0, 0);
+            }
+            else {
+                await alert(result.errorMessage ?? "Unable to send emails.");
+            }
+        }
+        finally {
+            isSending.value = false;
+        }
+    }
+
+    // #endregion
+
+    onConfigurationValuesChanged(useReloadBlock());
+</script>
