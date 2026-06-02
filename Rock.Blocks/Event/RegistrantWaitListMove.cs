@@ -123,22 +123,27 @@ namespace Rock.Blocks.Event
         {
             var entitySetId = PageParameter( PageParameterKey.EntitySetId ).AsIntegerOrNull();
 
-            if ( entitySetId.HasValue )
+            if ( !entitySetId.HasValue )
             {
-                var registrantIds = new EntitySetItemService( RockContext ).Queryable().AsNoTracking()
-                    .Where( i => i.EntitySetId == entitySetId )
-                    .Select( i => i.EntityId )
-                    .ToList();
-
-                // get the registrants
-                var registrants = new RegistrationRegistrantService( RockContext )
-                    .Queryable()
-                    .Where( r => registrantIds.Contains( r.Id ) )
-                    .ToList();
-
-                return registrants;
+                return null;
             }
-            return null;
+
+            var registrantIds = new EntitySetItemService( RockContext ).Queryable().AsNoTracking()
+                .Where( i => i.EntitySetId == entitySetId )
+                .Select( i => i.EntityId )
+                .ToList();
+
+            var registrants = new RegistrationRegistrantService( RockContext )
+                .Queryable()
+                .Include( r => r.PersonAlias.Person )
+                .Include( r => r.Registration.PersonAlias.Person )
+                .Include( r => r.Registration.RegistrationInstance.RegistrationTemplate.Fees )
+                .Include( r => r.Registration.RegistrationInstance.RegistrationTemplate )
+                .Include( r => r.Registration.Group.GroupType.Roles )
+                .Where( r => registrantIds.Contains( r.Id ) )
+                .ToList();
+
+            return registrants;
         }
 
         /// <summary>
@@ -159,10 +164,20 @@ namespace Rock.Blocks.Event
                 }
 
                 registrant.OnWaitList = false;
-                registrant.Registration.LastPaymentReminderDateTime = RockDateTime.Now;
             }
 
             RockContext.SaveChanges();
+
+            var now = RockDateTime.Now;
+            var registrationIds = registrants
+                .Select( r => r.RegistrationId )
+                .Distinct()
+                .ToList();
+
+            // LastPaymentReminder N SQL calls per registration so we need to bulk update.
+            RockContext.BulkUpdate(
+                new RegistrationService( RockContext ).Queryable().Where( r => registrationIds.Contains( r.Id ) ),
+                r => new Registration { LastPaymentReminderDateTime = now } );
         }
 
         /// <summary>
@@ -183,18 +198,17 @@ namespace Rock.Blocks.Event
             }
 
             var group = registrant.Registration.Group;
-            var personAliasService = new PersonAliasService( RockContext );
             var groupMemberService = new GroupMemberService( RockContext );
 
-            var personAlias = personAliasService.Get( registrant.PersonAliasId.Value );
-            var groupMember = group.Members.FirstOrDefault( m => m.PersonId == personAlias.PersonId );
+            var personId = registrant.PersonAlias.PersonId;
+            var groupMember = group.Members.FirstOrDefault( m => m.PersonId == personId );
 
             if ( groupMember == null )
             {
                 groupMember = new GroupMember
                 {
                     GroupId = group.Id,
-                    PersonId = personAlias.PersonId
+                    PersonId = personId
                 };
 
                 if ( template.GroupTypeId.HasValue &&
