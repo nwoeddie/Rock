@@ -138,8 +138,9 @@ namespace Rock.Blocks.Event
                 .Include( r => r.PersonAlias.Person )
                 .Include( r => r.Registration.PersonAlias.Person )
                 .Include( r => r.Registration.RegistrationInstance.RegistrationTemplate.Fees )
-                .Include( r => r.Registration.RegistrationInstance.RegistrationTemplate )
+                .Include( r => r.Registration.RegistrationInstance.RegistrationTemplate.Forms.Select( f => f.Fields ) )
                 .Include( r => r.Registration.Group.GroupType.Roles )
+                .Include( r => r.Registration.Registrants.Select( reg => reg.Fees ) )
                 .Where( r => registrantIds.Contains( r.Id ) )
                 .ToList();
 
