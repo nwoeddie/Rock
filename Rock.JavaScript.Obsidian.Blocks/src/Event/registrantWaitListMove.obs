@@ -18,31 +18,44 @@
                     <Toggle label="Send Email to Individuals" v-model="isShowEmail" trueText="Yes" falseText="No" :btnSize="BtnSize.Small" />
                 </template>
                 <template #default>
-                    <RockForm v-if="isShowEmail">
-                        <h4>Recipients</h4>
-                        <div class="recipient-grid">
-                            <template v-for="recipient in recipients">
-                                <div v-if="recipient.idKey"
-                                     :key="recipient.idKey"
-                                     class="card recipient-card"
-                                     style="cursor: pointer;"
-                                     @click="recipient.isSelected = !recipient.isSelected">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="recipient-info">
-                                                <h5 class="card-title mb-1">{{ recipient.registrantName }}</h5>
-                                                <p class="card-text text-sm mb-1">{{ recipient.email }}</p>
-                                                <small class="text-semibold">Registrants: </small>
-                                                <small>{{ recipient.registeredNames?.join(', ') }}</small>
-                                            </div>
-                                            <CheckBox v-model="recipient.isSelected" label="" @click.prevent.stop />
-                                        </div>
+                    <Transition name="slide-down">
+                        <RockForm v-if="isShowEmail" class="email-form">
+                            <ContentStack title="Recipients" headerLocation="top">
+                                <template #default>
+                                    <div class="d-flex gap-1 justify-content-end">
+                                        <RockButton btnType="link" btnSize="xs" @click="onDeselectAll">Deselect All</RockButton>
+                                        <RockButton btnType="link" btnSize="xs" @click="onSelectAll">Select All</RockButton>
+                                        <RockButton v-if="recipients.length > maxVisible" btnType="link" btnSize="xs" @click="isShowingAll = !isShowingAll">
+                                            {{ isShowingAll ? 'Show Less' : `Show All (${recipients.length})` }}
+                                        </RockButton>
                                     </div>
-                                </div>
-                            </template>
-                        </div>
+                                    <TransitionGroup name="recipient" tag="div" class="recipient-grid">
+                                        <template v-for="recipient in visibleRecipients">
+                                            <div v-if="recipient.idKey"
+                                                 :key="recipient.idKey"
+                                                 class="card recipient-card"
+                                                 style="cursor: pointer;"
+                                                 @click="recipient.isSelected = !recipient.isSelected">
+                                                <div class="card-body">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div class="recipient-info">
+                                                            <h6 class="card-title mb-1">{{ recipient.registrantName }}</h6>
+                                                            <p class="card-text text-sm mb-1">{{ recipient.email }}</p>
+                                                            <small class="text-semibold">Registrants: </small>
+                                                            <small>{{ recipient.registeredNames?.join(', ') }}</small>
+                                                        </div>
+                                                        <CheckBox v-model="recipient.isSelected" label="" @click.prevent.stop />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </TransitionGroup>
+                                </template>
+                            </ContentStack>
 
-                    </RockForm>
+
+                        </RockForm>
+                    </Transition>
                 </template>
             </ContentStack>
         </ContentSection>
@@ -61,26 +74,54 @@
 }
 
 .recipient-grid {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 12px;
 }
 
-.recipient-card {
-    flex: 1 1 280px;
-    min-width: 0;
+@media (min-width: 576px) {
+    .recipient-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
-@media (min-width: 576px) {
-    .recipient-card {
-        max-width: calc(50% - 6px);
+@media (min-width: 992px) {
+    .recipient-grid {
+        grid-template-columns: repeat(3, 1fr);
     }
+}
+
+.email-form {
+    /* background-color: var(--vs-dropdown-bg); */
+    border: 1px solid var(--color-interface-soft);
+    border-radius: var(--vs-border-radius);
+    padding: var(--spacing-medium);
+}
+
+.slide-down-enter-active,
+.slide-down-leave-active {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.recipient-enter-active,
+.recipient-leave-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.recipient-enter-from,
+.recipient-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
 }
 
 .recipient-info {
     min-width: 0;
-    overflow-wrap: break-word;
-    word-break: break-all;
     flex: 1;
     margin-right: 8px;
 }
@@ -121,10 +162,13 @@
 
     console.log("config:", config);
 
+    const maxVisible = 6;
+
     const isPreviewMode = ref(true);
     const isShowEmail = ref(false);
     const isSending = ref(false);
     const isComplete = ref(false);
+    const isShowingAll = ref(false);
     const moveFailed = ref(!config.recipients || config.recipients.length === 0);
 
     // #endregion
@@ -133,6 +177,10 @@
 
     const resultIcon = computed(() => moveFailed.value ? "ti ti-x" : "ti ti-check");
 
+    const visibleRecipients = computed(() =>
+        isShowingAll.value ? recipients.value : recipients.value.slice(0, maxVisible)
+    );
+
     // #endregion
 
     const recipients = ref<RegistrantWaitListMoveRecipientBag[]>([...(config.recipients ?? [])]);
@@ -140,6 +188,16 @@
     // #endregion
 
     // #region Event Handlers
+
+    /** Selects all recipients. */
+    function onSelectAll(): void {
+        recipients.value.forEach(r => r.isSelected = true);
+    }
+
+    /** Deselects all recipients. */
+    function onDeselectAll(): void {
+        recipients.value.forEach(r => r.isSelected = false);
+    }
 
     /**
      * Invokes the SendEmails block action and switches the block to its
