@@ -301,6 +301,47 @@ namespace Rock.Blocks.Event
         #region Block Actions
 
         /// <summary>
+        /// Resolves the supplied <paramref name="messageBody"/> against the first
+        /// registration's Lava merge fields and returns the rendered HTML for the
+        /// preview iframe. Re-fetches the registrants from the entity set so the
+        /// action is stateless.
+        /// </summary>
+        [BlockAction]
+        public BlockActionResult ResolvePreview( string messageBody )
+        {
+            if ( messageBody.IsNullOrWhiteSpace() )
+            {
+                return ActionOk( string.Empty );
+            }
+
+            var registrants = GetRegistrantsFromEntitySet();
+
+            if ( registrants == null || !registrants.Any() )
+            {
+                return ActionOk( messageBody );
+            }
+
+            var firstRegistration = registrants
+                .Where( r => r.Registration != null )
+                .Select( r => r.Registration )
+                .FirstOrDefault();
+
+            if ( firstRegistration == null )
+            {
+                return ActionOk( messageBody );
+            }
+
+            var transitionedRegistrants = registrants
+                .Where( r => r.RegistrationId == firstRegistration.Id )
+                .ToList();
+
+            var mergeFields = BuildMergeFields( firstRegistration, firstRegistration.RegistrationInstance, transitionedRegistrants );
+            var resolvedHtml = messageBody.ResolveMergeFields( mergeFields );
+
+            return ActionOk( resolvedHtml );
+        }
+
+        /// <summary>
         /// Sends confirmation emails to the selected recipients using the supplied
         /// from/subject/body overrides. Each email is sent and saved in its own
         /// <see cref="RockContext"/> to avoid change-tracker bloat on large batches.
