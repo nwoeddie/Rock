@@ -39,5 +39,11 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantWaitListMove
         /// used to render the preview iframe on initial load.
         /// </summary>
         public string PreviewHtml { get; set; }
+
+        /// <summary>
+        /// The IdKeys of the registrations whose registrars should receive the email.
+        /// Populated from the recipient selection made by the user on the client.
+        /// </summary>
+        public List<int> RegistrarIds { get; set; }
     }
 }

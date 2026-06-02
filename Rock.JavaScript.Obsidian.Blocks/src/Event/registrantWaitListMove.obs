@@ -16,22 +16,22 @@
 
         <Transition name="slide-down">
             <ContentSection v-if="!moveFailed && isShowEmail" :disableCollapse="true" title="Email" icon="ti ti-mail">
-                <template #default>
-                    <div v-if="isShowEmail" class="recipients">
+                <ContentStack title="Recipients"
+                              description="Select the individuals to notify about their wait list transition.">
+                    <div class="recipients">
                         <div class="d-flex justify-content-between align-items-center pb-3">
-                            <h5 class="m-0">Recipients</h5>
                             <span class="badge p-2 text-normal">
                                 {{ selectedCount }} of {{ recipients.length }} selected
                             </span>
-                        </div>
-                        <div class="d-flex gap-2 align-items-center justify-content-end">
-                            <RockButton btnType="link" btnSize="sm" @click="onDeselectAll">Deselect All</RockButton>
-                            <RockButton btnType="link" btnSize="sm" @click="onSelectAll">Select All</RockButton>
+                            <div class="d-flex gap-2 align-items-center">
+                                <RockButton btnType="link" btnSize="sm" @click="onDeselectAll">Deselect All</RockButton>
+                                <RockButton btnType="link" btnSize="sm" @click="onSelectAll">Select All</RockButton>
+                            </div>
                         </div>
                         <TransitionGroup name="recipient" tag="div" class="recipient-grid">
                             <template v-for="recipient in visibleRecipients">
-                                <div v-if="recipient.idKey"
-                                     :key="recipient.idKey"
+                                <div v-if="recipient.id"
+                                     :key="recipient.id"
                                      class="card recipient-card"
                                      :class="{ 'recipient-selected': recipient.isSelected }"
                                      style="cursor: pointer;"
@@ -55,17 +55,20 @@
                             </RockButton>
                         </div>
                     </div>
+                </ContentStack>
+
+                <ContentStack title="Message"
+                              description="Customize the email that will be sent to the selected recipients.">
                     <RockForm @submit="onSendClick">
                         <div class="row">
                             <div class="col-md-6">
                                 <TextBox v-model="fromName" label="From Name" rules="required" />
                             </div>
-                        </div>
-                        <div class="row">
                             <div class="col-md-6">
                                 <TextBox v-model="fromEmail" label="From Email" rules="required|email" />
                             </div>
                         </div>
+
                         <div class="row">
                             <div class="col-md-6">
                                 <TextBox v-model="subject" label="Subject" rules="required" />
@@ -85,10 +88,10 @@
                             <CodeEditor v-if="previewMode === 'code'"
                                         v-model="messageBody"
                                         mode="lava"
-                                        :editorHeight="400" />
+                                        :editorHeight="500" />
                             <div v-else
                                  class="email-preview js-email-preview overflow-auto"
-                                 style="position: relative; height: 400px;">
+                                 style="position: relative; height: 500px;">
                                 <iframe name="emailPreview"
                                         :srcdoc="previewHtml"
                                         class="emaileditor-iframe bg-white inset-0 w-100 h-100 js-emailpreview-iframe email-wrapper email-content-desktop styled-scroll"
@@ -99,11 +102,11 @@
                             </div>
                         </div>
 
-                        <RockButton btnType="primary" type="submit" :isLoading="isSending" class="mt-2">
+                        <RockButton btnType="primary" type="submit" :isLoading="isSending" class="mt-2 justify-self-end">
                             Send
                         </RockButton>
                     </RockForm>
-                </template>
+                </ContentStack>
             </ContentSection>
         </Transition>
     </Panel>
@@ -203,6 +206,7 @@
     import { computed, ref, watch } from "vue";
     import Panel from "@Obsidian/Controls/panel.obs";
     import ContentSection from "@Obsidian/Controls/contentSection.obs";
+    import ContentStack from "@Obsidian/Controls/contentStack.obs";
     import DisplayCard from "@Obsidian/Controls/displayCard.obs";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import CodeEditor from "@Obsidian/Controls/codeEditor.obs";
@@ -303,7 +307,8 @@
                     fromEmail: fromEmail.value,
                     subject: subject.value,
                     body: messageBody.value,
-                    previewHtml: previewHtml.value
+                    previewHtml: previewHtml.value,
+                    registrarIds: selectedRecipients.map(r => r.id)
                 } as RegistrantWaitListMoveEmailBag
             });
 

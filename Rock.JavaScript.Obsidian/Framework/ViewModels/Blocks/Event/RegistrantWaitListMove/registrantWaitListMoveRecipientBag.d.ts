@@ -24,7 +24,7 @@
 export type RegistrantWaitListMoveRecipientBag = {
     email?: string | null;
 
-    idKey?: string | null;
+    id: number;
 
     /** Indicates if the recipient is selected to receive the email notification about being moved off the wait-list. */
     isSelected: boolean;

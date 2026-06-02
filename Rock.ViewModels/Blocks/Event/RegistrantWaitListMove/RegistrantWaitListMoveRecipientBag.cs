@@ -14,7 +14,7 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantWaitListMove
         /// <summary>
         /// 
         /// </summary>
-        public string IdKey { get; set; }
+        public int Id { get; set; }
         /// <summary>
         /// Name of person who registered
         /// </summary>

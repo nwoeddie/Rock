@@ -21,6 +21,7 @@ using System.Data.Entity;
 using System.Linq;
 
 using Rock.Attribute;
+using Rock.Communication;
 using Rock.Data;
 using Rock.Model;
 using Rock.ViewModels.Blocks.Event.RegistrantWaitListMove;
@@ -257,7 +258,7 @@ namespace Rock.Blocks.Event
                 .GroupBy( r => r.Registration )
                 .Select( g => new RegistrantWaitListMoveRecipientBag
                 {
-                    IdKey = g.Key.Id.AsIdKey(),
+                    Id = g.Key.Id,
                     RegistrantName = $"{g.Key.FirstName} {g.Key.LastName}",
                     Email = g.Key.ConfirmationEmail,
                     IsSelected = true,
@@ -350,6 +351,57 @@ namespace Rock.Blocks.Event
         [BlockAction]
         public BlockActionResult SendEmails( RegistrantWaitListMoveEmailBag request )
         {
+            var sendCount = 0;
+            var errorMessage = "";
+
+            var registrations = new RegistrationService( RockContext )
+                .Queryable()
+                .Include( r => r.Registrants )
+                .Include( r => r.RegistrationInstance.RegistrationTemplate.Forms.Select( f => f.Fields ) )
+                .Include( r => r.RegistrationInstance.RegistrationTemplate.Fees )
+                .Where( r => request.RegistrarIds.Contains( r.Id ) )
+                .ToList();
+
+            if ( !registrations.Any() )
+            {
+                return ActionOk( "No valid registrations found for the selected recipients." );
+            }
+
+            var appRoot = GlobalAttributesCache.Value( "PublicApplicationRoot" );
+            var themeRoot = RequestContext.ResolveRockUrl( "~~/" );
+
+            foreach ( var registration in registrations )
+            {
+                if ( registration.ConfirmationEmail.IsNullOrWhiteSpace() )
+                {
+                    continue;
+                }
+
+                var mergeFields = BuildMergeFields( registration, registration.RegistrationInstance, registration.Registrants.ToList() );
+
+                var emailMessage = new RockEmailMessage
+                {
+                    FromName = request.FromName,
+                    FromEmail = request.FromEmail,
+                    Subject = request.Subject,
+                    Message = request.Body,
+                    AdditionalMergeFields = mergeFields,
+                    AppRoot = appRoot,
+                    ThemeRoot = themeRoot,
+                    CreateCommunicationRecord = true
+                };
+
+                emailMessage.AddRecipient( registration.GetConfirmationRecipient( mergeFields ) );
+                if ( emailMessage.Send( out var errors) )
+                {
+                    sendCount++;
+                }
+                else
+                {
+                    errorMessage += $"Failed to send email to {registration.ConfirmationEmail}: {string.Join( "; ", errors )}\n";
+                }
+            }
+
             return ActionOk();
         }
 
