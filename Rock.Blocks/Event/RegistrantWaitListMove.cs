@@ -157,13 +157,7 @@ namespace Rock.Blocks.Event
         {
             foreach ( var registrant in registrants )
             {
-                var groupMemberId = AddRegistrantToGroup( registrant );
-
-                if ( groupMemberId.HasValue )
-                {
-                    registrant.GroupMemberId = groupMemberId.Value;
-                }
-
+                AddRegistrantToGroup( registrant );
                 registrant.OnWaitList = false;
             }
 
@@ -183,10 +177,10 @@ namespace Rock.Blocks.Event
 
         /// <summary>
         /// Adds <paramref name="registrant"/> to the group linked to the registration
-        /// instance, using the appropriate group role and member status from the template.
-        /// A no-op when no group is configured or the person is already a member.
+        /// instance, using the appropriate group role and member status from the template,
+        /// and links the registrant to that group member. A no-op when no group is configured.
         /// </summary>
-        private int? AddRegistrantToGroup( RegistrationRegistrant registrant )
+        private void AddRegistrantToGroup( RegistrationRegistrant registrant )
         {
             var template = registrant.Registration?.RegistrationInstance?.RegistrationTemplate;
 
@@ -195,7 +189,7 @@ namespace Rock.Blocks.Event
                 registrant.Registration.Group.GroupType == null ||
                 template == null )
             {
-                return null;
+                return;
             }
 
             var group = registrant.Registration.Group;
@@ -232,7 +226,7 @@ namespace Rock.Blocks.Event
 
             groupMember.GroupMemberStatus = template.GroupMemberStatus;
 
-            return groupMember.Id;
+            registrant.GroupMember = groupMember;
         }
 
         /// <summary>
