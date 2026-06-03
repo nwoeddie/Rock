@@ -1,122 +1,129 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <Panel title="Wait List Confirmation">
-        <ContentSection :disableCollapse="true" class="mb-3" :title="moveFailed ? 'Move Failed' : 'Wait List Updated'" :icon="resultIcon">
-            <template #description>
-                <span class="text-semibold">{{ config.updateMessage }}</span>
-            </template>
-            <div v-if="moveFailed">
-                <NotificationBox alertType="danger">Unable to update wait list: {{ config.updateMessage }}</NotificationBox>
-            </div>
-            <NotificationBox v-else-if="sendResultMessage"
-                             :alertType="emailErrors ? 'warning' : 'success'">{{ sendResultMessage }}</NotificationBox>
-            <DisplayCard v-else
-                         title="Send Email to Individuals?"
-                         description="Would you like to send an email to those whose registrants have been moved off the wait list?">
-                <template #actions>
-                    <Toggle v-model="showEmail" trueText="Yes" falseText="No" :btnSize="BtnSize.Small" />
-                </template>
-            </DisplayCard>
-        </ContentSection>
-        <Transition name="slide-down">
-            <ContentSection v-if="!moveFailed && showEmail" :disableCollapse="true" title="Email" icon="ti ti-mail">
-                <ContentStack title="Recipients"
-                              description="Select the individuals to notify about their wait list transition.">
-                    <div class="recipients">
-                        <div class="d-flex justify-content-between align-items-center pb-3">
-                            <span class="badge p-2 text-normal">
-                                {{ selectedCount }} of {{ recipients.length }} selected
-                            </span>
-                            <div class="d-flex gap-2 align-items-center">
-                                <RockButton btnType="link" btnSize="sm" @click="onDeselectAll">Deselect All</RockButton>
-                                <RockButton btnType="link" btnSize="sm" @click="onSelectAll">Select All</RockButton>
+        <NotificationBox :alertType="moveFailed ? 'danger' : 'success'" class="mb-3">
+            <strong>{{ moveFailed ? 'Move Failed ' : 'Wait List Updated ' }}</strong>{{ config.updateMessage }}
+        </NotificationBox>
+        <ContentSection :disableCollapse="true" title="Email" icon="ti ti-mail">
+            <ContentStack>
+                <NotificationBox v-if="sendResultMessage"
+                                 :alertType="emailErrors ? 'warning' : 'success'">{{ sendResultMessage }}</NotificationBox>
+                <DisplayCard v-else
+                             title="Send Email to Individuals?"
+                             description="Would you like to send an email to those whose registrants have been moved off the wait list?">
+                    <template #actions>
+                        <Toggle v-model="showEmail" trueText="Yes" falseText="No" :btnSize="BtnSize.Small" />
+                    </template>
+                </DisplayCard>
+            </ContentStack>
+            <Transition name="slide-down">
+                <div v-if="!moveFailed && showEmail" class="email-stacks">
+                    <ContentStack title="Recipients"
+                                  description="Select the individuals to notify about their wait list transition.">
+                        <div class="recipients">
+                            <div class="d-flex justify-content-between align-items-center pb-3">
+                                <span class="badge p-2 text-normal">
+                                    {{ selectedCount }} of {{ recipients.length }} selected
+                                </span>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <RockButton btnType="link" btnSize="sm" @click="onDeselectAll">Deselect All</RockButton>
+                                    <RockButton btnType="link" btnSize="sm" @click="onSelectAll">Select All</RockButton>
+                                </div>
                             </div>
-                        </div>
-                        <TransitionGroup name="recipient" tag="div" class="recipient-grid">
-                            <template v-for="recipient in visibleRecipients">
-                                <div v-if="recipient.id"
-                                     :key="recipient.id"
-                                     class="card recipient-card"
-                                     :class="{ 'recipient-selected': recipient.isSelected }"
-                                     style="cursor: pointer;"
-                                     @click="recipient.isSelected = !recipient.isSelected">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="recipient-info">
-                                                <h6 class="card-title mb-1">{{ recipient.registrantName }}</h6>
-                                                <p class="card-text text-sm mb-3">{{ recipient.email }}</p>
-                                                <PillList :modelValue="recipient.registeredNames ?? []" label="Registrants" @click.stop />
+                            <TransitionGroup name="recipient" tag="div" class="recipient-grid">
+                                <template v-for="recipient in visibleRecipients">
+                                    <div v-if="recipient.id"
+                                         :key="recipient.id"
+                                         class="card recipient-card"
+                                         :class="{ 'recipient-selected': recipient.isSelected }"
+                                         style="cursor: pointer;"
+                                         @click="recipient.isSelected = !recipient.isSelected">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="recipient-info">
+                                                    <h6 class="card-title mb-1">{{ recipient.registrantName }}</h6>
+                                                    <p class="card-text text-sm mb-3">{{ recipient.email }}</p>
+                                                    <PillList :modelValue="recipient.registeredNames ?? []" label="Registrants" @click.stop />
+                                                </div>
+                                                <CheckBox v-model="recipient.isSelected" label="" @click.prevent.stop />
                                             </div>
-                                            <CheckBox v-model="recipient.isSelected" label="" @click.prevent.stop />
                                         </div>
                                     </div>
+                                </template>
+                            </TransitionGroup>
+                            <div v-if="recipients.length > maxVisible" class="text-center mt-2">
+                                <RockButton btnType="link" btnSize="sm" @click="isShowingAll = !isShowingAll">
+                                    {{ isShowingAll ? 'Show Less' : `Show All (${recipients.length})` }}
+                                </RockButton>
+                            </div>
+                        </div>
+                    </ContentStack>
+
+                    <ContentStack title="Message"
+                                  description="Customize the email that will be sent to the selected recipients.">
+                        <RockForm @submit="onSendClick">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <TextBox v-model="fromName" label="From Name" rules="required" />
                                 </div>
-                            </template>
-                        </TransitionGroup>
-                        <div v-if="recipients.length > maxVisible" class="text-center mt-2">
-                            <RockButton btnType="link" btnSize="sm" @click="isShowingAll = !isShowingAll">
-                                {{ isShowingAll ? 'Show Less' : `Show All (${recipients.length})` }}
-                            </RockButton>
-                        </div>
-                    </div>
-                </ContentStack>
+                                <div class="col-md-6">
+                                    <TextBox v-model="fromEmail" label="From Email" rules="required|email" />
+                                </div>
+                            </div>
 
-                <ContentStack title="Message"
-                              description="Customize the email that will be sent to the selected recipients.">
-                    <RockForm @submit="onSendClick">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <TextBox v-model="fromName" label="From Name" rules="required" />
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <TextBox v-model="subject" label="Subject" rules="required" />
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <TextBox v-model="fromEmail" label="From Email" rules="required|email" />
-                            </div>
-                        </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <TextBox v-model="subject" label="Subject" rules="required" />
+                            <div class="form-group">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="control-label required">Message</label>
+                                    <ButtonGroup
+                                                 v-model="previewMode"
+                                                 :items="previewModeItems"
+                                                 :btnSize="BtnSize.ExtraSmall"
+                                                 :selectedBtnType="BtnType.Primary"
+                                                 :unselectedBtnType="BtnType.Default" />
+                                </div>
+                                <CodeEditor v-if="previewMode === 'code'"
+                                            v-model="messageBody"
+                                            mode="lava"
+                                            :editorHeight="500" />
+                                <div v-else
+                                     class="email-preview js-email-preview overflow-auto"
+                                     style="position: relative; height: 500px;">
+                                    <iframe name="emailPreview"
+                                            :srcdoc="previewHtml"
+                                            class="emaileditor-iframe bg-white inset-0 w-100 h-100 js-emailpreview-iframe email-wrapper email-content-desktop styled-scroll"
+                                            frameborder="0"
+                                            border="0"
+                                            cellspacing="0">
+                                    </iframe>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="form-group">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="control-label required">Message</label>
-                                <ButtonGroup
-                                             v-model="previewMode"
-                                             :items="previewModeItems"
-                                             :btnSize="BtnSize.ExtraSmall"
-                                             :selectedBtnType="BtnType.Primary"
-                                             :unselectedBtnType="BtnType.Default" />
+                            <div class="d-flex justify-content-end mt-3">
+                                <RockButton btnType="primary" type="submit" :isLoading="isSending">
+                                    Send
+                                </RockButton>
                             </div>
-                            <CodeEditor v-if="previewMode === 'code'"
-                                        v-model="messageBody"
-                                        mode="lava"
-                                        :editorHeight="500" />
-                            <div v-else
-                                 class="email-preview js-email-preview overflow-auto"
-                                 style="position: relative; height: 500px;">
-                                <iframe name="emailPreview"
-                                        :srcdoc="previewHtml"
-                                        class="emaileditor-iframe bg-white inset-0 w-100 h-100 js-emailpreview-iframe email-wrapper email-content-desktop styled-scroll"
-                                        frameborder="0"
-                                        border="0"
-                                        cellspacing="0">
-                                </iframe>
-                            </div>
-                        </div>
-
-                        <RockButton btnType="primary" type="submit" :isLoading="isSending" class="mt-2 justify-self-end">
-                            Send
-                        </RockButton>
-                    </RockForm>
-                </ContentStack>
-            </ContentSection>
-        </Transition>
+                        </RockForm>
+                    </ContentStack>
+                </div>
+            </Transition>
+        </ContentSection>
     </Panel>
 </template>
 
 <style scoped>
+.email-stacks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-large);
+}
+
 .failed {
     background-color: var(--color-danger-soft);
     color: var(--color-danger-strong);
