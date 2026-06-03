@@ -15,6 +15,8 @@
 // </copyright>
 //
 
+using System.Collections.Generic;
+
 namespace Rock.ViewModels.Blocks.Store
 {
     /// <summary>
@@ -25,8 +27,21 @@ namespace Rock.ViewModels.Blocks.Store
     public class PackageCategoryListLavaBox : BlockBox
     {
         /// <summary>
-        /// Gets the HTML to be rendered in the front end for the package category list lava block.
+        /// Gets or sets the store package categories to display.
         /// </summary>
-        public string Html { get; set; }
+        public List<PackageCategoryListItemBag> Categories { get; set; }
+
+        /// <summary>
+        /// Gets or sets the base URL of the configured detail page. Category links
+        /// append the CategoryId and CategoryName query string parameters to this value.
+        /// </summary>
+        public string DetailPageUrl { get; set; }
+
+        /// <summary>
+        /// Gets or sets the store error message. When non-empty, the store could not be
+        /// reached and the component renders the "Store Currently Not Available" panel
+        /// instead of the category list.
+        /// </summary>
+        public string StoreErrorMessage { get; set; }
     }
 }

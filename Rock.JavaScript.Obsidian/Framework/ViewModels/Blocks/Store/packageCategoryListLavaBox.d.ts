@@ -21,23 +21,38 @@
 // </copyright>
 //
 
+import { PackageCategoryListItemBag } from "@Obsidian/ViewModels/Blocks/Store/packageCategoryListItemBag";
+
 /**
  * The box that contains the initialization information for the Package Category List Lava block.
  * Implements the Rock.ViewModels.Blocks.BlockBox
  */
 export type PackageCategoryListLavaBox = {
+    /** Gets or sets the store package categories to display. */
+    categories?: PackageCategoryListItemBag[] | null;
+
+    /**
+     * Gets or sets the base URL of the configured detail page. Category links
+     * append the CategoryId and CategoryName query string parameters to this value.
+     */
+    detailPageUrl?: string | null;
+
     /**
      * Gets or sets the error message. A non-empty value indicates that
      * an error is preventing the block from being displayed.
      */
     errorMessage?: string | null;
 
-    /** Gets the HTML to be rendered in the front end for the package category list lava block. */
-    html?: string | null;
-
     /** Gets or sets the navigation urls. */
     navigationUrls?: Record<string, string> | null;
 
     /** Gets or sets the security grant token. */
     securityGrantToken?: string | null;
+
+    /**
+     * Gets or sets the store error message. When non-empty, the store could not be
+     * reached and the component renders the "Store Currently Not Available" panel
+     * instead of the category list.
+     */
+    storeErrorMessage?: string | null;
 };

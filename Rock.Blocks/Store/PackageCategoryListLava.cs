@@ -15,23 +15,18 @@
 // </copyright>
 //
 
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 
 using Rock.Attribute;
-using Rock.Blocks.Event;
 using Rock.Store;
 using Rock.Utility.ExtensionMethods;
-using Rock.ViewModels.Blocks.Event;
 using Rock.ViewModels.Blocks.Store;
-using Rock.Web.UI.Controls;
 
 namespace Rock.Blocks.Store
 {
     /// <summary>
-    /// Lists categories for Rock Store pages using a Lava template.
+    /// Lists categories for Rock Store pages.
     /// </summary>
     /// <seealso cref="Rock.Blocks.RockBlockType" />
 
@@ -43,14 +38,6 @@ namespace Rock.Blocks.Store
 
     #region Block Attributes
 
-    [CodeEditorField( "Lava Template",
-        Description = "Lava template to use to display the categories",
-        EditorMode = CodeEditorMode.Lava,
-        EditorHeight = 400,
-        IsRequired = true,
-        DefaultValue = @"{% include '~/Assets/Lava/Store/PackageCategoryListSidebar.lava' %}",
-        Order = 2 )]
-
     [LinkedPage( "Detail Page",
         Description = "Page reference to use for the detail page.",
         IsRequired = false,
@@ -61,84 +48,60 @@ namespace Rock.Blocks.Store
 
     [Rock.SystemGuid.EntityTypeGuid( "9A9F0646-F48C-4232-B10A-222109677C9F" )]
     [Rock.SystemGuid.BlockTypeGuid( "69DC9386-1A26-41E0-ACA2-6D5ABFB22873" )]
-    // [Rock.SystemGuid.BlockTypeGuid( "470C6EFF-091C-4593-848C-49547D0EBEEE" )]
     public class PackageCategoryListLava : RockBlockType
     {
         #region Keys
 
         private static class AttributeKey
         {
-            public const string LavaTemplate = "LavaTemplate";
             public const string DetailPage = "DetailPage";
         }
 
         #endregion Keys
-
-        #region Properties
-
-        private string LavaTemplate => GetAttributeValue( AttributeKey.LavaTemplate );
-
-        #endregion Properties
 
         #region Methods
 
         /// <inheritdoc/>
         public override object GetObsidianBlockInitialization()
         {
-            // Store.css supplies the styling the store Lava templates rely on
+            // Store.css supplies the styling the store category list relies on
+            // (mirrors the WebForms block's OnInit AddCSSLink).
             RequestContext.Response.AddCssLink( RequestContext.ResolveRockUrl( "~/Styles/Blocks/Store/Store.css" ), true );
 
-            var packageCategoryListLavaBox = new PackageCategoryListLavaBox
-            {
-                Html = GetCategoriesHtml()
-            };
-
-            return packageCategoryListLavaBox;
+            return GetBox();
         }
 
         /// <summary>
-        /// 
+        /// Fetches the Rock Store package categories and builds the box the Obsidian
+        /// component uses to render the category list (or the store-unavailable panel).
         /// </summary>
-        /// <returns></returns>
-        protected override string GetInitialHtmlContent()
+        /// <returns>The initialization box for the block.</returns>
+        private PackageCategoryListLavaBox GetBox()
         {
-            return GetCategoriesHtml();
-        }
+            var box = new PackageCategoryListLavaBox();
 
-        /// <summary>
-        /// Fetches the Rock Store package categories, resolves the configured Lava template,
-        /// and returns the rendered HTML (or an error panel when the store is unavailable).
-        /// </summary>
-        /// <returns>The rendered HTML for the category list.</returns>
-        private string GetCategoriesHtml()
-        {
             var categoryService = new PackageCategoryService();
-            var errors = "";
+            var categories = categoryService.GetCategories( out var errors ).OrderBy( c => c.Name );
 
-            var categories = categoryService.GetCategories( out errors ).OrderBy( c => c.Name );
-
-            // When the store cannot be reached, mirror the WebForms error panel:
-            // a "Store Currently Not Available" message plus the underlying error detail.
+            // When the store cannot be reached, surface the error so the component can
+            // render the "Store Currently Not Available" panel instead of the list.
             if ( !errors.IsNullOrWhiteSpace() )
             {
-                return $@"<div class=""alert alert-warning"">
-    <h4>Store Currently Not Available</h4>
-    <p>We're sorry, the Rock Store is currently not available. Check back soon!</p>
-    <small><em>{errors.EncodeHtml()}</em></small>
-</div>";
+                box.StoreErrorMessage = errors;
+                return box;
             }
 
-            var mergeFields = RequestContext.GetCommonMergeFields();
-            mergeFields.Add( "Categories", categories );
+            box.Categories = categories
+                .Select( c => new PackageCategoryListItemBag
+                {
+                    Id = c.Id,
+                    Name = c.Name
+                } )
+                .ToList();
 
-            var linkedPages = new Dictionary<string, object>
-            {
-                { "DetailPage", this.GetLinkedPageUrl( AttributeKey.DetailPage ) }
-            };
+            box.DetailPageUrl = this.GetLinkedPageUrl( AttributeKey.DetailPage );
 
-            mergeFields.Add( "LinkedPages", linkedPages );
-
-            return LavaTemplate.ResolveMergeFields( mergeFields );
+            return box;
         }
 
         #endregion Methods

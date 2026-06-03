@@ -1,13 +1,42 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
-    <div v-html="categoriesListLavaHTML"></div>
+    <div v-if="storeErrorMessage" class="alert alert-warning">
+        <h4>Store Currently Not Available</h4>
+        <p>We're sorry, the Rock Store is currently not available. Check back soon!</p>
+        <small><em>{{ storeErrorMessage }}</em></small>
+    </div>
+
+    <div v-else class="panel panel-block">
+        <div class="panel-heading">
+            <h1 class="panel-title"><i class="ti ti-list"></i> View By Category</h1>
+        </div>
+
+        <ul class="list-group">
+            <li v-for="category in categories" :key="category.id" class="list-group-item">
+                <a :href="getCategoryUrl(category)">{{ category.name }}</a>
+            </li>
+        </ul>
+    </div>
 </template>
 
 <script setup lang="ts">
-    import { ref } from "vue";
+    import { computed } from "vue";
     import { useConfigurationValues } from "@Obsidian/Utility/block";
     import { PackageCategoryListLavaBox } from "@Obsidian/ViewModels/Blocks/Store/PackageCategoryListLavaBox";
+    import { PackageCategoryListItemBag } from "@Obsidian/ViewModels/Blocks/Store/packageCategoryListItemBag";
 
     const config = useConfigurationValues<PackageCategoryListLavaBox>();
-    const categoriesListLavaHTML = ref(config?.html ?? "");
+
+    const categories = computed((): PackageCategoryListItemBag[] => config.categories ?? []);
+    const storeErrorMessage = computed((): string => config.storeErrorMessage ?? "");
+    const detailPageUrl = computed((): string => config.detailPageUrl ?? "");
+
+    /**
+     * Builds the detail page URL for a category, appending the CategoryId and
+     * CategoryName query string parameters the detail page expects.
+     */
+    function getCategoryUrl(category: PackageCategoryListItemBag): string {
+        const categoryName = encodeURIComponent(category.name ?? "");
+        return `${detailPageUrl.value}?CategoryId=${category.id}&CategoryName=${categoryName}`;
+    }
 </script>
