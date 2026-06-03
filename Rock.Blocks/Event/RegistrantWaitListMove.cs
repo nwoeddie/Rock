@@ -346,24 +346,21 @@ namespace Rock.Blocks.Event
             var sendCount = 0;
             var errorMessage = "";
 
-            var registrarIds = request.RegistrarIds ?? new List<int>();
+            var registrationIds = request.RegistrationIds ?? new List<int>();
 
             var registrations = new RegistrationService( RockContext )
                 .Queryable()
                 .Include( r => r.Registrants.Select( reg => reg.Fees ) )
                 .Include( r => r.RegistrationInstance.RegistrationTemplate.Forms.Select( f => f.Fields ) )
                 .Include( r => r.RegistrationInstance.RegistrationTemplate.Fees )
-                .Where( r => registrarIds.Contains( r.Id ) )
+                .Where( r => registrationIds.Contains( r.Id ) )
                 .ToList();
 
             if ( !registrations.Any() )
             {
-                return ActionOk( "No valid registrations found for the selected recipients." );
+                return ActionBadRequest( "No valid registrations found for the selected recipients." );
             }
 
-            // Group the wait-list registrants (those in the entity set) by registration so the
-            // TransitionedRegistrants merge field only includes people actually moved off the
-            // wait list, matching the on-screen preview rather than every registrant.
             var transitionedByRegistration = ( GetRegistrantsFromEntitySet() ?? new List<RegistrationRegistrant>() )
                 .GroupBy( r => r.RegistrationId )
                 .ToDictionary( g => g.Key, g => g.ToList() );

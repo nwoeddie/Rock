@@ -41,9 +41,9 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantWaitListMove
         public string PreviewHtml { get; set; }
 
         /// <summary>
-        /// The IdKeys of the registrations whose registrars should receive the email.
+        /// The ids of the registrations whose registrars should receive the email.
         /// Populated from the recipient selection made by the user on the client.
         /// </summary>
-        public List<int> RegistrarIds { get; set; }
+        public List<int> RegistrationIds { get; set; }
     }
 }

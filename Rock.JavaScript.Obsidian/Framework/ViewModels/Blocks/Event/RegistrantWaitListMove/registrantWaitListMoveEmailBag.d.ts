@@ -46,10 +46,10 @@ export type RegistrantWaitListMoveEmailBag = {
     previewHtml?: string | null;
 
     /**
-     * The IdKeys of the registrations whose registrars should receive the email.
+     * The ids of the registrations whose registrars should receive the email.
      * Populated from the recipient selection made by the user on the client.
      */
-    registrarIds?: number[] | null;
+    registrationIds?: number[] | null;
 
     /** The subject line of the outgoing email. */
     subject?: string | null;

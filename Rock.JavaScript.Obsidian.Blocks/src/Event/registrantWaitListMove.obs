@@ -321,7 +321,7 @@
                     subject: subject.value,
                     body: messageBody.value,
                     previewHtml: previewHtml.value,
-                    registrarIds: selectedRecipients.map(r => r.id)
+                    registrationIds: selectedRecipients.map(r => r.id)
                 } as RegistrantWaitListMoveEmailBag
             });
 
