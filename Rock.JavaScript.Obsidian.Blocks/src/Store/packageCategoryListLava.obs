@@ -1,0 +1,14 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <div v-html="categoriesListLavaHTML"></div>
+</template>
+
+<script setup lang="ts">
+    import { ref } from "vue";
+    import { useConfigurationValues } from "@Obsidian/Utility/block";
+    import { PackageCategoryListLavaBox } from "@Obsidian/ViewModels/Blocks/Store/PackageCategoryListLavaBox";
+
+    const config = useConfigurationValues<PackageCategoryListLavaBox>();
+    console.log(config);
+    const categoriesListLavaHTML = ref(config?.html ?? "");
+</script>
