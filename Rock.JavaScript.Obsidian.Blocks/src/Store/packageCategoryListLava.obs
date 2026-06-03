@@ -9,6 +9,5 @@
     import { PackageCategoryListLavaBox } from "@Obsidian/ViewModels/Blocks/Store/PackageCategoryListLavaBox";
 
     const config = useConfigurationValues<PackageCategoryListLavaBox>();
-    console.log(config);
     const categoriesListLavaHTML = ref(config?.html ?? "");
 </script>

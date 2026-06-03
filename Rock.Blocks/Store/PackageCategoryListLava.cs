@@ -23,6 +23,7 @@ using System.Linq;
 using Rock.Attribute;
 using Rock.Blocks.Event;
 using Rock.Store;
+using Rock.Utility.ExtensionMethods;
 using Rock.ViewModels.Blocks.Event;
 using Rock.ViewModels.Blocks.Store;
 using Rock.Web.UI.Controls;
@@ -84,6 +85,8 @@ namespace Rock.Blocks.Store
         /// <inheritdoc/>
         public override object GetObsidianBlockInitialization()
         {
+            // Store.css supplies the styling the store Lava templates rely on
+            RequestContext.Response.AddCssLink( RequestContext.ResolveRockUrl( "~/Styles/Blocks/Store/Store.css" ), true );
 
             var packageCategoryListLavaBox = new PackageCategoryListLavaBox
             {
