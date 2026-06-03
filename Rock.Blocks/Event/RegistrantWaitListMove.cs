@@ -371,7 +371,7 @@ namespace Rock.Blocks.Event
 
             var registrations = new RegistrationService( RockContext )
                 .Queryable()
-                .Include( r => r.Registrants )
+                .Include( r => r.Registrants.Select( reg => reg.Fees ) )
                 .Include( r => r.RegistrationInstance.RegistrationTemplate.Forms.Select( f => f.Fields ) )
                 .Include( r => r.RegistrationInstance.RegistrationTemplate.Fees )
                 .Where( r => request.RegistrarIds.Contains( r.Id ) )
@@ -417,7 +417,15 @@ namespace Rock.Blocks.Event
                 }
             }
 
-            return ActionOk();
+
+            if( errorMessage.IsNullOrWhiteSpace())
+            {
+                return ActionOk( $"Wait List Transition emails have been sent to {sendCount} individuals." );
+            }
+            else
+            {
+                return ActionOk( $"Sent {sendCount} email(s) with the following errors:\n{errorMessage}" );
+            }
         }
 
         #endregion Block Actions

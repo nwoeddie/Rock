@@ -5,20 +5,21 @@
             <template #description>
                 <span class="text-semibold">{{ config.updateMessage }}</span>
             </template>
-            <DisplayCard v-if="!moveFailed"
+            <div v-if="moveFailed">
+                <NotificationBox alertType="danger">Unable to update wait list: {{ config.updateMessage }}</NotificationBox>
+            </div>
+            <NotificationBox v-else-if="sendResultMessage"
+                             :alertType="emailErrors ? 'warning' : 'success'">{{ sendResultMessage }}</NotificationBox>
+            <DisplayCard v-else
                          title="Send Email to Individuals?"
                          description="Would you like to send an email to those whose registrants have been moved off the wait list?">
                 <template #actions>
-                    <Toggle v-model="isShowEmail" trueText="Yes" falseText="No" :btnSize="BtnSize.Small" />
+                    <Toggle v-model="showEmail" trueText="Yes" falseText="No" :btnSize="BtnSize.Small" />
                 </template>
             </DisplayCard>
-            <div v-else>
-                <NotificationBox alertType="danger">Unable to update wait list: {{ config.updateMessage }}</NotificationBox>
-            </div>
         </ContentSection>
-
         <Transition name="slide-down">
-            <ContentSection v-if="!moveFailed && isShowEmail" :disableCollapse="true" title="Email" icon="ti ti-mail">
+            <ContentSection v-if="!moveFailed && showEmail" :disableCollapse="true" title="Email" icon="ti ti-mail">
                 <ContentStack title="Recipients"
                               description="Select the individuals to notify about their wait list transition.">
                     <div class="recipients">
@@ -243,9 +244,11 @@
 
     const previewMode = ref<"code" | "preview">("preview");
     const isMessageBodyChanged = ref(false);
-    const isShowEmail = ref(false);
+    const showEmail = ref(false);
     const isSending = ref(false);
     const isComplete = ref(false);
+    const sendResultMessage = ref("");
+    const emailErrors = ref(false);
     const isShowingAll = ref(false);
     const moveFailed = ref(!config.recipients || config.recipients.length === 0);
 
@@ -316,6 +319,9 @@
             });
 
             if (result.isSuccess) {
+                sendResultMessage.value = result.data as string ?? "Emails sent.";
+                emailErrors.value = (result.data as string ?? "").toLowerCase().includes("error");
+                showEmail.value = false;
                 isComplete.value = true;
                 window.scrollTo(0, 0);
             }
