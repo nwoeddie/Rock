@@ -44,11 +44,6 @@ namespace Rock.Blocks.Event
     {
         #region Keys
 
-        private static class AttributeKey
-        {
-            public const string RegistrationInstancePage = "RegistrationInstancePage";
-        }
-
         private static class PageParameterKey
         {
             public const string EntitySetId = "WaitListSetId";
@@ -69,10 +64,7 @@ namespace Rock.Blocks.Event
         /// <inheritdoc/>
         public override object GetObsidianBlockInitialization()
         {
-            var bag = new RegistrantWaitListMoveBag
-            {
-                HasPageTitle = PageCache.PageTitle.Equals( "Wait List Confirmation", System.StringComparison.OrdinalIgnoreCase )
-            };
+            var bag = new RegistrantWaitListMoveBag();
 
             var registrants = GetRegistrantsFromEntitySet();
 
@@ -297,15 +289,6 @@ namespace Rock.Blocks.Event
             };
         }
 
-        /// <summary>
-        /// Builds the URL for the "Return to Registration Instance" navigation link.
-        /// Returns an empty string when the linked page attribute is not configured.
-        /// </summary>
-        private string BuildRegistrationInstancePageUrl( RegistrationInstance registrationInstance )
-        {
-            return string.Empty;
-        }
-
         #endregion Methods
 
         #region Block Actions
@@ -363,18 +346,27 @@ namespace Rock.Blocks.Event
             var sendCount = 0;
             var errorMessage = "";
 
+            var registrarIds = request.RegistrarIds ?? new List<int>();
+
             var registrations = new RegistrationService( RockContext )
                 .Queryable()
                 .Include( r => r.Registrants.Select( reg => reg.Fees ) )
                 .Include( r => r.RegistrationInstance.RegistrationTemplate.Forms.Select( f => f.Fields ) )
                 .Include( r => r.RegistrationInstance.RegistrationTemplate.Fees )
-                .Where( r => request.RegistrarIds.Contains( r.Id ) )
+                .Where( r => registrarIds.Contains( r.Id ) )
                 .ToList();
 
             if ( !registrations.Any() )
             {
                 return ActionOk( "No valid registrations found for the selected recipients." );
             }
+
+            // Group the wait-list registrants (those in the entity set) by registration so the
+            // TransitionedRegistrants merge field only includes people actually moved off the
+            // wait list, matching the on-screen preview rather than every registrant.
+            var transitionedByRegistration = ( GetRegistrantsFromEntitySet() ?? new List<RegistrationRegistrant>() )
+                .GroupBy( r => r.RegistrationId )
+                .ToDictionary( g => g.Key, g => g.ToList() );
 
             var appRoot = GlobalAttributesCache.Value( "PublicApplicationRoot" );
             var themeRoot = RequestContext.ResolveRockUrl( "~~/" );
@@ -386,7 +378,11 @@ namespace Rock.Blocks.Event
                     continue;
                 }
 
-                var mergeFields = BuildMergeFields( registration, registration.RegistrationInstance, registration.Registrants.ToList() );
+                var transitionedRegistrants = transitionedByRegistration.TryGetValue( registration.Id, out var moved )
+                    ? moved
+                    : registration.Registrants.ToList();
+
+                var mergeFields = BuildMergeFields( registration, registration.RegistrationInstance, transitionedRegistrants );
 
                 var emailMessage = new RockEmailMessage
                 {

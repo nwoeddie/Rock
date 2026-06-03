@@ -28,12 +28,5 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantWaitListMove
         /// </summary>
         public string UpdateMessage { get; set; }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether the page already has a title
-        /// in the breadcrumb area. When true the block should hide its own title
-        /// to avoid duplicating the heading.
-        /// </summary>
-        public bool HasPageTitle { get; set; }
-
     }
 }
