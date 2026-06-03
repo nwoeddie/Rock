@@ -12,6 +12,9 @@
                     <Toggle v-model="isShowEmail" trueText="Yes" falseText="No" :btnSize="BtnSize.Small" />
                 </template>
             </DisplayCard>
+            <div v-else>
+                <NotificationBox alertType="danger">Unable to update wait list: {{ config.updateMessage }}</NotificationBox>
+            </div>
         </ContentSection>
 
         <Transition name="slide-down">
