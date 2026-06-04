@@ -46,7 +46,8 @@ namespace Rock.Blocks.Security
     [SupportedSiteTypes( Model.SiteType.Web )]
 
     [Rock.SystemGuid.EntityTypeGuid( "208087DA-E267-4656-A9CC-362A69E92A26" )]
-    [Rock.SystemGuid.BlockTypeGuid( "5B56AE6E-E73E-4D14-AF3E-680B3569CE38" )]
+    // Was [Rock.SystemGuid.BlockTypeGuid( "5B56AE6E-E73E-4D14-AF3E-680B3569CE38" )]
+    [Rock.SystemGuid.BlockTypeGuid( "186490CD-4132-43BD-9BDF-DD04C6CD2432" )]
     public class RockSecuritySettings : RockBlockType
     {
         #region Constants
