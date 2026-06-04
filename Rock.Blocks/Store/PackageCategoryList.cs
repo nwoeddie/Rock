@@ -55,7 +55,7 @@ namespace Rock.Blocks.Store
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "9A9F0646-F48C-4232-B10A-222109677C9F" )]
-     [Rock.SystemGuid.BlockTypeGuid( "69DC9386-1A26-41E0-ACA2-6D5ABFB22873" )]
+    [Rock.SystemGuid.BlockTypeGuid( "69DC9386-1A26-41E0-ACA2-6D5ABFB22873" )]
     //[Rock.SystemGuid.BlockTypeGuid( "470C6EFF-091C-4593-848C-49547D0EBEEE" )]
     public class PackageCategoryList : RockBlockType
     {
