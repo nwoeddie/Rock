@@ -1,9 +1,9 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <NotificationBox v-if="blockError" alertType="warning">{{ blockError }}</NotificationBox>
-    <NotificationBox v-if="serverError" alertType="danger" style="white-space: pre-line">{{ serverError }}</NotificationBox>
+    <NotificationBox v-if="serverError" alertType="danger" style="white-space: pre-line" ref="errorMessageElement">{{ serverError }}</NotificationBox>
 
-    <Panel v-else type="block" title="Security Settings">
+    <Panel type="block" title="Security Settings">
         <RockForm ref="rockForm" @submit="onSave">
             <ContentSectionContainer :sidebar="false">
                 <ContentSection title="Rock Security Settings"
@@ -268,7 +268,7 @@
 </style>
 
 <script setup lang="ts">
-    import { computed, ref, type ComponentPublicInstance } from "vue";
+    import { computed, nextTick, ref, type ComponentPublicInstance } from "vue";
     import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
     import Panel from "@Obsidian/Controls/panel.obs";
     import RockForm from "@Obsidian/Controls/rockForm.obs";
@@ -323,6 +323,8 @@
 
     const serverError = ref("");
     const isSaving = ref(false);
+
+    const errorMessageElement = ref<InstanceType<typeof NotificationBox> | null>(null);
 
     // #endregion Values
 
@@ -444,6 +446,16 @@
 
             if (!result.isSuccess) {
                 serverError.value = result.errorMessage ?? "An error occurred while saving the security settings.";
+
+                nextTick(() => {
+                    if (errorMessageElement.value?.$el) {
+                        errorMessageElement.value.$el.scrollIntoView({
+                            behavior: "smooth",
+                            block: "nearest",
+                        });
+                    }
+                });
+
                 return;
             }
 
