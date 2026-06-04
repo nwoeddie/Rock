@@ -30,13 +30,21 @@ namespace Rock.Blocks.Store
     /// </summary>
     /// <seealso cref="Rock.Blocks.RockBlockType" />
 
-    [DisplayName( "Package Category List Lava" )]
+    [DisplayName( "Package Category List" )]
     [Category( "Store" )]
     [Description( "Lists categories for Rock Store pages." )]
     [IconCssClass( "fa fa-list" )]
     [SupportedSiteTypes( Model.SiteType.Web )]
 
     #region Block Attributes
+
+    [CustomRadioListField( "Display Style",
+        Description = "Determines how the category list is rendered: a vertical sidebar list or a horizontal header pill bar.",
+        ListSource = "Sidebar,Header",
+        IsRequired = true,
+        DefaultValue = "Sidebar",
+        Key = AttributeKey.DisplayStyle,
+        Order = 2 )]
 
     [LinkedPage( "Detail Page",
         Description = "Page reference to use for the detail page.",
@@ -47,15 +55,22 @@ namespace Rock.Blocks.Store
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "9A9F0646-F48C-4232-B10A-222109677C9F" )]
-    // WAS [Rock.SystemGuid.BlockTypeGuid( "69DC9386-1A26-41E0-ACA2-6D5ABFB22873" )]
-    [Rock.SystemGuid.BlockTypeGuid( "470C6EFF-091C-4593-848C-49547D0EBEEE" )]
-    public class PackageCategoryListLava : RockBlockType
+    [Rock.SystemGuid.BlockTypeGuid( "69DC9386-1A26-41E0-ACA2-6D5ABFB22873" )]
+    //[Rock.SystemGuid.BlockTypeGuid( "470C6EFF-091C-4593-848C-49547D0EBEEE" )]
+    public class PackageCategoryList : RockBlockType
     {
         #region Keys
 
         private static class AttributeKey
         {
+            public const string DisplayStyle = "DisplayStyle";
             public const string DetailPage = "DetailPage";
+        }
+
+        private static class DisplayStyleValue
+        {
+            public const string Sidebar = "Sidebar";
+            public const string Header = "Header";
         }
 
         #endregion Keys
@@ -77,15 +92,19 @@ namespace Rock.Blocks.Store
         /// component uses to render the category list (or the store-unavailable panel).
         /// </summary>
         /// <returns>The initialization box for the block.</returns>
-        private PackageCategoryListLavaBox GetBox()
+        private PackageCategoryListBox GetBox()
         {
-            var box = new PackageCategoryListLavaBox();
+            var box = new PackageCategoryListBox
+            {
+                // Default to the sidebar layout when the setting is missing or unrecognized.
+                DisplayStyle = GetAttributeValue( AttributeKey.DisplayStyle ) == DisplayStyleValue.Header
+                    ? DisplayStyleValue.Header
+                    : DisplayStyleValue.Sidebar
+            };
 
             var categoryService = new PackageCategoryService();
             var categories = categoryService.GetCategories( out var errors ).OrderBy( c => c.Name );
 
-            // When the store cannot be reached, surface the error so the component can
-            // render the "Store Currently Not Available" panel instead of the list.
             if ( !errors.IsNullOrWhiteSpace() )
             {
                 box.StoreErrorMessage = errors;

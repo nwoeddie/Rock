@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -24,8 +24,14 @@ namespace Rock.ViewModels.Blocks.Store
     /// Implements the <see cref="Rock.ViewModels.Blocks.BlockBox" />
     /// </summary>
     /// <seealso cref="Rock.ViewModels.Blocks.BlockBox" />
-    public class PackageCategoryListLavaBox : BlockBox
+    public class PackageCategoryListBox : BlockBox
     {
+        /// <summary>
+        /// Gets or sets the layout used to render the category list. Either
+        /// "Sidebar" (vertical list) or "Header" (horizontal pill bar).
+        /// </summary>
+        public string DisplayStyle { get; set; }
+
         /// <summary>
         /// Gets or sets the store package categories to display.
         /// </summary>

@@ -27,7 +27,7 @@ import { PackageCategoryListItemBag } from "@Obsidian/ViewModels/Blocks/Store/pa
  * The box that contains the initialization information for the Package Category List Lava block.
  * Implements the Rock.ViewModels.Blocks.BlockBox
  */
-export type PackageCategoryListLavaBox = {
+export type PackageCategoryListBox = {
     /** Gets or sets the store package categories to display. */
     categories?: PackageCategoryListItemBag[] | null;
 
@@ -36,6 +36,12 @@ export type PackageCategoryListLavaBox = {
      * append the CategoryId and CategoryName query string parameters to this value.
      */
     detailPageUrl?: string | null;
+
+    /**
+     * Gets or sets the layout used to render the category list. Either
+     * "Sidebar" (vertical list) or "Header" (horizontal pill bar).
+     */
+    displayStyle?: string | null;
 
     /**
      * Gets or sets the error message. A non-empty value indicates that
