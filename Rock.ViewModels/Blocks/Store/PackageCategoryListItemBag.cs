@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -18,7 +18,7 @@
 namespace Rock.ViewModels.Blocks.Store
 {
     /// <summary>
-    /// A single Rock Store package category displayed by the Package Category List Lava block.
+    /// A single Rock Store package category displayed by the Package Category List block.
     /// </summary>
     public class PackageCategoryListItemBag
     {

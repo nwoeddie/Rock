@@ -20,7 +20,7 @@ using System.Collections.Generic;
 namespace Rock.ViewModels.Blocks.Store
 {
     /// <summary>
-    /// The box that contains the initialization information for the Package Category List Lava block.
+    /// The box that contains the initialization information for the Package Category List block.
     /// Implements the <see cref="Rock.ViewModels.Blocks.BlockBox" />
     /// </summary>
     /// <seealso cref="Rock.ViewModels.Blocks.BlockBox" />

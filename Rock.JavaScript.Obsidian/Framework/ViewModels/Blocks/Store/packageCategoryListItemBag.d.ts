@@ -21,7 +21,7 @@
 // </copyright>
 //
 
-/** A single Rock Store package category displayed by the Package Category List Lava block. */
+/** A single Rock Store package category displayed by the Package Category List block. */
 export type PackageCategoryListItemBag = {
     /** Gets or sets the store identifier of the package category. */
     id: number;

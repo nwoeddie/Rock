@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
     import { computed } from "vue";
-    import { useConfigurationValues } from "@Obsidian/Utility/block";
+    import { onConfigurationValuesChanged, useConfigurationValues, useReloadBlock } from "@Obsidian/Utility/block";
     import { PackageCategoryListBox } from "@Obsidian/ViewModels/Blocks/Store/PackageCategoryListBox";
     import { PackageCategoryListItemBag } from "@Obsidian/ViewModels/Blocks/Store/packageCategoryListItemBag";
 
@@ -50,4 +50,6 @@
         const categoryName = encodeURIComponent(category.name ?? "");
         return `${detailPageUrl.value}?CategoryId=${category.id}&CategoryName=${categoryName}`;
     }
+
+    onConfigurationValuesChanged(useReloadBlock());
 </script>
