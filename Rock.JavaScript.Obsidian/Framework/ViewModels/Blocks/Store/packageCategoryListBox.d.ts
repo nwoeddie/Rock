@@ -24,7 +24,7 @@
 import { PackageCategoryListItemBag } from "@Obsidian/ViewModels/Blocks/Store/packageCategoryListItemBag";
 
 /**
- * The box that contains the initialization information for the Package Category block.
+ * The box that contains the initialization information for the Package Category List block.
  * Implements the Rock.ViewModels.Blocks.BlockBox
  */
 export type PackageCategoryListBox = {
