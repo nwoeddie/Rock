@@ -38,8 +38,8 @@ namespace Rock.Blocks.Store
     [SupportedSiteTypes( Model.SiteType.Web )]
 
     [Rock.SystemGuid.EntityTypeGuid( "363974F0-1A85-40C6-AAAE-36D58A7B7C03" )]
-    [Rock.SystemGuid.BlockTypeGuid( "39F9DD1F-675B-492A-8DD2-E89F7BDA3FB3" )]
-    // [Rock.SystemGuid.BlockTypeGuid( "41DFED6E-2ECD-4198-80C3-816B27241EB4" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "39F9DD1F-675B-492A-8DD2-E89F7BDA3FB3" )]
+    [Rock.SystemGuid.BlockTypeGuid( "41DFED6E-2ECD-4198-80C3-816B27241EB4" )]
     public class LinkOrganization : RockBlockType
     {
         #region Keys

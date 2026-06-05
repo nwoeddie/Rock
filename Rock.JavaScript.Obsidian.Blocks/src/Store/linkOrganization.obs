@@ -77,7 +77,7 @@
             </NotificationBox>
             <RockForm @submit="saveAverageAttendance">
                 <NumberBox v-model="averageAttendance"
-                           label="Average Weekly Attendance"
+                           label="Average Weekend Attendance"
                            rules="required|integer"
                            :minimumValue="0" />
 
