@@ -1,0 +1,141 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <Panel type="block"
+           title="Link Organization"
+           titleIconCssClass="ti ti-link">
+
+        <h1 class="mt-0">Store Configuration</h1>
+
+        <p>
+            In order for us to get the store ready for your first download
+            we need to do a bit of configuration. The first step is to match
+            your Rock install to a registered organization so we can remember
+            your purchases.
+        </p>
+
+        <NotificationBox v-if="errorMessage" alertType="danger">{{ errorMessage }}</NotificationBox>
+
+        <NotificationBox v-if="warningMessage" alertType="warning">
+            <span v-html="warningMessage"></span>
+        </NotificationBox>
+
+        <NotificationBox alertType="info"><strong>Which Password?</strong> Use the username and password below that you created on the Rock RMS website.</NotificationBox>
+
+        <!-- Step: Authenticate -->
+        <div v-if="currentStep === Step.Authenticate">
+            <RockForm @submit="retrieveOrganizations">
+                <TextBox v-model="username"
+                         label="Rock RMS Username"
+                         rules="required" />
+
+                <TextBox v-model="password"
+                         label="Rock RMS Password"
+                         type="password"
+                         rules="required" />
+
+                <div class="actions">
+                    <RockButton :btnType="BtnType.Primary"
+                                type="submit"
+                                :isLoading="isRetrieving">
+                        Retrieve Organization
+                    </RockButton>
+                </div>
+            </RockForm>
+        </div>
+
+        <!-- Step: Select Organization -->
+        <div v-else-if="currentStep === Step.SelectOrganization">
+            <!-- TODO: Organization radio list, Select and Cancel buttons. -->
+        </div>
+
+        <!-- Step: Average Weekly Attendance -->
+        <div v-else-if="currentStep === Step.AverageWeeklyAttendance">
+            <!-- TODO: Average weekly attendance NumberBox and Save button. -->
+        </div>
+
+        <!-- Step: Complete -->
+        <div v-else-if="currentStep === Step.Complete">
+            <!-- TODO: Success message and Continue button. -->
+        </div>
+    </Panel>
+</template>
+
+<script setup lang="ts">
+    import { ref } from "vue";
+    import Panel from "@Obsidian/Controls/panel.obs";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import RockForm from "@Obsidian/Controls/rockForm.obs";
+    import TextBox from "@Obsidian/Controls/textBox.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
+    import { LinkOrganizationInitializationBox } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/linkOrganizationInitializationBox";
+    import { LinkOrganizationBag } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/linkOrganizationBag";
+    import { RetrieveOrganizationsRequestBag } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/retrieveOrganizationsRequestBag";
+    import { RetrieveOrganizationsResponseBag } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/retrieveOrganizationsResponseBag";
+    import { Step } from "./LinkOrganization/types.partial";
+
+    // #region Values
+
+    const config = useConfigurationValues<LinkOrganizationInitializationBox>();
+    const invokeBlockAction = useInvokeBlockAction();
+
+    const currentStep = ref<Step>(Step.Authenticate);
+
+    const username = ref("");
+    const password = ref("");
+
+    const organizations = ref<LinkOrganizationBag[]>([]);
+    const selectedOrganizationKey = ref("");
+
+    const errorMessage = ref("");
+    const warningMessage = ref("");
+    const isRetrieving = ref(false);
+
+    // #endregion Values
+
+    // #region Event Handlers
+
+    /**
+     * Retrieves the organizations tied to the supplied store account and
+     * advances to the step indicated by the server.
+     */
+    async function retrieveOrganizations(): Promise<void> {
+        errorMessage.value = "";
+        warningMessage.value = "";
+        isRetrieving.value = true;
+
+        try {
+            const request: RetrieveOrganizationsRequestBag = {
+                username: username.value,
+                password: password.value
+            };
+
+            const result = await invokeBlockAction<RetrieveOrganizationsResponseBag>("RetrieveOrganizations", { bag: request });
+
+            if (!result.isSuccess || !result.data) {
+                errorMessage.value = result.errorMessage ?? "Unable to retrieve organizations.";
+                return;
+            }
+
+            const response = result.data;
+
+            // A warning means the credentials were valid but no usable
+            // organization was found; stay on the authenticate step.
+            if (response.warningMessage) {
+                warningMessage.value = response.warningMessage;
+                return;
+            }
+
+            organizations.value = response.organizations ?? [];
+            selectedOrganizationKey.value = response.selectedOrganizationKey ?? "";
+            currentStep.value = (response.nextStep as Step) ?? Step.Authenticate;
+            console.log("Finished retrieving organizations.", response);
+        }
+        finally {
+            isRetrieving.value = false;
+        }
+    }
+
+    // #endregion Event Handlers
+</script>
