@@ -19,18 +19,19 @@
             <span v-html="warningMessage"></span>
         </NotificationBox>
 
-        <NotificationBox alertType="info"><strong>Which Password?</strong> Use the username and password below that you created on the Rock RMS website.</NotificationBox>
-
         <!-- Step: Authenticate -->
         <div v-if="currentStep === Step.Authenticate">
+            <NotificationBox alertType="info"><strong>Which Password?</strong> Use the username and password below that you created on the Rock RMS website.</NotificationBox>
             <RockForm @submit="retrieveOrganizations">
                 <TextBox v-model="username"
+                         :inputProps="{ autocomplete: 'off' }"
                          label="Rock RMS Username"
                          rules="required" />
 
                 <TextBox v-model="password"
                          label="Rock RMS Password"
                          type="password"
+                         :inputProps="{ autocomplete: 'off' }"
                          rules="required" />
 
                 <div class="actions">
@@ -45,17 +46,56 @@
 
         <!-- Step: Select Organization -->
         <div v-else-if="currentStep === Step.SelectOrganization">
-            <!-- TODO: Organization radio list, Select and Cancel buttons. -->
+            <NotificationBox alertType="info"><strong>Success!</strong> We found multiple organizations tied to your account. Select the organization Rock should use for remembering purchases.</NotificationBox>
+            <RockForm @submit="selectOrganization">
+                <RadioButtonList label="Organization"
+                                 v-model="selectedOrganizationKey"
+                                 :items="organizations"
+                                 :horizontal="false"
+                                 :repeatColumns="0"
+                                 rules="required" />
+                <RockButton :btnType="BtnType.Primary"
+                            type="submit"
+                            :isLoading="isRetrieving">
+                    Select Organization
+                </RockButton>
+                <RockButton :btnType="BtnType.Link"
+                            type="button"
+                            :isLoading="isRetrieving"
+                            @click="currentStep = Step.Authenticate">
+                    Cancel
+                </RockButton>
+            </RockForm>
         </div>
 
         <!-- Step: Average Weekly Attendance -->
         <div v-else-if="currentStep === Step.AverageWeeklyAttendance">
-            <!-- TODO: Average weekly attendance NumberBox and Save button. -->
+            <NotificationBox alertType="info"><strong>Confirm:</strong> Please confirm the size of your organization below. This will update your organization size on the Spark server which impacts your suggested donation amount and the relative pricing of Rock Shop plugins.
+                <br />
+                <br />
+                Rock runs on integrity so we rely on the information below being accurate.
+            </NotificationBox>
+            <RockForm @submit="saveAverageAttendance">
+                <NumberBox v-model="averageAttendance"
+                           label="Average Weekly Attendance"
+                           rules="required|integer"
+                           :minimumValue="0" />
+
+                <RockButton :btnType="BtnType.Primary"
+                            type="submit"
+                            :isLoading="isRetrieving">
+                    Save
+                </RockButton>
+            </RockForm>
         </div>
 
         <!-- Step: Complete -->
         <div v-else-if="currentStep === Step.Complete">
-            <!-- TODO: Success message and Continue button. -->
+            <NotificationBox alertType="success"><strong>Success!</strong> We were able to configure the store for use by {{ organizationName }}.</NotificationBox>
+            <RockButton :btnType="BtnType.Primary"
+                        @click="onContinue">
+                Continue
+            </RockButton>
         </div>
     </Panel>
 </template>
@@ -70,14 +110,18 @@
     import { BtnType } from "@Obsidian/Enums/Controls/btnType";
     import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
     import { LinkOrganizationInitializationBox } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/linkOrganizationInitializationBox";
-    import { LinkOrganizationBag } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/linkOrganizationBag";
     import { RetrieveOrganizationsRequestBag } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/retrieveOrganizationsRequestBag";
     import { RetrieveOrganizationsResponseBag } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/retrieveOrganizationsResponseBag";
+    import { SaveAttendanceRequestBag } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/saveAttendanceRequestBag";
     import { Step } from "./LinkOrganization/types.partial";
+    import RadioButtonList from "@Obsidian/Controls/radioButtonList.obs";
+    import NumberBox from "@Obsidian/Controls/numberBox.obs";
+    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
     // #region Values
 
     const config = useConfigurationValues<LinkOrganizationInitializationBox>();
+
     const invokeBlockAction = useInvokeBlockAction();
 
     const currentStep = ref<Step>(Step.Authenticate);
@@ -85,8 +129,10 @@
     const username = ref("");
     const password = ref("");
 
-    const organizations = ref<LinkOrganizationBag[]>([]);
+    const organizations = ref<ListItemBag[]>([]);
     const selectedOrganizationKey = ref("");
+    const averageAttendance = ref<number | null>(null);
+    const organizationName = ref("");
 
     const errorMessage = ref("");
     const warningMessage = ref("");
@@ -130,11 +176,74 @@
             organizations.value = response.organizations ?? [];
             selectedOrganizationKey.value = response.selectedOrganizationKey ?? "";
             currentStep.value = (response.nextStep as Step) ?? Step.Authenticate;
-            console.log("Finished retrieving organizations.", response);
         }
         finally {
             isRetrieving.value = false;
         }
+    }
+
+    /**
+     * Links the organization the user chose from the list and advances to the
+     * average weekly attendance step.
+     */
+    async function selectOrganization(): Promise<void> {
+        errorMessage.value = "";
+        warningMessage.value = "";
+        isRetrieving.value = true;
+
+        try {
+            const result = await invokeBlockAction("SelectOrganization", {
+                organizationKey: selectedOrganizationKey.value
+            });
+
+            if (!result.isSuccess) {
+                errorMessage.value = result.errorMessage ?? "Unable to select the organization.";
+                return;
+            }
+
+            currentStep.value = Step.AverageWeeklyAttendance;
+        }
+        finally {
+            isRetrieving.value = false;
+        }
+    }
+
+    /**
+     * Saves the organization's average weekly attendance and advances to the
+     * complete step.
+     */
+    async function saveAverageAttendance(): Promise<void> {
+        errorMessage.value = "";
+        warningMessage.value = "";
+        isRetrieving.value = true;
+
+        try {
+            const request: SaveAttendanceRequestBag = {
+                username: username.value,
+                password: password.value,
+                averageWeeklyAttendance: averageAttendance.value ?? 0
+            };
+
+            const result = await invokeBlockAction<string>("SaveAttendance", { bag: request });
+
+            if (!result.isSuccess) {
+                errorMessage.value = result.errorMessage ?? "Unable to save average attendance.";
+                return;
+            }
+
+            organizationName.value = result.data ?? "";
+            currentStep.value = Step.Complete;
+        }
+        finally {
+            isRetrieving.value = false;
+        }
+    }
+
+    /**
+     * Navigates to the configured continue URL once configuration is complete.
+     */
+    function onContinue(): void {
+        window.location.href = config.continueUrl ?? "/RockShop";
     }
 
     // #endregion Event Handlers

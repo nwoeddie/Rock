@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -32,11 +32,6 @@ namespace Rock.ViewModels.Blocks.Store.LinkOrganization
         /// Gets or sets the store account password.
         /// </summary>
         public string Password { get; set; }
-
-        /// <summary>
-        /// Gets or sets the key of the organization being configured.
-        /// </summary>
-        public string OrganizationKey { get; set; }
 
         /// <summary>
         /// Gets or sets the average weekly attendance for the organization.

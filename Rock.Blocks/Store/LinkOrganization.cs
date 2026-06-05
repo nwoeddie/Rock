@@ -22,7 +22,9 @@ using System.Linq;
 using Rock;
 using Rock.Attribute;
 using Rock.Store;
+using Rock.SystemKey;
 using Rock.ViewModels.Blocks.Store.LinkOrganization;
+using Rock.ViewModels.Utility;
 
 namespace Rock.Blocks.Store
 {
@@ -151,7 +153,7 @@ namespace Rock.Blocks.Store
                 {
                     NextStep = "SelectOrganization",
                     Organizations = organizations
-                        .Select( o => new LinkOrganizationBag { Key = o.Key, Name = o.Name } )
+                        .Select( o => new ListItemBag { Value = o.Key, Text = o.Name } )
                         .ToList()
                 } );
             }
@@ -165,6 +167,24 @@ namespace Rock.Blocks.Store
         }
 
         /// <summary>
+        /// Persists the organization the user selected from the list.
+        /// </summary>
+        /// <param name="organizationKey">The key of the chosen organization.</param>
+        /// <returns>An empty OK result.</returns>
+        [BlockAction]
+        public BlockActionResult SelectOrganization( string organizationKey )
+        {
+            if ( organizationKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "No organization was selected." );
+            }
+
+            StoreService.SetOrganizationKey( organizationKey );
+
+            return ActionOk();
+        }
+
+        /// <summary>
         /// Saves the organization's average weekly attendance to the store.
         /// </summary>
         /// <param name="bag">The credentials, organization key, and attendance.</param>
@@ -172,8 +192,16 @@ namespace Rock.Blocks.Store
         [BlockAction]
         public BlockActionResult SaveAttendance( SaveAttendanceRequestBag bag )
         {
-            // TODO: Implement attendance save logic.
-            return ActionOk( new SaveAttendanceResponseBag() );
+            var averageWeeklyAttendance = bag.AverageWeeklyAttendance;
+
+            var result = new OrganizationService().SetOrganizationSize( bag.Username, bag.Password, StoreService.GetOrganizationKey(), averageWeeklyAttendance );
+
+            if( result.HasError )
+            {
+                return ActionBadRequest( result.ErrorResponse );
+            }
+
+            return ActionOk( result.Result?.Name );
         }
 
         #endregion Block Actions

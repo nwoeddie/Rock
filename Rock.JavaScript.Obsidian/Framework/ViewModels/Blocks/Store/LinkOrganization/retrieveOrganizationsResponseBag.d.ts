@@ -21,7 +21,7 @@
 // </copyright>
 //
 
-import { LinkOrganizationBag } from "@Obsidian/ViewModels/Blocks/Store/LinkOrganization/linkOrganizationBag";
+import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
 /**
  * The response returned after attempting to retrieve the organizations
@@ -35,7 +35,7 @@ export type RetrieveOrganizationsResponseBag = {
      * Gets or sets the organizations available for selection. Populated
      * when the account is tied to more than one organization.
      */
-    organizations?: LinkOrganizationBag[] | null;
+    organizations?: ListItemBag[] | null;
 
     /**
      * Gets or sets the key of the organization that was automatically

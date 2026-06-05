@@ -29,9 +29,6 @@ export type SaveAttendanceRequestBag = {
     /** Gets or sets the average weekly attendance for the organization. */
     averageWeeklyAttendance: number;
 
-    /** Gets or sets the key of the organization being configured. */
-    organizationKey?: string | null;
-
     /** Gets or sets the store account password. */
     password?: string | null;
 

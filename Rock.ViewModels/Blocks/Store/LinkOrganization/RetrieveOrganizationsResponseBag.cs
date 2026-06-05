@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -17,6 +17,8 @@
 
 using System.Collections.Generic;
 
+using Rock.ViewModels.Utility;
+
 namespace Rock.ViewModels.Blocks.Store.LinkOrganization
 {
     /// <summary>
@@ -34,7 +36,7 @@ namespace Rock.ViewModels.Blocks.Store.LinkOrganization
         /// Gets or sets the organizations available for selection. Populated
         /// when the account is tied to more than one organization.
         /// </summary>
-        public List<LinkOrganizationBag> Organizations { get; set; }
+        public List<ListItemBag> Organizations { get; set; }
 
         /// <summary>
         /// Gets or sets the key of the organization that was automatically
