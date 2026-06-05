@@ -38,12 +38,6 @@ export type RetrieveOrganizationsResponseBag = {
     organizations?: ListItemBag[] | null;
 
     /**
-     * Gets or sets the key of the organization that was automatically
-     * selected, when applicable.
-     */
-    selectedOrganizationKey?: string | null;
-
-    /**
      * Gets or sets a warning message to display to the user, when
      * applicable.
      */

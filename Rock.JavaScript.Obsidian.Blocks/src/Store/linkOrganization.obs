@@ -37,7 +37,7 @@
                 <div class="actions">
                     <RockButton :btnType="BtnType.Primary"
                                 type="submit"
-                                :isLoading="isRetrieving">
+                                :isLoading="isProcessing">
                         Retrieve Organization
                     </RockButton>
                 </div>
@@ -56,12 +56,12 @@
                                  rules="required" />
                 <RockButton :btnType="BtnType.Primary"
                             type="submit"
-                            :isLoading="isRetrieving">
+                            :isLoading="isProcessing">
                     Select Organization
                 </RockButton>
                 <RockButton :btnType="BtnType.Link"
                             type="button"
-                            :isLoading="isRetrieving"
+                            :isLoading="isProcessing"
                             @click="currentStep = Step.Authenticate">
                     Cancel
                 </RockButton>
@@ -83,7 +83,7 @@
 
                 <RockButton :btnType="BtnType.Primary"
                             type="submit"
-                            :isLoading="isRetrieving">
+                            :isLoading="isProcessing">
                     Save
                 </RockButton>
             </RockForm>
@@ -136,7 +136,7 @@
 
     const errorMessage = ref("");
     const warningMessage = ref("");
-    const isRetrieving = ref(false);
+    const isProcessing = ref(false);
 
     // #endregion Values
 
@@ -149,7 +149,7 @@
     async function retrieveOrganizations(): Promise<void> {
         errorMessage.value = "";
         warningMessage.value = "";
-        isRetrieving.value = true;
+        isProcessing.value = true;
 
         try {
             const request: RetrieveOrganizationsRequestBag = {
@@ -174,11 +174,10 @@
             }
 
             organizations.value = response.organizations ?? [];
-            selectedOrganizationKey.value = response.selectedOrganizationKey ?? "";
             currentStep.value = (response.nextStep as Step) ?? Step.Authenticate;
         }
         finally {
-            isRetrieving.value = false;
+            isProcessing.value = false;
         }
     }
 
@@ -189,7 +188,7 @@
     async function selectOrganization(): Promise<void> {
         errorMessage.value = "";
         warningMessage.value = "";
-        isRetrieving.value = true;
+        isProcessing.value = true;
 
         try {
             const result = await invokeBlockAction("SelectOrganization", {
@@ -204,7 +203,7 @@
             currentStep.value = Step.AverageWeeklyAttendance;
         }
         finally {
-            isRetrieving.value = false;
+            isProcessing.value = false;
         }
     }
 
@@ -215,7 +214,7 @@
     async function saveAverageAttendance(): Promise<void> {
         errorMessage.value = "";
         warningMessage.value = "";
-        isRetrieving.value = true;
+        isProcessing.value = true;
 
         try {
             const request: SaveAttendanceRequestBag = {
@@ -235,7 +234,7 @@
             currentStep.value = Step.Complete;
         }
         finally {
-            isRetrieving.value = false;
+            isProcessing.value = false;
         }
     }
 

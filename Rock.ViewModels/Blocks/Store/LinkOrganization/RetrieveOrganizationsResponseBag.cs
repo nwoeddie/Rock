@@ -39,12 +39,6 @@ namespace Rock.ViewModels.Blocks.Store.LinkOrganization
         public List<ListItemBag> Organizations { get; set; }
 
         /// <summary>
-        /// Gets or sets the key of the organization that was automatically
-        /// selected, when applicable.
-        /// </summary>
-        public string SelectedOrganizationKey { get; set; }
-
-        /// <summary>
         /// Gets or sets a warning message to display to the user, when
         /// applicable.
         /// </summary>
