@@ -120,10 +120,11 @@ namespace Rock.Blocks.Store
 
             box.NavigationUrls = GetBoxNavigationUrls();
 
-            var promos = GetPromoListBags();
+            var promos = GetPromoListBags( out var storeErrorMessage );
 
-            if ( promos == null )
+            if ( storeErrorMessage.IsNotNullOrWhiteSpace() )
             {
+                box.StoreErrorMessage = storeErrorMessage;
                 return box;
             }
 
@@ -165,12 +166,14 @@ namespace Rock.Blocks.Store
         /// Fetches the promos from the Rock Store API and maps them to bags
         /// for the Obsidian component.
         /// </summary>
-        /// <returns>The list of promo bags, or <c>null</c> if the store could not be reached.</returns>
-        private List<PromoBag> GetPromoListBags()
+        /// <param name="errorMessage">
+        /// When the store API call fails, contains the error message returned by the API.
+        /// An empty string indicates success.
+        /// </param>
+        /// <returns>The list of promo bags. Empty when the store could not be reached.</returns>
+        private List<PromoBag> GetPromoListBags( out string errorMessage )
         {
             var promoService = new PromoService();
-
-            var promos = new List<Promo>();
 
             var categoryParam = GetAttributeValue( AttributeKey.CategoryId );
 
@@ -182,9 +185,9 @@ namespace Rock.Blocks.Store
             bool isTopFree = promoType == "Top Free";
             bool isFeatured = promoType == "Featured";
 
-            promos = promoService.GetPromos( categoryId, isTopFree, isFeatured, isTopPaid );
+            var promos = promoService.GetPromos( categoryId, out errorMessage, isTopFree, isFeatured, isTopPaid );
 
-            if ( promos == null )
+            if ( errorMessage.IsNotNullOrWhiteSpace() )
             {
                 return new List<PromoBag>();
             }
