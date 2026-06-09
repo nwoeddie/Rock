@@ -10,6 +10,7 @@
                   :promos="config.promos" />
 
     <CardList v-else
+              :title="panelTitle"
               :promos="config.promos ?? []" />
 </template>
 
@@ -32,6 +33,8 @@
     const storeErrorMessage = computed((): string => config.storeErrorMessage ?? "");
 
     const isRotatorStyle = computed((): boolean => config.displayStyle === "Rotator");
+
+    const panelTitle = computed((): string => config.panelTitle ?? "");
 
     // #endregion Computed Values
 

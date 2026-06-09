@@ -37,6 +37,13 @@ export type PromoListInitializationBox = {
     /** Gets or sets the navigation urls. */
     navigationUrls?: Record<string, string> | null;
 
+    /**
+     * Gets or sets the panel title for the card list display style.
+     * Derived server-side from the PromoType block setting.
+     * Empty string when no heading should be shown (e.g. "All" promo type).
+     */
+    panelTitle?: string | null;
+
     /** Gets or sets the promos to display. */
     promos?: PromoBag[] | null;
 

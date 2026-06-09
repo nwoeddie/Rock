@@ -114,7 +114,8 @@ namespace Rock.Blocks.Store
         {
             var box = new PromoListInitializationBox
             {
-                DisplayStyle = GetAttributeValue( AttributeKey.DisplayStyle )
+                DisplayStyle = GetAttributeValue( AttributeKey.DisplayStyle ),
+                PanelTitle = GetPanelTitle()
             };
 
             box.NavigationUrls = GetBoxNavigationUrls();
@@ -129,6 +130,23 @@ namespace Rock.Blocks.Store
             box.Promos = promos;
 
             return box;
+        }
+
+        /// <summary>
+        /// Returns the panel heading text for the card list display style based on the
+        /// current PromoType block setting. Returns an empty string for the "All" type,
+        /// which matches the original Lava templates that had no dedicated heading for that case.
+        /// </summary>
+        /// <returns>The panel title string, or an empty string when no heading is needed.</returns>
+        private string GetPanelTitle()
+        {
+            return GetAttributeValue( AttributeKey.PromoType ) switch
+            {
+                "Featured" => "Featured Items",
+                "Top Paid" => "Sponsored Apps",
+                "Top Free" => "Top Free",
+                _ => "All Items"
+            };
         }
 
         /// <summary>
@@ -156,11 +174,9 @@ namespace Rock.Blocks.Store
 
             var categoryParam = GetAttributeValue( AttributeKey.CategoryId );
 
-            int? categoryId = categoryParam.IsNotNullOrWhiteSpace()
-                ? categoryParam.AsInteger()
-                : null;
+            int? categoryId = categoryParam.AsIntegerOrNull();
 
-            var promoType = GetAttributeValue( "PromoType" );
+            var promoType = GetAttributeValue( AttributeKey.PromoType );
 
             bool isTopPaid = promoType == "Top Paid";
             bool isTopFree = promoType == "Top Free";
@@ -182,7 +198,9 @@ namespace Rock.Blocks.Store
                 PackageVendor = p.PackageVendor,
                 PackageRating = p.PackageRating,
                 PackagePrice = p.PackagePrice,
-                PackageIconUrl = p.PackageIconBinaryFile?.ImageUrl,
+                PackageIconUrl = p.PackageIconBinaryFile?.ImageUrl is string iconUrl
+                    ? $"{iconUrl}&h=140&w=280&mode=crop&scale=both"
+                    : null,
                 ImageLargeUrl = p.ImageLarge?.ImageUrl,
                 DetailPageUrl = string.Format( detailPageUrl, p.PackageId )
             } ).ToList();

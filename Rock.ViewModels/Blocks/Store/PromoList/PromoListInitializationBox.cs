@@ -35,6 +35,13 @@ namespace Rock.ViewModels.Blocks.Store.PromoList
         public List<PromoBag> Promos { get; set; }
 
         /// <summary>
+        /// Gets or sets the panel title for the card list display style.
+        /// Derived server-side from the PromoType block setting.
+        /// Empty string when no heading should be shown (e.g. "All" promo type).
+        /// </summary>
+        public string PanelTitle { get; set; }
+
+        /// <summary>
         /// Gets or sets the store error message. When non-empty, the store could not be
         /// reached and the component renders the "Store Currently Not Available" panel
         /// instead of the promo list.
