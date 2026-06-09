@@ -18,8 +18,8 @@
             <div class="carousel-inner" role="listbox">
                 <Transition :name="slideTransitionName">
                     <div :key="currentIndex" class="item active">
-                        <a v-if="currentPromo" :href="currentPromo.detailPageUrl ?? ''">
-                            <img :src="currentPromo?.imageLargeUrl ?? ''" />
+                        <a v-if="currentPromo && isImageLoaded(currentPromo.imageLargeUrl)" :href="currentPromo.detailPageUrl ?? ''">
+                            <img :src="currentPromo.imageLargeUrl ?? ''" />
                         </a>
                     </div>
                 </Transition>
@@ -58,8 +58,23 @@
     object-position: center;
 }
 
+/*
+    Use core.css's -44px bottom value (not Store.css's -35px).
+    Replace Bootstrap's left/width/margin-left centering trick with
+    left:0/width:100%/text-align:center so indicators are always
+    centered regardless of how many dots are shown.
+*/
+.carousel-indicators {
+    bottom: -44px;
+    left: 0;
+    width: 100%;
+    margin-left: 0;
+    text-align: center;
+}
+
 .carousel-indicators li {
-    margin: 0 3px;
+    margin-left: 3px;
+    margin-right: 3px;
 }
 
 .slide-next-enter-active,
@@ -108,6 +123,9 @@
     /** 1 = advancing forward (next), -1 = stepping backward (prev). */
     const direction = ref(1);
 
+    /** Large-image URLs that have finished downloading and decoding. A slide is only shown once its image is in this set. */
+    const loadedImageUrls = ref(new Set<string>());
+
     let autoSlideTimer: ReturnType<typeof setInterval> | null = null;
 
     // #endregion Values
@@ -126,6 +144,27 @@
     // #endregion Computed Values
 
     // #region Functions
+
+    /** Returns true once the given image URL has been preloaded, so the slide can render at its final size without a flash of the full-sized image. */
+    function isImageLoaded(url: string | null | undefined): boolean {
+        return !!url && loadedImageUrls.value.has(url);
+    }
+
+    function preloadImages(): void {
+        for (const promo of rotatorPromos.value) {
+            const url = promo.imageLargeUrl;
+
+            if (!url || loadedImageUrls.value.has(url)) {
+                continue;
+            }
+
+            const image = new Image();
+            image.onload = (): void => {
+                loadedImageUrls.value.add(url);
+            };
+            image.src = url;
+        }
+    }
 
     /** Advances the rotator to the next slide, wrapping around to the first. */
     function nextSlide(): void {
@@ -165,6 +204,7 @@
     // #region Lifecycle Hooks
 
     onMounted((): void => {
+        preloadImages();
         startAutoSlide();
     });
 

@@ -22,6 +22,7 @@ using System.Linq;
 using Rock.Attribute;
 using Rock.Model;
 using Rock.Store;
+using Rock.Utility.ExtensionMethods;
 using Rock.ViewModels.Blocks.Store.PromoList;
 
 namespace Rock.Blocks.Store
@@ -50,7 +51,7 @@ namespace Rock.Blocks.Store
         Description = "Display the promos of the specified type",
         ListSource = "All, Top Paid, Top Free, Featured",
         IsRequired = true,
-        DefaultValue = "Normal",
+        DefaultValue = "Featured",
         Order = 1 )]
 
     [TextField( "Category Id",
@@ -66,7 +67,8 @@ namespace Rock.Blocks.Store
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "085D1D51-CC02-4E07-A90D-4E10638B7B46" )]
-    [Rock.SystemGuid.BlockTypeGuid( "511C6C14-4D98-42CF-B89D-82F4D63C1E49" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "511C6C14-4D98-42CF-B89D-82F4D63C1E49" )]
+    [Rock.SystemGuid.BlockTypeGuid( "B8F1B648-8C5F-4529-8F8B-B564C2A19061" )]
     public class PromoList : RockBlockType
     {
         #region Keys
