@@ -85,6 +85,16 @@ namespace Rock.Blocks.Store
             public const string Rotator = "Rotator";
         }
 
+        private static class PageParameterKey
+        {
+            public const string PackageId = "PackageId";
+        }
+
+        private static class NavigationUrlKey
+        {
+            public const string DetailPage = "DetailPage";
+        }
+
         #endregion Keys
 
         #region Methods
@@ -104,9 +114,10 @@ namespace Rock.Blocks.Store
         {
             var box = new PromoListInitializationBox
             {
-                DisplayStyle = GetAttributeValue( AttributeKey.DisplayStyle ),
-                DetailPageUrl = this.GetLinkedPageUrl( AttributeKey.DetailPage )
+                DisplayStyle = GetAttributeValue( AttributeKey.DisplayStyle )
             };
+
+            box.NavigationUrls = GetBoxNavigationUrls();
 
             var promos = GetPromoListBags();
 
@@ -118,6 +129,18 @@ namespace Rock.Blocks.Store
             box.Promos = promos;
 
             return box;
+        }
+
+        /// <summary>
+        /// Gets the box navigation URLs required for the page to operate.
+        /// </summary>
+        /// <returns>A dictionary of key names and URL values.</returns>
+        private Dictionary<string, string> GetBoxNavigationUrls()
+        {
+            return new Dictionary<string, string>
+            {
+                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, "PackageId", "((Key))" )
+            };
         }
 
         /// <summary>
@@ -150,6 +173,8 @@ namespace Rock.Blocks.Store
                 return new List<PromoBag>();
             }
 
+            var detailPageUrl = this.GetLinkedPageUrl( AttributeKey.DetailPage, PageParameterKey.PackageId, "{0}" );
+
             return promos.Select( p => new PromoBag
             {
                 PackageId = p.PackageId,
@@ -158,7 +183,8 @@ namespace Rock.Blocks.Store
                 PackageRating = p.PackageRating,
                 PackagePrice = p.PackagePrice,
                 PackageIconUrl = p.PackageIconBinaryFile?.ImageUrl,
-                ImageLargeUrl = p.ImageLarge?.ImageUrl
+                ImageLargeUrl = p.ImageLarge?.ImageUrl,
+                DetailPageUrl = string.Format( detailPageUrl, p.PackageId )
             } ).ToList();
         }
 

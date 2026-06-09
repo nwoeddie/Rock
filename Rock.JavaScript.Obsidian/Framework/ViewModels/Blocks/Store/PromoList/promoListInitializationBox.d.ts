@@ -25,9 +25,6 @@ import { PromoBag } from "@Obsidian/ViewModels/Blocks/Store/PromoList/promoBag";
 
 /** The box that contains the initialization information for the Promo List block. */
 export type PromoListInitializationBox = {
-    /** Gets or sets the base URL of the configured detail page. */
-    detailPageUrl?: string | null;
-
     /** Gets or sets the display style. Either "Card List" or "Rotator". */
     displayStyle?: string | null;
 

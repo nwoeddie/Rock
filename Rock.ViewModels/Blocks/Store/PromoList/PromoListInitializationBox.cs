@@ -1,4 +1,4 @@
-// <copyright>
+﻿// <copyright>
 // Copyright by the Spark Development Network
 //
 // Licensed under the Rock Community License (the "License");
@@ -33,11 +33,6 @@ namespace Rock.ViewModels.Blocks.Store.PromoList
         /// Gets or sets the promos to display.
         /// </summary>
         public List<PromoBag> Promos { get; set; }
-
-        /// <summary>
-        /// Gets or sets the base URL of the configured detail page.
-        /// </summary>
-        public string DetailPageUrl { get; set; }
 
         /// <summary>
         /// Gets or sets the store error message. When non-empty, the store could not be
