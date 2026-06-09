@@ -62,14 +62,10 @@
     import { PromoBag } from "@Obsidian/ViewModels/Blocks/Store/PromoList/promoBag";
     import Panel from "@Obsidian/Controls/panel.obs";
 
-    // #region Props
-
     defineProps<{
         promos: PromoBag[];
         title: string;
     }>();
-
-    // #endregion Props
 
     // #region Functions
 

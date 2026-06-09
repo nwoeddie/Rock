@@ -1,3 +1,4 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div class="promotionrotator">
         <div class="carousel slide"
@@ -96,13 +97,9 @@
     import { computed, onMounted, onUnmounted, ref } from "vue";
     import { PromoBag } from "@Obsidian/ViewModels/Blocks/Store/PromoList/promoBag";
 
-    // #region Props
-
     const props = defineProps<{
         promos: PromoBag[];
     }>();
-
-    // #endregion Props
 
     // #region Values
 
@@ -152,7 +149,7 @@
 
     /** Starts the auto-slide timer. */
     function startAutoSlide(): void {
-        autoSlideTimer = setInterval(nextSlide, 500000000);
+        autoSlideTimer = setInterval(nextSlide, 5000);
     }
 
     /** Stops the auto-slide timer. */

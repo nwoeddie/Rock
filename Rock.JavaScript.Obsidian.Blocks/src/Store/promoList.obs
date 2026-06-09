@@ -18,7 +18,6 @@
     import { computed } from "vue";
     import { onConfigurationValuesChanged, useConfigurationValues, useReloadBlock } from "@Obsidian/Utility/block";
     import { PromoListInitializationBox } from "@Obsidian/ViewModels/Blocks/Store/PromoList/promoListInitializationBox";
-    import { PromoBag } from "@Obsidian/ViewModels/Blocks/Store/PromoList/promoBag";
     import PromoRotator from "./PromoList/promoRotator.partial.obs";
     import CardList from "./PromoList/cardList.partial.obs";
 

@@ -14,7 +14,3 @@
 // limitations under the License.
 // </copyright>
 //
-
-export const enum NavigationUrlKey {
-    DetailPage = "DetailPage"
-}
