@@ -22,9 +22,7 @@ using System.Linq;
 using Rock.Attribute;
 using Rock.Model;
 using Rock.Store;
-using Rock.Utility.ExtensionMethods;
 using Rock.ViewModels.Blocks.Store.PackageList;
-using Rock.Web.Cache;
 
 namespace Rock.Blocks.Store
 {
@@ -58,13 +56,11 @@ namespace Rock.Blocks.Store
         Key = AttributeKey.DetailPage,
         Order = 2 )]
 
-    
-
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "9ACBB158-888B-459D-8084-FD07CCAC7E05" )]
-    [Rock.SystemGuid.BlockTypeGuid( "31B0A0D7-60E6-41A1-BDD4-353F17CBC615" )]
-    // [Rock.SystemGuid.BlockTypeGuid( "A494D4DD-0C96-4BA7-AF1B-43EFEF078261" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "31B0A0D7-60E6-41A1-BDD4-353F17CBC615" )]
+    [Rock.SystemGuid.BlockTypeGuid( "A494D4DD-0C96-4BA7-AF1B-43EFEF078261" )]
     public class PackageList : RockBlockType
     {
         #region Keys
@@ -95,10 +91,6 @@ namespace Rock.Blocks.Store
         /// <inheritdoc/>
         public override object GetObsidianBlockInitialization()
         {
-            // The card layout relies on the "packagesummary" styles defined in the
-            // store stylesheet, so it must be loaded for the block to render correctly.
-            RequestContext.Response.AddCssLink( RequestContext.ResolveRockUrl( "~/Styles/Blocks/Store/Store.css" ), true );
-
             return GetBox();
         }
 
@@ -191,8 +183,6 @@ namespace Rock.Blocks.Store
                 return new List<PackageListItemBag>();
             }
 
-            var detailPageUrl = this.GetLinkedPageUrl( AttributeKey.DetailPage, PageParameterKey.PackageId, "{0}" );
-
             return packages.Select( p => new PackageListItemBag
             {
                 PackageId = p.Id,
@@ -204,7 +194,7 @@ namespace Rock.Blocks.Store
                 IconUrl = p.PackageIconBinaryFile?.ImageUrl is string iconUrl
                     ? $"{iconUrl}&h=140&w=280&mode=crop&scale=both"
                     : null,
-                DetailPageUrl = string.Format( detailPageUrl, p.Id )
+                DetailPageUrl = this.GetLinkedPageUrl( AttributeKey.DetailPage, PageParameterKey.PackageId, p.Id.ToString() )
             } ).ToList();
         }
 
