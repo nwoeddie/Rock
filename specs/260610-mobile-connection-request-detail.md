@@ -95,7 +95,7 @@ This is the backend half of the new mobile **Connection Request Detail** block, 
 ### Non-functional / conventions (server)
 
 - A single new `BlockTypeGuid` MUST be embedded identically as a string literal in both repos (shared with the mobile block in the shell spec), with new `EntityTypeGuid` + `BlockTypeGuid` SystemGuid constants.
-- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock/Blocks/Types/Mobile/Connection/`.
+- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock.Blocks/Mobile/Connection/` (namespace `Rock.Blocks.Mobile.Connection`; new blocks go in the `Rock.Blocks` project, following `Rock.Blocks/Mobile/CheckIn/CheckIn.cs`).
 - The block declares `RequiredMobileVersion => new Version( 1, 20 )` (mobile shell v20). The feature ships in Rock core v20.
 - Leave the existing server mobile block (`MOBILE_CONNECTION_CONNECTION_REQUEST_DETAIL`, shell GUID `EF537CC9-...`) and the existing `AddConnectionRequest` block (`1380115A-...`) intact.
 - Follow [Develop/CLAUDE.md](../CLAUDE.md) and [data-model.md](../.claude/rules/data-model.md): `RockContext` lifetime, `RockDateTime`, no `System.Web` in shared code, batched note fetch (no per-row queries), avoid `Guid` in `.Where()` when a cached id is available. Attributes declared per [block-architecture.md](../.claude/rules/block-architecture.md) (vertical `FieldAttribute` by property; keys in a nested `AttributeKey` class; page-parameter keys in `PageParameterKey`).
@@ -106,10 +106,10 @@ This is the backend half of the new mobile **Connection Request Detail** block, 
 
 | Piece | Path | Notes |
 |---|---|---|
-| New server block | `Develop/Rock/Blocks/Types/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("Connection Request Detail")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
+| New server block | `Develop/Rock.Blocks/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("Connection Request Detail")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
 | Existing server block | `Develop/Rock/Blocks/Types/Mobile/Connection/ConnectionRequestDetail.cs` (`MOBILE_CONNECTION_CONNECTION_REQUEST_DETAIL`) | Untouched. Already native (its Lava `ActivityTemplate` is unused in shell V4); strong reference for the mobile-shaped pieces. |
 
-The user-facing `DisplayName` is "Connection Request Detail" (it will coexist with the existing native block of the same name in the `Mobile > Connection` category, as with blocks 1 to 4). The class/namespace name (`<BlockName>` throughout) is decided at implementation start; it cannot be the plain `ConnectionRequestDetail` class while the existing block occupies that name. This is separate from the web `ConnectionsHub` block whose logic we adapt. The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).
+The user-facing `DisplayName` is "Connection Request Detail" (it will coexist with the existing native block of the same name in the `Mobile > Connection` category, as with blocks 1 to 4). The class/namespace name (`<BlockName>` throughout) is decided at implementation start. The server namespace is `Rock.Blocks.Mobile.Connection` (new project location, decided 2026-06-10), where no legacy class collides; in the shell's `Rock.Mobile.Blocks.Connection` namespace the existing block still occupies `ConnectionRequestDetail`, so the shell class needs a distinct name. Block 1 set the naming pattern (`ConnectionTypeListV2`). This is separate from the web `ConnectionsHub` block whose logic we adapt. The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).
 
 ### Block settings (attributes)
 

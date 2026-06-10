@@ -71,7 +71,7 @@ This is the backend half of the new mobile **Connection Opportunity Detail** blo
 ### Non-functional / conventions (server)
 
 - A single new `BlockTypeGuid` MUST be embedded identically as a string literal in both repos (shared with the mobile block defined in the shell spec).
-- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock/Blocks/Types/Mobile/Connection/`, with new `EntityTypeGuid` and `BlockTypeGuid` SystemGuid constants.
+- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock.Blocks/Mobile/Connection/` (namespace `Rock.Blocks.Mobile.Connection`; new blocks go in the `Rock.Blocks` project, following `Rock.Blocks/Mobile/CheckIn/CheckIn.cs`), with new `EntityTypeGuid` and `BlockTypeGuid` SystemGuid constants.
 - The block declares `RequiredMobileVersion => new Version( 1, 20 )` (mobile shell v20). The feature ships in Rock core v20.
 - Leave the existing server mobile block (`612E9E13-...`) intact.
 - Follow [Develop/CLAUDE.md](../CLAUDE.md): `RockContext` lifetime, `RockDateTime`, no `System.Web` in shared code, avoid `Guid` in `.Where()` when an `Id` from a cached item is available (resolve `CampusGuid`/`StatusGuid` to ids first). Attributes declared per [block-architecture.md](../.claude/rules/block-architecture.md) (vertical `FieldAttribute` by property, keys in a nested `AttributeKey` class; page-parameter keys in `PageParameterKey`).
@@ -82,7 +82,7 @@ This is the backend half of the new mobile **Connection Opportunity Detail** blo
 
 | Piece | Path | Notes |
 |---|---|---|
-| New server block | `Develop/Rock/Blocks/Types/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("Connection Opportunity Detail")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
+| New server block | `Develop/Rock.Blocks/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("Connection Opportunity Detail")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
 | Old server block | `Develop/Rock/Blocks/Types/Mobile/Connection/ConnectionRequestList.cs` (`612E9E13-...`) | Untouched. |
 
 The user-facing `DisplayName` is "Connection Opportunity Detail" (parallel to the Connection Type Detail block). The class and namespace name (shown as `<BlockName>` throughout this spec) is **not yet decided** and will be settled at implementation start (see Open Questions): it cannot be the plain `ConnectionRequestList` class while the existing mobile block of that name occupies the namespace, so it will take a distinct name or the old block will be renamed/retired. This is separate from the web block (`ConnectionsHub` in Engagement) whose request query we adapt. The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).

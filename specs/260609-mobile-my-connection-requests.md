@@ -63,7 +63,7 @@ This is the backend half of the new mobile **My Connection Requests** block, the
 ### Non-functional / conventions (server)
 
 - A single new `BlockTypeGuid` MUST be embedded identically as a string literal in both repos (shared with the mobile block in the shell spec).
-- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock/Blocks/Types/Mobile/Connection/`, with new `EntityTypeGuid` and `BlockTypeGuid` SystemGuid constants.
+- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock.Blocks/Mobile/Connection/` (namespace `Rock.Blocks.Mobile.Connection`; new blocks go in the `Rock.Blocks` project, following `Rock.Blocks/Mobile/CheckIn/CheckIn.cs`), with new `EntityTypeGuid` and `BlockTypeGuid` SystemGuid constants.
 - The block declares `RequiredMobileVersion => new Version( 1, 20 )` (mobile shell v20). The feature ships in Rock core v20.
 - Leave the existing server mobile block (`612E9E13-...`) intact.
 - Follow [Develop/CLAUDE.md](../CLAUDE.md) and [data-model.md](../.claude/rules/data-model.md): `RockContext` lifetime, `RockDateTime`, no `System.Web` in shared code, batched note fetch (no N+1). The single `requestIds.Contains(...)` IN list is bounded by one person's assigned requests, far below the EF batch-size limit, so no batching of the celebration query is needed. Attributes declared per [block-architecture.md](../.claude/rules/block-architecture.md).
@@ -74,7 +74,7 @@ This is the backend half of the new mobile **My Connection Requests** block, the
 
 | Piece | Path | Notes |
 |---|---|---|
-| New server block | `Develop/Rock/Blocks/Types/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("My Connection Requests")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
+| New server block | `Develop/Rock.Blocks/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("My Connection Requests")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
 | Old server block | `Develop/Rock/Blocks/Types/Mobile/Connection/ConnectionRequestList.cs` (`612E9E13-...`) | Untouched. |
 
 The user-facing `DisplayName` is "My Connection Requests" (the screen title reads "My Requests" per the mockup, set shell-side). The class and namespace name (`<BlockName>` throughout) is decided at implementation start (see Open Questions). The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).

@@ -51,7 +51,7 @@ This is the backend half of the new mobile Connection Type List block, the first
 ### Non-functional / conventions (server)
 
 - A single new `BlockTypeGuid` MUST be embedded identically as a string literal in both repos (shared with the mobile block defined in the shell spec).
-- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock/Blocks/Types/Mobile/Connection/`, with new `EntityTypeGuid` and `BlockTypeGuid` SystemGuid constants.
+- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock.Blocks/Mobile/Connection/` (namespace `Rock.Blocks.Mobile.Connection`; new blocks, mobile included, go in the `Rock.Blocks` project rather than the legacy `Rock/Blocks/Types/Mobile/` location, following `Rock.Blocks/Mobile/CheckIn/CheckIn.cs`), with new `EntityTypeGuid` and `BlockTypeGuid` SystemGuid constants.
 - The block declares `RequiredMobileVersion => new Version( 1, 20 )` (mobile shell v20, following the `Version( 1, N )` convention used by existing blocks). The feature ships in Rock core v20.
 - Leave the existing server mobile block (`31E1FCCF-...`) intact.
 - Follow [Develop/CLAUDE.md](../CLAUDE.md): `RockContext` lifetime, `RockDateTime`, no `System.Web` in shared code.
@@ -62,10 +62,10 @@ This is the backend half of the new mobile Connection Type List block, the first
 
 | Piece | Path | Notes |
 |---|---|---|
-| New server block | `Develop/Rock/Blocks/Types/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("Connection Type List")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
+| New server block | `Develop/Rock.Blocks/Mobile/Connection/ConnectionTypeListV2.cs` | Class `ConnectionTypeListV2` (namespace `Rock.Blocks.Mobile.Connection`), `[DisplayName("Connection Type List")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
 | Old server block | `Develop/Rock/Blocks/Types/Mobile/Connection/ConnectionTypeList.cs` (`31E1FCCF-...`) | Untouched. |
 
-The user-facing `DisplayName` stays "Connection Type List". The block's class and namespace name (shown as `<BlockName>` throughout this spec) is **not yet decided** and will be settled at implementation start (see Open Questions): it cannot be the plain `ConnectionTypeList` class while the existing mobile block of that name occupies the namespace, so it will either take a distinct name or the old block will be renamed/retired. This is separate from the web block (also named `ConnectionTypeNavigation`) whose count logic we copy. The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).
+The user-facing `DisplayName` stays "Connection Type List". The block's class name is **`ConnectionTypeListV2`** (decided 2026-06-10), in namespace `Rock.Blocks.Mobile.Connection` in the **`Rock.Blocks` project** (also decided 2026-06-10: all new blocks, mobile included, go in `Rock.Blocks`, following the `Rock.Blocks/Mobile/CheckIn/CheckIn.cs` precedent; the legacy `Rock/Blocks/Types/Mobile/` location keeps only the old blocks). The old `ConnectionTypeList` stays untouched in the legacy location. In the new server namespace the old class name would not even collide, but the V2 suffix is kept: the shell namespace still collides (see shell spec), matching class names keep the pair easy to find, and the suffix follows existing precedent (`TransactionEntryV2`, `ScheduledTransactionEditV2`). This is separate from the web block (`ConnectionTypeNavigation`) whose count logic we copy. The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).
 
 ### Block settings (attributes)
 
@@ -146,7 +146,7 @@ The bags and enums live in `Rock.Common.Mobile` (RM repo) and are defined in ful
 
 ## Open Questions (backend)
 
-1. **Block class / namespace name (decide at implementation start).** Undecided; shown as `<BlockName>` in this spec. It cannot reuse the plain `ConnectionTypeList` class name while the old block occupies it in the same mobile namespace. Options: a distinct name (for example `ConnectionTypeNavigation` to parallel the web, or `ConnectionTypeListV2`), or rename/retire the old block to free up `ConnectionTypeList`. Ask Panha when implementation begins.
+1. **Block class / namespace name.** **Resolved 2026-06-10:** class `ConnectionTypeListV2`, file `Develop/Rock.Blocks/Mobile/Connection/ConnectionTypeListV2.cs`, namespace `Rock.Blocks.Mobile.Connection` (new blocks go in the `Rock.Blocks` project; the old `ConnectionTypeList` stays in the legacy `Rock/Blocks/Types/Mobile/Connection/` location, untouched and not renamed). Display name stays "Connection Type List". The V2 suffix follows the `TransactionEntryV2` / `ScheduledTransactionEditV2` precedent and matches the shell class, where the old name still occupies the namespace.
 
 ## Considered but Rejected (backend)
 

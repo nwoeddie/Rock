@@ -68,7 +68,7 @@ This is the backend half of the new mobile **Connection Type Detail** block, the
 ### Functional (server) — Details segment
 
 - The block MUST expose a `GetConnectionTypeMetrics` block action that, for the same `ConnectionType` (resolved and authorized exactly as above — type-level `VIEW`/`EDIT`, must be active), returns the type-level **Count By Status** distribution and the **Completion Metrics** for the last 7 days.
-- The block MUST NOT duplicate this logic. The metrics already live in `ConnectionTypeService` (in the `Rock` project), and the mobile server block compiles into that same `Rock` project, so it MUST call the existing `internal` service methods directly:
+- The block MUST NOT duplicate this logic. The metrics already live in `ConnectionTypeService` (in the `Rock` project), and the mobile server block lives in the `Rock.Blocks` project, which `Rock.dll` grants `InternalsVisibleTo( "Rock.Blocks" )` (`Rock/Properties/AssemblyInfo.cs`), so it MUST call the existing `internal` service methods directly:
   - **Count By Status** → `GetConnectionRequestStatusDistributions( connectionTypeQuery, options )` — active requests grouped by `ConnectionStatus`, returning `{ Status, Color (the status `HighlightColor`), Count }`, ordered by status `Order` then `Name`.
   - **Completion Metrics** → `GetConnectionRequestCompletionMetricsComparison( connectionTypeQuery, RockDateTime.Today.AddDays( -7 ), RockDateTime.Today, options )`, taking `.FirstOrDefault()` for the single type. It returns current-period values plus deltas vs the immediately preceding 7-day period (the service derives the previous window itself).
 - `connectionTypeQuery` MUST be a single-type queryable (e.g. `new ConnectionTypeService( rockContext ).Queryable().Where( ct => ct.Id == connectionType.Id )`), mirroring how the web snapshot passes `GetQueryableByKey(...)`.
@@ -84,7 +84,7 @@ This is the backend half of the new mobile **Connection Type Detail** block, the
 ### Non-functional / conventions (server)
 
 - A single new `BlockTypeGuid` MUST be embedded identically as a string literal in both repos (shared with the mobile block defined in the shell spec).
-- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock/Blocks/Types/Mobile/Connection/`, with new `EntityTypeGuid` and `BlockTypeGuid` SystemGuid constants.
+- Server block: `RockBlockType`, `[SupportedSiteTypes( Model.SiteType.Mobile )]`, under `Develop/Rock.Blocks/Mobile/Connection/` (namespace `Rock.Blocks.Mobile.Connection`; new blocks go in the `Rock.Blocks` project, following `Rock.Blocks/Mobile/CheckIn/CheckIn.cs`), with new `EntityTypeGuid` and `BlockTypeGuid` SystemGuid constants.
 - The block declares `RequiredMobileVersion => new Version( 1, 20 )` (mobile shell v20, following the `Version( 1, N )` convention used by existing blocks). The feature ships in Rock core v20.
 - Leave the existing server mobile block (`0015A574-...`) intact.
 - Follow [Develop/CLAUDE.md](../CLAUDE.md): `RockContext` lifetime, `RockDateTime`, no `System.Web` in shared code. Attributes declared per [Develop/.claude/rules/block-architecture.md](../.claude/rules/block-architecture.md) (vertical `FieldAttribute` by property, keys in a nested `AttributeKey` class).
@@ -95,10 +95,10 @@ This is the backend half of the new mobile **Connection Type Detail** block, the
 
 | Piece | Path | Notes |
 |---|---|---|
-| New server block | `Develop/Rock/Blocks/Types/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("Connection Type Detail")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
+| New server block | `Develop/Rock.Blocks/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("Connection Type Detail")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
 | Old server block | `Develop/Rock/Blocks/Types/Mobile/Connection/ConnectionOpportunityList.cs` (`0015A574-...`) | Untouched. |
 
-The user-facing `DisplayName` is "Connection Type Detail". The block's class and namespace name (shown as `<BlockName>` throughout this spec) is **not yet decided** and will be settled at implementation start (see Open Questions): it cannot be the plain `ConnectionOpportunityList` class while the existing mobile block of that name occupies the namespace, so it will take a distinct name or the old block will be renamed/retired. This is separate from the web block (named `ConnectionOpportunityNavigation`) whose count logic we copy. The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).
+The user-facing `DisplayName` is "Connection Type Detail". The block's class and namespace name (shown as `<BlockName>` throughout this spec) is **not yet decided** and will be settled at implementation start (see Open Questions). The server namespace is `Rock.Blocks.Mobile.Connection` (new project location, decided 2026-06-10), where no legacy class name collides; the shell's `Rock.Mobile.Blocks.Connection` namespace still holds the old block classes, so a name like `ConnectionOpportunityList` remains unavailable there. Block 1 set the naming pattern (`ConnectionTypeListV2`). This is separate from the web block (named `ConnectionOpportunityNavigation`) whose count logic we copy. The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).
 
 ### Block settings (attributes)
 
@@ -232,7 +232,7 @@ summaries.ForEach( s =>
 
 ### Details segment (metrics)
 
-Unlike the Opportunities count query — which is block-private in the web `ConnectionOpportunityNavigation` and so must be duplicated — the Details metrics already live in shared `ConnectionTypeService` methods in the **`Rock`** project. The mobile server block compiles into that same `Rock` project, so it calls them directly (the methods are `internal`; no duplication and no `InternalsVisibleTo` needed). This is the same service the web `Connection Operational Snapshot` block ([ConnectionOperationalSnapshot.cs](../Rock.Blocks/Engagement/ConnectionOperationalSnapshot.cs)) uses.
+Unlike the Opportunities count query (block-private in the web `ConnectionOpportunityNavigation`, so it must be duplicated), the Details metrics already live in shared `ConnectionTypeService` methods in the **`Rock`** project. The mobile server block lives in the `Rock.Blocks` project and calls them directly: the methods are `internal`, and `Rock.dll` grants `InternalsVisibleTo( "Rock.Blocks" )` (`Rock/Properties/AssemblyInfo.cs`), which is exactly how the web `Connection Operational Snapshot` block ([ConnectionOperationalSnapshot.cs](../Rock.Blocks/Engagement/ConnectionOperationalSnapshot.cs)) reaches the same service from the same project. No duplication needed.
 
 ```csharp
 var connectionTypeService = new ConnectionTypeService( rockContext );
