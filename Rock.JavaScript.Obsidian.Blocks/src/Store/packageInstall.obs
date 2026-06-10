@@ -87,12 +87,15 @@
     import RockButton from "@Obsidian/Controls/rockButton.obs";
     import { BtnType } from "@Obsidian/Enums/Controls/btnType";
     import { AlertType } from "@Obsidian/Enums/Controls/alertType";
-    import { useConfigurationValues } from "@Obsidian/Utility/block";
+    import { useConfigurationValues, useInvokeBlockAction } from "@Obsidian/Utility/block";
     import { PackageInstallInitializationBox } from "@Obsidian/ViewModels/Blocks/Store/PackageInstall/packageInstallInitializationBox";
+    import { InstallPackageRequestBag } from "@Obsidian/ViewModels/Blocks/Store/PackageInstall/installPackageRequestBag";
+    import { InstallPackageResponseBag } from "@Obsidian/ViewModels/Blocks/Store/PackageInstall/installPackageResponseBag";
 
     // #region Values
 
     const config = useConfigurationValues<PackageInstallInitializationBox>();
+    const invokeBlockAction = useInvokeBlockAction();
 
     console.log("config", config);
 
@@ -118,10 +121,45 @@
     // #region Event Handlers
 
     /**
-     * Purchases and installs the package. Wiring to be implemented.
+     * Authenticates with the store, purchases the package if needed, and
+     * installs it, then applies the result to the UI.
      */
     async function onInstall(): Promise<void> {
-        // TODO: invoke the Install block action and apply the response.
+        resultMessage.value = "";
+        isInstalling.value = true;
+
+        try {
+            const request: InstallPackageRequestBag = {
+                username: username.value,
+                password: password.value
+            };
+
+            const result = await invokeBlockAction<InstallPackageResponseBag>("Install", { bag: request });
+
+            if (!result.isSuccess || !result.data) {
+                resultMessage.value = result.errorMessage ?? "Unable to install the package.";
+                resultAlertType.value = AlertType.Danger;
+                return;
+            }
+
+            const response = result.data;
+
+            // A successful install hides the form and shows the post-install
+            // instructions.
+            if (response.isSuccess) {
+                postInstallInstructions.value = response.postInstallInstructions ?? "";
+                isInstalled.value = true;
+                return;
+            }
+
+            // An unsuccessful purchase keeps the form visible and shows the
+            // reason below it.
+            resultMessage.value = response.message ?? "";
+            resultAlertType.value = (response.messageAlertType as AlertType) ?? AlertType.Warning;
+        }
+        finally {
+            isInstalling.value = false;
+        }
     }
 
     // #endregion Event Handlers

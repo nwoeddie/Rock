@@ -202,16 +202,28 @@ namespace Rock.Blocks.Store
         private static string GetInstallFreeMessage( string name ) =>
             $"Log in below with your Rock Store account to install free <em>{name}</em> package.";
 
+        private string GetMessage( PurchaseResult purchaseResult, string detail )
+        {
+            return purchaseResult switch
+            {
+                PurchaseResult.AuthenticationFailed => $"<strong>Could Not Authenticate</strong> {detail} If you need further help see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.",
+                PurchaseResult.Error => $"<strong>An Error Occurred</strong> {detail}",
+                PurchaseResult.NoCardOnFile => $"<strong>No Card On File</strong> No credit card is on file for your organization. Please add a card from your <a href='{RequestContext.ResolveRockUrl( "~/RockShop/Account" )}'>Account Page</a> or see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.",
+                PurchaseResult.NotAuthorized => $"<div class='alert alert-warning margin-t-md'><strong>Unauthorized</strong> You are not currently authorized to make purchases for this organization. Please see your organization's primary contact to enable your account for purchases or see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.</div>",
+                PurchaseResult.PaymentFailed => $"<div class='alert alert-warning margin-t-md'><strong>Payment Error</strong> An error occurred while processing the credit card on file for your organization. The error was: {installResponse.Message}. Please update your card's information from your <a href='{ResolveRockUrl( "~/RockShop/Account" )}'>Account Page</a> or see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.</div>"
+            };
+        }
+
         #endregion Methods
 
-        #region Install Pipeline
+            #region Install Pipeline
 
-        /// <summary>
-        /// Runs the install steps from the purchase response that are newer than
-        /// the installed version and compatible with this version of Rock.
-        /// </summary>
-        /// <param name="purchaseResponse">The purchase response from the Rock Shop.</param>
-        /// <returns>The result of the install attempt.</returns>
+            /// <summary>
+            /// Runs the install steps from the purchase response that are newer than
+            /// the installed version and compatible with this version of Rock.
+            /// </summary>
+            /// <param name="purchaseResponse">The purchase response from the Rock Shop.</param>
+            /// <returns>The result of the install attempt.</returns>
         private InstallPackageResponseBag ProcessInstall( PurchaseResponse purchaseResponse )
         {
             throw new NotImplementedException();
@@ -310,7 +322,37 @@ namespace Rock.Blocks.Store
         [BlockAction]
         public BlockActionResult Install( InstallPackageRequestBag bag )
         {
-            throw new NotImplementedException();
+            var packageId = PageParameter( PageParameterKey.PackageId ).AsIntegerOrNull() ?? -1;
+
+            var installResponse = new StoreService().Purchase( bag.Username, bag.Password, packageId, out var errorResponse );
+
+            // A null response means the store could not be reached or the
+            // request itself failed before a purchase result was determined.
+            if ( installResponse == null )
+            {
+                var detail = errorResponse.IsNotNullOrWhiteSpace() ? errorResponse : "Unknown";
+
+                return ActionOk( new InstallPackageResponseBag
+                {
+                    IsSuccess = false,
+                    MessageAlertType = "danger",
+                    Message = $"<strong>Install Error</strong> An error occurred while attempting to authenticate your install of this package. The error was: {detail}."
+                } );
+            }
+
+            if ( installResponse.PurchaseResult != PurchaseResult.Success )
+            {
+                var message = GetMessage( installResponse.PurchaseResult, installResponse.Message );
+                return ActionOk( new InstallPackageResponseBag
+                {
+                    IsSuccess = false,
+                    MessageAlertType = "danger",
+                    Message = message
+                } );
+            }
+
+            ProcessInstall( installResponse );
+
         }
 
         #endregion Block Actions
