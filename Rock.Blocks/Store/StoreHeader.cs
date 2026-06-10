@@ -47,8 +47,8 @@ namespace Rock.Blocks.Store
     #endregion
 
     [Rock.SystemGuid.EntityTypeGuid( "D6D49B49-DAFE-4131-B94C-AA91188F2742" )]
-    [Rock.SystemGuid.BlockTypeGuid( "E7FD9794-F7A3-4460-95DF-855F3AE49CE6" )]
-    //[Rock.SystemGuid.BlockTypeGuid( "91355804-4B64-434F-949B-6180E5CC31D9" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "E7FD9794-F7A3-4460-95DF-855F3AE49CE6" )]
+    [Rock.SystemGuid.BlockTypeGuid( "91355804-4B64-434F-949B-6180E5CC31D9" )]
     public class StoreHeader : RockBlockType
     {
         #region Keys

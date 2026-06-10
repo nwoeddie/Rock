@@ -80,17 +80,13 @@
 
     const config = useConfigurationValues<StoreHeaderInitializationBox>();
 
-    console.log("Config: ", config);
-
     // #endregion Values
 
     // #region Computed Values
 
     const isConfigured = computed((): boolean => config.isConfigured ?? false);
-    console.log("Is Configured: ", isConfigured.value);
 
     const organization = computed(() => config.organization ?? null);
-    console.log("Organization: ", organization);
 
     const location = computed((): string => {
         const locationParts = [organization.value?.city, organization.value?.state]
