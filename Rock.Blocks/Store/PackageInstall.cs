@@ -18,14 +18,22 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using System.Net;
+using System.Text;
 
-using Amazon.Runtime.EventStreams.Internal;
+using Microsoft.Web.XmlTransform;
 
 using Rock;
 using Rock.Attribute;
+using Rock.Configuration;
+using Rock.Data;
 using Rock.Store;
+using Rock.Utility;
 using Rock.ViewModels.Blocks.Store.PackageInstall;
+using Rock.Web.Cache;
 
 namespace Rock.Blocks.Store
 {
@@ -82,6 +90,68 @@ namespace Rock.Blocks.Store
         /// but is not currently installed.
         /// </summary>
         private const string InstallPreviousMessage = "Log in below with your Rock Store account to install this previously purchased package.";
+
+        /// <summary>
+        /// The extension used by XML data transform files inside a package's
+        /// content folder.
+        /// </summary>
+        private const string XdtExtension = ".rock.xdt";
+
+        /// <summary>
+        /// Files that must never be installed into or deleted from the Bin
+        /// directory. These are Rock Core dependencies that a plugin replacing
+        /// or removing them could break.
+        /// </summary>
+        private static readonly string[] BinDirectoryBlacklist = new[]
+        {
+            "Azure.AI.OpenAI.dll",
+            "Azure.Core.dll",
+            "Google.Protobuf.dll",
+            "Microsoft.ML.Tokenizers.Data.O200kBase.dll",
+            "Microsoft.ML.Tokenizers.dll",
+            "Microsoft.Bcl.AsyncInterfaces.dll",
+            "Microsoft.Bcl.HashCode.dll",
+            "Microsoft.Bcl.Memory.dll",
+            "Microsoft.Bcl.Numerics.dll",
+            "Microsoft.Extensions.AI.dll",
+            "Microsoft.Extensions.AI.Abstractions.dll",
+            "Microsoft.Extensions.AI.OpenAI.dll",
+            "Microsoft.Extensions.Caching.Memory.dll",
+            "Microsoft.Extensions.Caching.Abstractions.dll",
+            "Microsoft.Extensions.DependencyInjection.dll",
+            "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+            "Microsoft.Extensions.Logging.Abstractions.dll",
+            "Microsoft.Extensions.Options.dll",
+            "Microsoft.Extensions.Primitives.dll",
+            "Microsoft.Extensions.VectorData.Abstractions.dll",
+            "Microsoft.Recognizers.Definitions.dll",
+            "Microsoft.Recognizers.Text.dll",
+            "Microsoft.Recognizers.Text.DateTime.dll",
+            "Microsoft.Recognizers.Text.DataTypes.TimexExpression.dll",
+            "Microsoft.Recognizers.Text.Number.dll",
+            "Microsoft.Recognizers.Text.NumberWithUnit.dll",
+            "Microsoft.SemanticKernel.dll",
+            "Microsoft.SemanticKernel.Abstractions.dll",
+            "Microsoft.SemanticKernel.Connectors.AzureOpenAI.dll",
+            "Microsoft.SemanticKernel.Connectors.OpenAI.dll",
+            "Microsoft.SemanticKernel.Core.dll",
+            "OpenAI.dll",
+            "System.Buffers.dll",
+            "System.ClientModel.dll",
+            "System.Collections.Immutable.dll",
+            "System.Diagnostics.DiagnosticSource.dll",
+            "System.IO.Pipelines.dll",
+            "System.Memory.dll",
+            "System.Memory.Data.dll",
+            "System.Numerics.Tensors.dll",
+            "System.Numerics.Vectors.dll",
+            "System.Runtime.CompilerServices.Unsafe.dll",
+            "System.Text.Json.dll",
+            "System.Text.Encodings.Web.dll",
+            "System.Threading.Channels.dll",
+            "System.Threading.Tasks.Extensions.dll",
+            "System.ValueTuple.dll",
+        };
 
         #endregion Constants
 
@@ -184,7 +254,7 @@ namespace Rock.Blocks.Store
         /// <returns>The installed version id, or -1 if the package is not installed.</returns>
         private int GetInstalledPackageVersionId( int packageId )
         {
-            throw new NotImplementedException();
+            return InstalledPackageService.InstalledPackageVersion( packageId )?.VersionId ?? -1;
         }
 
         /// <summary>
@@ -230,7 +300,37 @@ namespace Rock.Blocks.Store
             /// <returns>The result of the install attempt.</returns>
         private InstallPackageResponseBag ProcessInstall( PurchaseResponse purchaseResponse )
         {
-            throw new NotImplementedException();
+            if ( purchaseResponse.PackageInstallSteps == null )
+            {
+                throw new PackageInstallException( "Install package was not valid. Please try again later." );
+            }
+
+            var currentlyInstalledVersionId = GetInstalledPackageVersionId( purchaseResponse.PackageId );
+            var rockVersion = RockSemanticVersion.Parse( Rock.VersionInfo.VersionInfo.GetRockSemanticVersionNumber() );
+
+            // Only the steps newer than the installed version that also target
+            // this version of Rock should be applied.
+            var packageInstallSteps = purchaseResponse.PackageInstallSteps
+                .Where( s => s.RequiredRockSemanticVersion <= rockVersion )
+                .Where( s => s.VersionId > currentlyInstalledVersionId )
+                .ToList();
+
+            var appRoot = RockApp.Current.HostingSettings.WebRootPath;
+
+            var rockShopWorkingDir = $"{appRoot}App_Data/RockShop";
+            EnsureDirectoryExists( rockShopWorkingDir );
+
+            // The result of the last applied step carries the post-install
+            // instructions shown to the user. A failing step throws and aborts
+            // the remaining steps.
+            var result = new InstallPackageResponseBag();
+
+            foreach ( var installStep in packageInstallSteps )
+            {
+                result = InstallPackageStep( installStep, purchaseResponse, appRoot, rockShopWorkingDir );
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -241,11 +341,68 @@ namespace Rock.Blocks.Store
         /// <param name="purchaseResponse">The purchase response from the Rock Shop.</param>
         /// <param name="appRoot">The application root directory path.</param>
         /// <param name="rockShopWorkingDir">The Rock Shop working directory path.</param>
-        /// <param name="result">The result to surface to the caller when the step ends the install.</param>
-        /// <returns><c>true</c> if the step installed successfully; otherwise <c>false</c>.</returns>
-        private bool InstallPackageStep( PackageInstallStep installStep, PurchaseResponse purchaseResponse, string appRoot, string rockShopWorkingDir, out InstallPackageResponseBag result )
+        /// <returns>The result carrying the step's post-install instructions.</returns>
+        private InstallPackageResponseBag InstallPackageStep( PackageInstallStep installStep, PurchaseResponse purchaseResponse, string appRoot, string rockShopWorkingDir )
         {
-            throw new NotImplementedException();
+            var wasActionTaken = false;
+
+            var packageDirectory = $"{rockShopWorkingDir}/{purchaseResponse.PackageId} - {purchaseResponse.PackageName}";
+            EnsureDirectoryExists( packageDirectory );
+
+            var destinationFile = $"{packageDirectory}/{installStep.VersionId} - {installStep.VersionLabel}.plugin";
+
+            // Download the package file.
+            try
+            {
+                using ( var client = new WebClient() )
+                {
+                    client.DownloadFile( installStep.InstallPackageUrl, destinationFile );
+                }
+            }
+            catch ( Exception ex )
+            {
+                CleanUpPackage( destinationFile );
+                throw new PackageInstallException( $"An error occurred while downloading package from the store. Please try again later. <br><em>Error: {ex.Message}</em>" );
+            }
+
+            // Extract content files and apply SQL and file deletions.
+            try
+            {
+                using ( var packageZip = ZipFile.OpenRead( destinationFile ) )
+                {
+                    foreach ( var entry in packageZip.Entries )
+                    {
+                        wasActionTaken = ProcessZipEntry( entry, appRoot ) || wasActionTaken;
+                    }
+
+                    wasActionTaken = ProcessRunSQL( packageZip ) || wasActionTaken;
+                    wasActionTaken = ProcessDeleteFileList( packageZip, appRoot ) || wasActionTaken;
+                }
+            }
+            catch ( PackageInstallException )
+            {
+                // A processor reported a specific failure; surface it as-is.
+                throw;
+            }
+            catch ( Exception ex )
+            {
+                throw new PackageInstallException( $"An error occurred while extracting the contents of the package. <br><em>Error: {ex.Message}</em>" );
+            }
+
+            if ( !wasActionTaken )
+            {
+                throw new PackageInstallException( $"Package version {installStep.VersionLabel} failed to install because no actions were completed. This may be due to an improperly packaged plugin file. Please contact the package administrator for support." );
+            }
+
+            // Record the install and clear caches so the new content is picked up.
+            InstalledPackageService.SaveInstall( purchaseResponse.PackageId, purchaseResponse.PackageName, installStep.VersionId, installStep.VersionLabel, purchaseResponse.VendorId, purchaseResponse.VendorName, purchaseResponse.InstalledBy );
+
+            RockCache.ClearAllCachedItems();
+
+            return new InstallPackageResponseBag
+            {
+                PostInstallInstructions = installStep.PostInstallInstructions
+            };
         }
 
         /// <summary>
@@ -257,18 +414,95 @@ namespace Rock.Blocks.Store
         /// <returns><c>true</c> if some action was taken; otherwise <c>false</c>.</returns>
         private bool ProcessZipEntry( ZipArchiveEntry entry, string appRoot )
         {
-            throw new NotImplementedException();
+            // Directory entries have no content; skip them.
+            if ( entry.Length == 0 )
+            {
+                return false;
+            }
+
+            // Normalize separators in case the archive was encoded with
+            // backslashes, then only process the content folder.
+            var fullName = entry.FullName.Replace( "\\", "/" );
+            if ( !fullName.StartsWith( "content/", StringComparison.OrdinalIgnoreCase ) )
+            {
+                return false;
+            }
+
+            var relativeName = fullName.ReplaceFirstOccurrence( "content/", string.Empty );
+
+            if ( fullName.EndsWith( XdtExtension, StringComparison.OrdinalIgnoreCase ) )
+            {
+                // Apply the XML data transform to its target file.
+                var transformTargetFile = appRoot + relativeName.Substring( 0, relativeName.LastIndexOf( XdtExtension ) );
+
+                using ( var document = new XmlTransformableDocument() )
+                {
+                    document.PreserveWhitespace = true;
+                    document.Load( transformTargetFile );
+
+                    using ( var transform = new XmlTransformation( entry.Open(), null ) )
+                    {
+                        if ( transform.Apply( document ) )
+                        {
+                            document.Save( transformTargetFile );
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            // A blacklisted Bin file must not be installed.
+            if ( IsBlacklisted( relativeName ) )
+            {
+                return false;
+            }
+
+            var fullPath = Path.Combine( appRoot, relativeName );
+            EnsureDirectoryExists( Path.GetDirectoryName( fullPath ) );
+            entry.ExtractToFile( fullPath, true );
+
+            // Update the file's last write time so other parts of Rock detect
+            // the change. Intentionally using DateTime.Now for local system time.
+            File.SetLastWriteTime( fullPath, DateTime.Now );
+
+            return true;
         }
 
         /// <summary>
         /// Runs the package's install/run.sql script if present.
         /// </summary>
         /// <param name="packageZip">The package archive.</param>
-        /// <param name="errorMessage">The error message when execution fails.</param>
         /// <returns><c>true</c> if a script was run; otherwise <c>false</c>.</returns>
-        private bool ProcessRunSQL( ZipArchive packageZip, out string errorMessage )
+        private bool ProcessRunSQL( ZipArchive packageZip )
         {
-            throw new NotImplementedException();
+            // Look for either separator in case the archive was encoded incorrectly.
+            var sqlInstallEntry = packageZip.Entries.FirstOrDefault( e => e.FullName == "install/run.sql" || e.FullName == "install\\run.sql" );
+            if ( sqlInstallEntry == null )
+            {
+                return false;
+            }
+
+            var sqlScript = Encoding.Default.GetString( sqlInstallEntry.Open().ReadBytesToEnd() );
+            if ( sqlScript.IsNullOrWhiteSpace() )
+            {
+                return false;
+            }
+
+            try
+            {
+                using ( var rockContext = new RockContext() )
+                {
+                    rockContext.Database.ExecuteSqlCommand( sqlScript );
+                }
+            }
+            catch ( Exception ex )
+            {
+                throw new PackageInstallException( $"An error occurred while updating the database. <br><em>Error: {ex.Message}</em>" );
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -277,11 +511,60 @@ namespace Rock.Blocks.Store
         /// </summary>
         /// <param name="packageZip">The package archive.</param>
         /// <param name="appRoot">The application root directory path.</param>
-        /// <param name="errorMessage">The error message when a deletion fails.</param>
         /// <returns><c>true</c> if some action was taken; otherwise <c>false</c>.</returns>
-        private bool ProcessDeleteFileList( ZipArchive packageZip, string appRoot, out string errorMessage )
+        private bool ProcessDeleteFileList( ZipArchive packageZip, string appRoot )
         {
-            throw new NotImplementedException();
+            // Look for either separator in case the archive was encoded incorrectly.
+            var deleteListEntry = packageZip.Entries.FirstOrDefault( e => e.FullName == "install/deletefile.lst" || e.FullName == "install\\deletefile.lst" );
+            if ( deleteListEntry == null )
+            {
+                return false;
+            }
+
+            var wasActionTaken = false;
+
+            try
+            {
+                var deleteList = Encoding.Default.GetString( deleteListEntry.Open().ReadBytesToEnd() );
+                var itemsToDelete = deleteList.Split( new string[] { Environment.NewLine }, StringSplitOptions.None );
+
+                foreach ( var deleteItem in itemsToDelete )
+                {
+                    if ( deleteItem.IsNullOrWhiteSpace() )
+                    {
+                        continue;
+                    }
+
+                    // Never delete a blacklisted Bin file.
+                    if ( IsBlacklisted( deleteItem ) )
+                    {
+                        continue;
+                    }
+
+                    // Treat the line as handled even if the file is already gone
+                    // (it may have been removed manually) so the step is not
+                    // flagged as having taken no action.
+                    wasActionTaken = true;
+
+                    var deleteItemFullPath = appRoot + deleteItem;
+
+                    if ( Directory.Exists( deleteItemFullPath ) )
+                    {
+                        Directory.Delete( deleteItemFullPath, true );
+                    }
+
+                    if ( File.Exists( deleteItemFullPath ) )
+                    {
+                        File.Delete( deleteItemFullPath );
+                    }
+                }
+            }
+            catch ( Exception ex )
+            {
+                throw new PackageInstallException( $"An error occurred while modifying files. <br><em>Error: {ex.Message}</em>" );
+            }
+
+            return wasActionTaken;
         }
 
         /// <summary>
@@ -290,7 +573,17 @@ namespace Rock.Blocks.Store
         /// <param name="packageFile">The package file path.</param>
         private void CleanUpPackage( string packageFile )
         {
-            throw new NotImplementedException();
+            try
+            {
+                if ( File.Exists( packageFile ) )
+                {
+                    File.Delete( packageFile );
+                }
+            }
+            catch
+            {
+                // the caller is already reporting the original download failure.
+            }
         }
 
         /// <summary>
@@ -299,7 +592,10 @@ namespace Rock.Blocks.Store
         /// <param name="directoryPath">The directory path.</param>
         private void EnsureDirectoryExists( string directoryPath )
         {
-            throw new NotImplementedException();
+            if ( !Directory.Exists( directoryPath ) )
+            {
+                Directory.CreateDirectory( directoryPath );
+            }
         }
 
         /// <summary>
@@ -310,7 +606,14 @@ namespace Rock.Blocks.Store
         /// <returns><c>true</c> if the file is blacklisted; otherwise <c>false</c>.</returns>
         private static bool IsBlacklisted( string fullName )
         {
-            throw new NotImplementedException();
+            if ( !fullName.StartsWith( "bin/", StringComparison.OrdinalIgnoreCase ) )
+            {
+                return false;
+            }
+
+            var filename = Path.GetFileName( fullName );
+
+            return BinDirectoryBlacklist.Contains( filename, StringComparer.OrdinalIgnoreCase );
         }
 
         #endregion Install Pipeline
@@ -344,9 +647,35 @@ namespace Rock.Blocks.Store
                 return ActionBadRequest( GetMessage( installResponse.PurchaseResult, installResponse.Message ) );
             }
 
-            return ActionOk( ProcessInstall( installResponse ) );
+            try
+            {
+                return ActionOk( ProcessInstall( installResponse ) );
+            }
+            catch ( PackageInstallException ex )
+            {
+                return ActionBadRequest( ex.Message );
+            }
         }
 
         #endregion Block Actions
+
+        #region Support Classes
+
+        /// <summary>
+        /// Raised when a package install step cannot complete. The message is
+        /// the user-facing explanation surfaced beneath the install form.
+        /// </summary>
+        private class PackageInstallException : Exception
+        {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="PackageInstallException"/> class.
+            /// </summary>
+            /// <param name="message">The user-facing explanation of the failure.</param>
+            public PackageInstallException( string message ) : base( message )
+            {
+            }
+        }
+
+        #endregion Support Classes
     }
 }

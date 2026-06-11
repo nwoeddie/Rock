@@ -31,7 +31,7 @@
                     <div v-html="installMessage"></div>
                 </div>
                 <div class="row d-flex justify-content-center">
-                    <div class="col-sm-8 col-md-8">
+                    <div class="col-sm-8 col-md-8 col-lg-6">
                         <NotificationBox alertType="warning">
                             <strong>Note</strong><br />
                             <p>
