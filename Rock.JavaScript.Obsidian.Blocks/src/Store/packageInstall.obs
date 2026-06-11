@@ -97,8 +97,6 @@
     const config = useConfigurationValues<PackageInstallInitializationBox>();
     const invokeBlockAction = useInvokeBlockAction();
 
-    console.log("config", config);
-
     const packageName = ref(config.packageName ?? "");
     const packageIconImageUrl = ref(config.packageIconImageUrl ?? "");
     const installMessage = ref(config.installMessage ?? "");
