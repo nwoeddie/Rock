@@ -64,6 +64,24 @@ namespace Rock.Blocks.Event
 
         #endregion Keys
 
+        #region Fields
+
+        /// <summary>
+        /// Caches the registration (with its instance and template eagerly loaded) for the
+        /// lifetime of the request so the callers of <see cref="GetRegistration"/>
+        /// do not each re-query. Keyed on the registration Id it was loaded for so a call with
+        /// a different registrant still resolves correctly.
+        /// </summary>
+        private Registration _registration;
+
+        /// <summary>
+        /// The <see cref="Registration.Id"/> that <see cref="_registration"/> was loaded for, or
+        /// <c>0</c> if no load has been attempted yet.
+        /// </summary>
+        private int _registrationId;
+
+        #endregion Fields
+
         #region Methods
 
         /// <inheritdoc/>
@@ -537,9 +555,11 @@ namespace Rock.Blocks.Event
                 return null;
             }
 
-            if ( entity.Registration?.RegistrationInstance?.RegistrationTemplate != null )
+            // Return the cached registration when it matches the requested one. A non-zero
+            // _registrationId means a load has already been attempted for that registration.
+            if ( _registrationId != 0 && _registrationId == entity.RegistrationId )
             {
-                return entity.Registration;
+                return _registration;
             }
 
             if ( entity.RegistrationId == 0 )
@@ -547,12 +567,22 @@ namespace Rock.Blocks.Event
                 return null;
             }
 
-            return new RegistrationService( RockContext )
+            _registrationId = entity.RegistrationId;
+
+            if ( entity.Registration?.RegistrationInstance?.RegistrationTemplate != null )
+            {
+                _registration = entity.Registration;
+                return _registration;
+            }
+
+            _registration = new RegistrationService( RockContext )
                 .Queryable()
                 .Include( r => r.RegistrationInstance.RegistrationTemplate.Forms.Select( f => f.Fields ) )
                 .Include( r => r.RegistrationInstance.RegistrationTemplate.Fees )
                 .Include( r => r.RegistrationInstance.RegistrationTemplate.RequiredSignatureDocumentTemplate.BinaryFileType )
                 .FirstOrDefault( r => r.Id == entity.RegistrationId );
+
+            return _registration;
         }
 
         #endregion Methods
