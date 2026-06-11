@@ -67,5 +67,13 @@ namespace Rock.ViewModels.Blocks.Store.PackageInstall
         /// install or "Update" when a prior version is already installed).
         /// </summary>
         public string InstallButtonText { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the installed version is
+        /// already the latest version compatible with this version of Rock. When
+        /// <c>true</c> the block hides the install form and shows an "up to date"
+        /// notice instead, since there is nothing to install or update.
+        /// </summary>
+        public bool IsUpToDate { get; set; }
     }
 }

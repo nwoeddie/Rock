@@ -24,6 +24,12 @@
                 <p v-html="postInstallInstructions"></p>
             </NotificationBox>
 
+            <!-- Already up to date -->
+            <div v-else-if="isUpToDate" class="row text-center mb-4">
+                <h4 class="text-semibold">Package Up to Date</h4>
+                <p>This package is installed and up to date.</p>
+            </div>
+
             <!-- Install form -->
             <div v-else class="d-flex-column">
                 <div class="row text-center mb-4">
@@ -102,6 +108,7 @@
     const installMessage = ref(config.installMessage ?? "");
     const installButtonText = ref(config.installButtonText ?? "Install");
     const errorMessage = ref(config.errorMessage ?? "");
+    const isUpToDate = ref(config.isUpToDate ?? false);
 
     const username = ref("");
     const password = ref("");

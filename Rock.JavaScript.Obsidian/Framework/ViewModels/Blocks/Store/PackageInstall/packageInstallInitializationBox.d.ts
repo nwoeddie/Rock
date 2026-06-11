@@ -55,6 +55,14 @@ export type PackageInstallInitializationBox = {
     isStoreConfigured: boolean;
 
     /**
+     * Gets or sets a value indicating whether the installed version is
+     * already the latest version compatible with this version of Rock. When
+     * true the block hides the install form and shows an "up to date"
+     * notice instead, since there is nothing to install or update.
+     */
+    isUpToDate: boolean;
+
+    /**
      * Gets or sets the URL to navigate to when the store is not yet
      * configured. Carries a ReturnUrl back to this page so the user lands
      * here again after linking their organization.

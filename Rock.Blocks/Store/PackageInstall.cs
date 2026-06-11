@@ -59,8 +59,8 @@ namespace Rock.Blocks.Store
     #endregion Block Attributes
 
     [Rock.SystemGuid.EntityTypeGuid( "1078292D-78F0-48C2-93C5-594B2BFA7C10" )]
-    [Rock.SystemGuid.BlockTypeGuid( "00B39CC5-CEFA-4A2C-AF09-D8DC35275C5B" )]
-    //[Rock.SystemGuid.BlockTypeGuid( "EA60C1AB-ADAB-4EDF-94F8-B0FE214B6F15" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "00B39CC5-CEFA-4A2C-AF09-D8DC35275C5B" )]
+    [Rock.SystemGuid.BlockTypeGuid( "EA60C1AB-ADAB-4EDF-94F8-B0FE214B6F15" )]
     public class PackageInstall : RockBlockType
     {
         #region Keys
@@ -221,9 +221,15 @@ namespace Rock.Blocks.Store
                     // Previously purchased but not currently installed.
                     box.InstallMessage = InstallPreviousMessage;
                 }
+                else if ( IsInstalledVersionCurrent( package, installedPackage.VersionId ) )
+                {
+                    // The installed version is already the latest version that can
+                    // be installed on this version of Rock; there is nothing to do.
+                    box.IsUpToDate = true;
+                }
                 else
                 {
-                    // A version is already installed; the action upgrades it.
+                    // A newer compatible version exists; the action upgrades to it.
                     box.InstallMessage = UpdateMessage;
                     box.InstallButtonText = "Update";
                 }
@@ -255,6 +261,34 @@ namespace Rock.Blocks.Store
         private int GetInstalledPackageVersionId( int packageId )
         {
             return InstalledPackageService.InstalledPackageVersion( packageId )?.VersionId ?? -1;
+        }
+
+        /// <summary>
+        /// Determines whether the installed version is already the latest version
+        /// of the package that can be installed on this version of Rock. Mirrors
+        /// the compatible-version selection used by the Package Detail block and
+        /// the version filter applied by the install pipeline.
+        /// </summary>
+        /// <param name="package">The package whose available versions are inspected.</param>
+        /// <param name="installedVersionId">The currently installed version id.</param>
+        /// <returns><c>true</c> if no newer compatible version is available; otherwise <c>false</c>.</returns>
+        private static bool IsInstalledVersionCurrent( Package package, int installedVersionId )
+        {
+            var rockVersion = RockSemanticVersion.Parse( Rock.VersionInfo.VersionInfo.GetRockSemanticVersionNumber() );
+
+            var latestCompatibleVersion = ( package.Versions ?? new List<PackageVersion>() )
+                .Where( v => v.RequiredRockSemanticVersion <= rockVersion )
+                .OrderByDescending( v => v.Id )
+                .FirstOrDefault();
+
+            // No compatible version means nothing can be installed on this Rock
+            // version, so an already-installed package is treated as current.
+            if ( latestCompatibleVersion == null )
+            {
+                return true;
+            }
+
+            return installedVersionId >= latestCompatibleVersion.Id;
         }
 
         /// <summary>
