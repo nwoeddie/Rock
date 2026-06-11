@@ -21,31 +21,14 @@
 // </copyright>
 //
 
-/** The outcome of a package purchase and install attempt. */
+/**
+ * The result of a successful package install. Failures are returned as a
+ * bad-request message rather than through this bag.
+ */
 export type InstallPackageResponseBag = {
     /**
-     * Gets or sets a value indicating whether the package was installed
-     * successfully. When true the login form is hidden and the
-     * post-install instructions are shown.
-     */
-    isSuccess: boolean;
-
-    /**
-     * Gets or sets the HTML message describing the result. For a failed
-     * attempt this is the reason the purchase or install did not complete
-     * (may contain help links).
-     */
-    message?: string | null;
-
-    /**
-     * Gets or sets the alert style token for the result message, matching
-     * the Obsidian AlertType values (e.g. "warning", "danger", "success").
-     */
-    messageAlertType?: string | null;
-
-    /**
      * Gets or sets the post-install instructions supplied by the package,
-     * shown when Rock.ViewModels.Blocks.Store.PackageInstall.InstallPackageResponseBag.IsSuccess is true.
+     * shown once the install completes successfully.
      */
     postInstallInstructions?: string | null;
 };

@@ -20,6 +20,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO.Compression;
 
+using Amazon.Runtime.EventStreams.Internal;
+
 using Rock;
 using Rock.Attribute;
 using Rock.Store;
@@ -204,13 +206,15 @@ namespace Rock.Blocks.Store
 
         private string GetMessage( PurchaseResult purchaseResult, string detail )
         {
+            var accountUrl = RequestContext.ResolveRockUrl( "~/RockShop/Account" );
+
             return purchaseResult switch
             {
                 PurchaseResult.AuthenticationFailed => $"<strong>Could Not Authenticate</strong> {detail} If you need further help see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.",
-                PurchaseResult.Error => $"<strong>An Error Occurred</strong> {detail}",
-                PurchaseResult.NoCardOnFile => $"<strong>No Card On File</strong> No credit card is on file for your organization. Please add a card from your <a href='{RequestContext.ResolveRockUrl( "~/RockShop/Account" )}'>Account Page</a> or see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.",
-                PurchaseResult.NotAuthorized => $"<div class='alert alert-warning margin-t-md'><strong>Unauthorized</strong> You are not currently authorized to make purchases for this organization. Please see your organization's primary contact to enable your account for purchases or see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.</div>",
-                PurchaseResult.PaymentFailed => $"<div class='alert alert-warning margin-t-md'><strong>Payment Error</strong> An error occurred while processing the credit card on file for your organization. The error was: {installResponse.Message}. Please update your card's information from your <a href='{ResolveRockUrl( "~/RockShop/Account" )}'>Account Page</a> or see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.</div>"
+                PurchaseResult.NoCardOnFile => $"<strong>No Card On File</strong> No credit card is on file for your organization. Please add a card from your <a href='{accountUrl}'>Account Page</a> or see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.",
+                PurchaseResult.NotAuthorized => "<strong>Unauthorized</strong> You are not currently authorized to make purchases for this organization. Please see your organization's primary contact to enable your account for purchases or see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.",
+                PurchaseResult.PaymentFailed => $"<strong>Payment Error</strong> An error occurred while processing the credit card on file for your organization. The error was: {detail}. Please update your card's information from your <a href='{accountUrl}'>Account Page</a> or see the <a href='https://rockrms.com/RockShopHelp'>Rock Shop Help Page</a>.",
+                _ => $"<strong>An Error Occurred</strong> {detail}"
             };
         }
 
@@ -332,27 +336,15 @@ namespace Rock.Blocks.Store
             {
                 var detail = errorResponse.IsNotNullOrWhiteSpace() ? errorResponse : "Unknown";
 
-                return ActionOk( new InstallPackageResponseBag
-                {
-                    IsSuccess = false,
-                    MessageAlertType = "danger",
-                    Message = $"<strong>Install Error</strong> An error occurred while attempting to authenticate your install of this package. The error was: {detail}."
-                } );
+                return ActionBadRequest( $"<strong>Install Error</strong> An error occurred while attempting to authenticate your install of this package. The error was: {detail}." );
             }
 
             if ( installResponse.PurchaseResult != PurchaseResult.Success )
             {
-                var message = GetMessage( installResponse.PurchaseResult, installResponse.Message );
-                return ActionOk( new InstallPackageResponseBag
-                {
-                    IsSuccess = false,
-                    MessageAlertType = "danger",
-                    Message = message
-                } );
+                return ActionBadRequest( GetMessage( installResponse.PurchaseResult, installResponse.Message ) );
             }
 
-            ProcessInstall( installResponse );
-
+            return ActionOk( ProcessInstall( installResponse ) );
         }
 
         #endregion Block Actions

@@ -31,7 +31,7 @@
                     <div v-html="installMessage"></div>
                 </div>
                 <div class="row d-flex justify-content-center">
-                    <div class="col-sm-8col-md-8">
+                    <div class="col-sm-8 col-md-8">
                         <NotificationBox alertType="warning">
                             <strong>Note</strong><br />
                             <p>
@@ -136,26 +136,18 @@
 
             const result = await invokeBlockAction<InstallPackageResponseBag>("Install", { bag: request });
 
+            // A failed purchase or install returns the reason as an HTML
+            // message; keep the form visible and show it below.
             if (!result.isSuccess || !result.data) {
                 resultMessage.value = result.errorMessage ?? "Unable to install the package.";
-                resultAlertType.value = AlertType.Danger;
+                resultAlertType.value = AlertType.Warning;
                 return;
             }
-
-            const response = result.data;
 
             // A successful install hides the form and shows the post-install
             // instructions.
-            if (response.isSuccess) {
-                postInstallInstructions.value = response.postInstallInstructions ?? "";
-                isInstalled.value = true;
-                return;
-            }
-
-            // An unsuccessful purchase keeps the form visible and shows the
-            // reason below it.
-            resultMessage.value = response.message ?? "";
-            resultAlertType.value = (response.messageAlertType as AlertType) ?? AlertType.Warning;
+            postInstallInstructions.value = result.data.postInstallInstructions ?? "";
+            isInstalled.value = true;
         }
         finally {
             isInstalling.value = false;

@@ -18,33 +18,14 @@
 namespace Rock.ViewModels.Blocks.Store.PackageInstall
 {
     /// <summary>
-    /// The outcome of a package purchase and install attempt.
+    /// The result of a successful package install. Failures are returned as a
+    /// bad-request message rather than through this bag.
     /// </summary>
     public class InstallPackageResponseBag
     {
         /// <summary>
-        /// Gets or sets a value indicating whether the package was installed
-        /// successfully. When <c>true</c> the login form is hidden and the
-        /// post-install instructions are shown.
-        /// </summary>
-        public bool IsSuccess { get; set; }
-
-        /// <summary>
-        /// Gets or sets the HTML message describing the result. For a failed
-        /// attempt this is the reason the purchase or install did not complete
-        /// (may contain help links).
-        /// </summary>
-        public string Message { get; set; }
-
-        /// <summary>
-        /// Gets or sets the alert style token for the result message, matching
-        /// the Obsidian AlertType values (e.g. "warning", "danger", "success").
-        /// </summary>
-        public string MessageAlertType { get; set; }
-
-        /// <summary>
         /// Gets or sets the post-install instructions supplied by the package,
-        /// shown when <see cref="IsSuccess"/> is <c>true</c>.
+        /// shown once the install completes successfully.
         /// </summary>
         public string PostInstallInstructions { get; set; }
     }
