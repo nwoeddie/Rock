@@ -82,7 +82,7 @@
     import { useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
     import { PurchasedPackagesInitializationBox } from "@Obsidian/ViewModels/Blocks/Store/PurchasedPackages/purchasedPackagesInitializationBox";
     import { PurchasedPackageBag } from "@Obsidian/ViewModels/Blocks/Store/PurchasedPackages/purchasedPackageBag";
-    import { PurchasedPackageInstallState } from "./PurchasedPackageList/types.partial";
+    import { PurchasedPackageInstallState } from "./PurchasedPackages/types.partial";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 
     // #region Values
