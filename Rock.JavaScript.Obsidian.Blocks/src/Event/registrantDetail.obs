@@ -66,6 +66,7 @@
     const errorMessage = ref("");
 
     const isGroupMemberWarningVisible = ref(false);
+    const isGroupMemberWarningConfirmed = ref(false);
     const groupMemberWarningOldName = ref("");
     const groupMemberWarningNewName = ref("");
 
@@ -189,13 +190,14 @@
         const originalPersonId = config.entity?.personAlias?.value;
         const newPersonId = registrantEditBag.value.bag?.personAlias?.value;
 
-        if (hasGroupMember && originalPersonId && newPersonId && originalPersonId !== newPersonId) {
+        if (!isGroupMemberWarningConfirmed.value && hasGroupMember && originalPersonId && newPersonId && originalPersonId !== newPersonId) {
             groupMemberWarningOldName.value = config.entity?.personAlias?.text ?? "";
             groupMemberWarningNewName.value = registrantEditBag.value.bag?.personAlias?.text ?? "";
             isGroupMemberWarningVisible.value = true;
             return false;
         }
 
+        isGroupMemberWarningConfirmed.value = false;
         return await performSave();
     }
 
@@ -211,16 +213,15 @@
     }
 
     /**
-     * Called when the user confirms the group member change warning. Closes
-     * the dialog and proceeds with the deferred save.
+     * Called when the user confirms the group member change warning. Sets the
+     * bypass flag so onSave skips the warning check on its next invocation, then
+     * closes the dialog and re-triggers the DetailBlock save — identical to the
+     * user clicking Save directly.
      */
     async function onGroupMemberWarningConfirmed(): Promise<void> {
+        isGroupMemberWarningConfirmed.value = true;
         isGroupMemberWarningVisible.value = false;
-
-        const redirectUrl = await performSave();
-        if (typeof redirectUrl === "string") {
-            window.location.href = redirectUrl;
-        }
+        await detailBlock.value?.onSaveClick();
     }
 
     /**
