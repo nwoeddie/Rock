@@ -388,11 +388,11 @@ namespace Rock.Blocks.Event
             var registrantParameter = PageParameter( PageParameterKey.RegistrantId );
 
             // New registrant - Get RegistrationId from Page Parameter to get Fee Template data
-            if ( registrantParameter.AsInteger() == 0 )
+            if ( registrantParameter.IsNullOrWhiteSpace() )
             {
                 var registrationParameter = PageParameter( PageParameterKey.RegistrationId );
 
-                if ( registrationParameter.AsInteger() == 0 )
+                if ( registrationParameter.IsNullOrWhiteSpace() )
                 {
                     return null;
                 }
@@ -685,6 +685,38 @@ namespace Rock.Blocks.Event
             var registration = GetRegistration( entity );
             var template = registration?.RegistrationInstance?.RegistrationTemplate;
 
+            // ── Attribute History ─────────────────────────────────────────────
+            // Build history before the transaction using the private stored values that
+            // UpdateEntityFromBox already converted and placed on the entity. Comparing
+            // against the raw public bag values would produce incorrect diff text and
+            // an incorrect equality check for field types whose public and private
+            // representations differ (e.g. Defined Value stores Id, sends Guid).
+            var allowedAttributeKeys = GetRegistrantAttributeKeys( entity );
+            foreach ( var key in allowedAttributeKeys )
+            {
+                var attribute = entity.Attributes?.GetValueOrNull( key );
+                if ( attribute == null )
+                {
+                    continue;
+                }
+
+                string originalValue = originalAttributeValues.GetValueOrNull( key ) ?? string.Empty;
+                string newValue = entity.GetAttributeValue( key ) ?? string.Empty;
+
+                if ( originalValue.Trim() != newValue.Trim() )
+                {
+                    string formattedOriginal = originalValue.IsNotNullOrWhiteSpace()
+                        ? attribute.FieldType.Field.FormatValue( null, originalValue, attribute.QualifierValues, false )
+                        : string.Empty;
+
+                    string formattedNew = newValue.IsNotNullOrWhiteSpace()
+                        ? attribute.FieldType.Field.FormatValue( null, newValue, attribute.QualifierValues, false )
+                        : string.Empty;
+
+                    History.EvaluateChange( registrantChanges, attribute.Name, formattedOriginal, formattedNew );
+                }
+            }
+
             // ── Fees ──────────────────────────────────────────────────────────
 
             // Pre-load all fee names needed for history in a single query to
@@ -851,37 +883,6 @@ namespace Rock.Blocks.Event
                 RockContext.WrapTransaction( () =>
                 {
                     RockContext.SaveChanges();
-
-                    entity.LoadAttributes( RockContext );
-
-                    var allowedAttributeKeys = GetRegistrantAttributeKeys( entity );
-                    foreach ( var key in allowedAttributeKeys )
-                    {
-                        var attribute = entity.Attributes?.GetValueOrNull( key );
-                        if ( attribute == null )
-                        {
-                            continue;
-                        }
-
-                        string originalValue = originalAttributeValues.GetValueOrNull( key ) ?? string.Empty;
-                        string newValue = box.Bag.AttributeValues?.GetValueOrNull( key ) ?? string.Empty;
-
-                        if ( ( originalValue ?? string.Empty ).Trim() != ( newValue ?? string.Empty ).Trim() )
-                        {
-                            string formattedOriginal = originalValue.IsNotNullOrWhiteSpace()
-                                ? attribute.FieldType.Field.FormatValue( null, originalValue, attribute.QualifierValues, false )
-                                : string.Empty;
-
-                            string formattedNew = newValue.IsNotNullOrWhiteSpace()
-                                ? attribute.FieldType.Field.FormatValue( null, newValue, attribute.QualifierValues, false )
-                                : string.Empty;
-
-                            History.EvaluateChange( registrantChanges, attribute.Name, formattedOriginal, formattedNew );
-                        }
-
-                        entity.SetAttributeValue( key, newValue );
-                    }
-
                     entity.SaveAttributeValues( RockContext );
                 } );
 
