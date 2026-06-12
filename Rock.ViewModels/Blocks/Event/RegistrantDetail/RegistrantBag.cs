@@ -123,5 +123,13 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantDetail
         /// the group and the new person will be added.
         /// </summary>
         public bool HasGroupMember { get; set; }
+
+        /// <summary>
+        /// Gets or sets the field visibility rules for registrant attributes, keyed by the key of the
+        /// attribute each rule set governs. Only attributes that have rules appear here. The client uses
+        /// these to conditionally show or hide attribute fields as their dependent values change,
+        /// matching the legacy WebForms FieldVisibilityWrapper behavior.
+        /// </summary>
+        public Dictionary<string, RegistrantAttributeVisibilityBag> AttributeVisibilityRules { get; set; }
     }
 }

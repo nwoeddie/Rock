@@ -36,7 +36,7 @@
 
                 <AttributeValuesContainer v-if="hasAttributes"
                                           v-model="attributeValues"
-                                          :attributes="attributes"
+                                          :attributes="visibleAttributes"
                                           isEditMode
                                           :numberOfColumns="1" />
                 <FileUploader v-if="props.modelValue.bag?.signatureDocumentTemplateName"
@@ -140,8 +140,13 @@
     import Toggle from "@Obsidian/Controls/toggle.obs";
     import { setPropertiesBoxValue, watchPropertyChanges } from "@Obsidian/Utility/block";
     import { propertyRef, updateRefValue } from "@Obsidian/Utility/component";
+    import { getFieldType } from "@Obsidian/Utility/fieldTypes";
     import { toCurrencyOrNull } from "@Obsidian/Utility/numberUtils";
+    import { ComparisonValue } from "@Obsidian/Types/Reporting/comparisonValue";
+    import { FilterExpressionType } from "@Obsidian/Enums/Reporting/filterExpressionType";
     import { RegistrationFeeType } from "@Obsidian/Enums/Event/registrationFeeType";
+    import { RegistrantAttributeVisibilityBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantAttributeVisibilityBag";
+    import { RegistrantAttributeVisibilityRuleBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantAttributeVisibilityRuleBag";
     import { RegistrantBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantBag";
     import { RegistrantDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantDetailOptionsBag";
     import { RegistrantFeeBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantFeeBag";
@@ -149,6 +154,8 @@
     import { RegistrationTemplateFeeItemBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrationTemplateFeeItemBag";
     import { ValidPropertiesBox } from "@Obsidian/ViewModels/Utility/validPropertiesBox";
     import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
+    import { PublicComparisonValueBag } from "@Obsidian/ViewModels/Utility/publicComparisonValueBag";
     import ContentSection from "@Obsidian/Controls/contentSection.obs";
     import ContentStack from "@Obsidian/Controls/contentStack.obs";
 
@@ -203,6 +210,89 @@
     const hasAttributes = computed((): boolean => {
         return Object.keys(attributes.value).length > 0;
     });
+
+    /**
+     * The attributes to actually render, with any whose field visibility rules are
+     * not currently met filtered out. Because this derives from attributeValues, it
+     * recomputes as the user edits, so dependent fields show and hide live — mirroring
+     * the legacy WebForms FieldVisibilityWrapper behavior.
+     */
+    const visibleAttributes = computed((): Record<string, PublicAttributeBag> => {
+        const rules = props.modelValue.bag?.attributeVisibilityRules ?? {};
+        const result: Record<string, PublicAttributeBag> = {};
+
+        for (const [key, attribute] of Object.entries(attributes.value)) {
+            if (isAttributeVisible(rules[key])) {
+                result[key] = attribute;
+            }
+        }
+
+        return result;
+    });
+
+    // #endregion
+
+    // #region Attribute Visibility
+
+    /**
+     * Determines whether an attribute should be shown given its visibility rule set.
+     * Attributes with no rules are always visible. The rules are combined according to
+     * the filter expression type (all, any, all-false, any-false).
+     */
+    function isAttributeVisible(visibility: RegistrantAttributeVisibilityBag | undefined): boolean {
+        if (!visibility?.rules || visibility.rules.length === 0) {
+            return true;
+        }
+
+        switch (visibility.filterExpressionType) {
+            case FilterExpressionType.GroupAll:
+                return visibility.rules.every(rule => isRuleMet(rule));
+            case FilterExpressionType.GroupAllFalse:
+                return visibility.rules.every(rule => !isRuleMet(rule));
+            case FilterExpressionType.GroupAny:
+                return visibility.rules.some(rule => isRuleMet(rule));
+            case FilterExpressionType.GroupAnyFalse:
+                return visibility.rules.some(rule => !isRuleMet(rule));
+            default:
+                return true;
+        }
+    }
+
+    /**
+     * Evaluates a single visibility rule against the current value of its compared-to
+     * attribute, delegating the actual comparison to that attribute's field type.
+     */
+    function isRuleMet(rule: RegistrantAttributeVisibilityRuleBag): boolean {
+        const comparedToKey = rule.comparedToAttributeKey;
+        if (!comparedToKey) {
+            return false;
+        }
+
+        const comparedToAttribute = attributes.value[comparedToKey];
+        if (!comparedToAttribute?.fieldTypeGuid) {
+            return false;
+        }
+
+        const fieldType = getFieldType(comparedToAttribute.fieldTypeGuid);
+        if (!fieldType || !rule.comparisonValue) {
+            return false;
+        }
+
+        const value = attributeValues.value[comparedToKey] ?? "";
+
+        return fieldType.doesValueMatchFilter(
+            value,
+            convertComparisonValue(rule.comparisonValue),
+            comparedToAttribute.configurationValues ?? {});
+    }
+
+    /** Converts the bag comparison value into the shape the field type filter expects. */
+    function convertComparisonValue(value: PublicComparisonValueBag): ComparisonValue {
+        return {
+            value: value.value ?? "",
+            comparisonType: value.comparisonType
+        };
+    }
 
     // #endregion
 

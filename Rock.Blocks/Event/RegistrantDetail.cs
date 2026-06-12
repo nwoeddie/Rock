@@ -308,6 +308,10 @@ namespace Rock.Blocks.Event
                 bag.AttributeValues = null;
             }
 
+            // Carry the per-attribute field visibility rules so the client can conditionally
+            // show or hide attribute fields as their dependent values change.
+            bag.AttributeVisibilityRules = GetRegistrantAttributeVisibilityRules( entity );
+
             // Surface the registrant's signature document (or a valid existing one found for
             // the person) in the uploader and carry its id key so the save step can reuse it.
             ApplySignatureDocumentInfo( bag, entity );
@@ -529,6 +533,106 @@ namespace Rock.Blocks.Event
                 .Select( f => AttributeCache.Get( f.AttributeId.Value )?.Key )
                 .Where( k => k != null )
                 .ToHashSet();
+        }
+
+        /// <summary>
+        /// Builds the registrant-attribute field visibility rules, translated from the form fields'
+        /// internal Guid references into attribute keys so the client can evaluate them directly
+        /// against the attribute values it already holds.
+        /// </summary>
+        /// <returns>
+        /// A dictionary keyed by the governed attribute key, or <c>null</c> when no registrant
+        /// attribute has any evaluable visibility rules.
+        /// </returns>
+        private Dictionary<string, RegistrantAttributeVisibilityBag> GetRegistrantAttributeVisibilityRules( RegistrationRegistrant entity )
+        {
+            var template = GetRegistration( entity )?.RegistrationInstance?.RegistrationTemplate;
+
+            if ( template?.Forms == null )
+            {
+                return null;
+            }
+
+            var registrantAttributeFields = template.Forms
+                .SelectMany( f => f.Fields )
+                .Where( f => f.FieldSource == RegistrationFieldSource.RegistrantAttribute && f.AttributeId.HasValue )
+                .ToList();
+
+            // Map each registrant-attribute field's Guid to its attribute so rules, which reference
+            // other fields by Guid, can be resolved into the attribute keys the client understands.
+            var attributeByFieldGuid = new Dictionary<Guid, AttributeCache>();
+            foreach ( var field in registrantAttributeFields )
+            {
+                var attribute = AttributeCache.Get( field.AttributeId.Value );
+                if ( attribute != null )
+                {
+                    attributeByFieldGuid[field.Guid] = attribute;
+                }
+            }
+
+            var visibilityRules = new Dictionary<string, RegistrantAttributeVisibilityBag>();
+
+            foreach ( var field in registrantAttributeFields )
+            {
+                var ruleList = field.FieldVisibilityRules?.RuleList;
+                if ( ruleList == null || ruleList.Count == 0 )
+                {
+                    continue;
+                }
+
+                var governedAttribute = attributeByFieldGuid.GetValueOrNull( field.Guid );
+                if ( governedAttribute == null )
+                {
+                    continue;
+                }
+
+                var ruleBags = new List<RegistrantAttributeVisibilityRuleBag>();
+
+                foreach ( var rule in ruleList )
+                {
+                    if ( !rule.ComparedToFormFieldGuid.HasValue )
+                    {
+                        continue;
+                    }
+
+                    var comparedToAttribute = attributeByFieldGuid.GetValueOrNull( rule.ComparedToFormFieldGuid.Value );
+                    if ( comparedToAttribute == null )
+                    {
+                        // The rule compares to a field this block does not render (e.g. a person
+                        // field). It cannot be evaluated client-side, so skip it.
+                        continue;
+                    }
+
+                    var ruleBag = Rock.Field.FieldVisibilityRule.GetPublicRuleBag( comparedToAttribute, rule.ComparisonType, rule.ComparedToValue );
+                    if ( ruleBag == null )
+                    {
+                        continue;
+                    }
+
+                    ruleBags.Add( new RegistrantAttributeVisibilityRuleBag
+                    {
+                        ComparedToAttributeKey = comparedToAttribute.Key,
+                        ComparisonValue = new PublicComparisonValueBag
+                        {
+                            ComparisonType = ( int? ) ruleBag.ComparisonType,
+                            Value = ruleBag.Value
+                        }
+                    } );
+                }
+
+                if ( ruleBags.Count == 0 )
+                {
+                    continue;
+                }
+
+                visibilityRules[governedAttribute.Key] = new RegistrantAttributeVisibilityBag
+                {
+                    FilterExpressionType = field.FieldVisibilityRules.FilterExpressionType,
+                    Rules = ruleBags
+                };
+            }
+
+            return visibilityRules.Count > 0 ? visibilityRules : null;
         }
 
         /// <summary>

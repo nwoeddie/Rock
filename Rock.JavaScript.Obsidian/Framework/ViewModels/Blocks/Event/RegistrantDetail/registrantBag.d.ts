@@ -22,6 +22,7 @@
 //
 
 import { Guid } from "@Obsidian/Types";
+import { RegistrantAttributeVisibilityBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantAttributeVisibilityBag";
 import { RegistrantFeeBag } from "@Obsidian/ViewModels/Blocks/Event/RegistrantDetail/registrantFeeBag";
 import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
 import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
@@ -33,6 +34,14 @@ export type RegistrantBag = {
 
     /** Gets or sets the attribute values. */
     attributeValues?: Record<string, string> | null;
+
+    /**
+     * Gets or sets the field visibility rules for registrant attributes, keyed by the key of the
+     * attribute each rule set governs. Only attributes that have rules appear here. The client uses
+     * these to conditionally show or hide attribute fields as their dependent values change,
+     * matching the legacy WebForms FieldVisibilityWrapper behavior.
+     */
+    attributeVisibilityRules?: Record<string, RegistrantAttributeVisibilityBag> | null;
 
     /** Gets or sets the individual cost override for this registrant. */
     cost: number;
