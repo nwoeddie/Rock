@@ -1033,20 +1033,6 @@ namespace Rock.Blocks.Event
                 {
                     entity.SignatureDocument = document;
                 }
-
-                // If the document had a binary file but the user cleared it in the UI
-                // (newBinaryFileId is null), mark the old file as temporary so the cleanup
-                // job can remove it, then detach it from the document.
-                if ( document != null && document.BinaryFileId.HasValue && !newBinaryFileId.HasValue && !newBinaryFileGuid.HasValue )
-                {
-                    var oldFile = binaryFileService.Get( document.BinaryFileId.Value );
-                    if ( oldFile != null && !oldFile.IsTemporary )
-                    {
-                        oldFile.IsTemporary = true;
-                    }
-
-                    document.BinaryFileId = null;
-                }
             }
 
             if ( document == null && newBinaryFileId.HasValue )

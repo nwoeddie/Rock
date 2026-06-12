@@ -44,7 +44,7 @@
                               :label="props.modelValue.bag?.signatureDocumentTemplateName ?? 'Signature Document'"
                               :binaryFileTypeGuid="props.modelValue.bag?.signatureDocumentTemplateBinaryFileTypeGuid ?? undefined"
                               :uploadAsTemporary="true"
-                              :showDeleteButton="true" />
+                              :showDeleteButton="false" />
             </div>
 
             <div class="col-md-6" v-if="props.options.fees && props.options.fees.length > 0">
