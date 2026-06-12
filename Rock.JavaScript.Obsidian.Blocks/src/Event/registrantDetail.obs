@@ -8,6 +8,7 @@
 
     <DetailBlock v-if="!blockError"
                  ref="detailBlock"
+                 :title="panelName"
                  v-model:mode="panelMode"
                  :name="panelName"
                  :entityKey="entityKey"
@@ -107,7 +108,7 @@
 
 
     const panelName = computed((): string => {
-        return registrantEditBag.value.bag?.idKey ? "Edit Registrant" : "Add Registrant";
+        return registrantEditBag.value.bag?.idKey ? (config.entity?.personAlias?.text ?? "Edit Registrant") : "Add Registrant";
     });
 
     const entityKey = computed((): string => {

@@ -331,15 +331,18 @@ namespace Rock.Blocks.Event
             // operations (e.g. attribute key lookup) depend on it.
             if ( entity.Id == 0 )
             {
-                var registrationIdKey = box.Bag.RegistrationIdKey.IsNotNullOrWhiteSpace()
-                    ? box.Bag.RegistrationIdKey
-                    : null;
+                var registrationKey = PageParameter( PageParameterKey.RegistrationId );
 
-                var registrationId = registrationIdKey != null
+                if ( registrationKey.IsNullOrWhiteSpace() )
+                {
+                    registrationKey = box.Bag.RegistrationIdKey;
+                }
+
+                var registrationId = registrationKey.IsNotNullOrWhiteSpace()
                     ? new RegistrationService( RockContext )
-                        .Get( registrationIdKey, !PageCache.Layout.Site.DisablePredictableIds )
+                        .Get( registrationKey, !PageCache.Layout.Site.DisablePredictableIds )
                         ?.Id
-                    : PageParameter( PageParameterKey.RegistrationId ).AsIntegerOrNull();
+                    : null;
 
                 if ( !registrationId.HasValue || registrationId.Value == 0 )
                 {
@@ -1226,9 +1229,7 @@ namespace Rock.Blocks.Event
         /// </summary>
         private void HandleGroupMember( RegistrationRegistrant entity, Registration registration, RegistrationTemplate template, int personId, History.HistoryChangeList registrantChanges )
         {
-            using ( var newRockContext = new RockContext() )
-            {
-                var reloadedRegistrant = new RegistrationRegistrantService( newRockContext )
+               var reloadedRegistrant = new RegistrationRegistrantService( RockContext )
                     .Queryable()
                     .Include( r => r.Registration.Group.GroupType )
                     .Include( r => r.GroupMember )
@@ -1248,7 +1249,7 @@ namespace Rock.Blocks.Event
                 }
 
                 var group = reloadedRegistrant.Registration.Group;
-                var groupMemberService = new GroupMemberService( newRockContext );
+                var groupMemberService = new GroupMemberService( RockContext );
 
                 var groupMember = groupMemberService.Queryable().FirstOrDefault( m =>
                     m.GroupId == group.Id &&
@@ -1267,7 +1268,7 @@ namespace Rock.Blocks.Event
 
                     groupMemberService.Add( groupMember );
 
-                    newRockContext.SaveChanges();
+                    RockContext.SaveChanges();
 
                     registrantChanges.AddChange( History.HistoryVerb.Add, History.HistoryChangeType.Record, $"Registrant to {group.Name} group" );
                 }
@@ -1281,13 +1282,12 @@ namespace Rock.Blocks.Event
                 if ( reloadedRegistrant.GroupMemberId.HasValue && reloadedRegistrant.GroupMemberId.Value != groupMember.Id )
                 {
                     groupMemberService.Delete( reloadedRegistrant.GroupMember );
-                    newRockContext.SaveChanges();
+                    RockContext.SaveChanges();
                     registrantChanges.AddChange( History.HistoryVerb.Delete, History.HistoryChangeType.Record, $"Registrant to previous person in {group.Name} group" );
                 }
 
                 reloadedRegistrant.GroupMemberId = groupMember.Id;
-                newRockContext.SaveChanges();
-            }
+                RockContext.SaveChanges();
         }
 
         /// <summary>
