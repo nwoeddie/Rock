@@ -44,7 +44,8 @@ namespace Rock.Blocks.Event
     [SupportedSiteTypes( Model.SiteType.Web )]
 
     [Rock.SystemGuid.EntityTypeGuid( "6e675de9-b320-4f79-9a94-6389901039f7" )]
-    [Rock.SystemGuid.BlockTypeGuid( "8208ca56-7675-4741-b0d9-54a10b492011" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "8208ca56-7675-4741-b0d9-54a10b492011" )]
+    [Rock.SystemGuid.BlockTypeGuid( "D72A1A61-43D1-4D5D-92EC-BAECA02EAC43" )]
     public class RegistrantDetail : RockEntityDetailBlockType<RegistrationRegistrant, RegistrantBag>
     {
         #region Keys
@@ -394,8 +395,10 @@ namespace Rock.Blocks.Event
         {
             var registrantParameter = PageParameter( PageParameterKey.RegistrantId );
 
+            var isNewRegistrant = registrantParameter.IsNullOrWhiteSpace() || registrantParameter == "0";
+
             // New registrant - Get RegistrationId from Page Parameter to get Fee Template data
-            if ( registrantParameter.IsNullOrWhiteSpace() )
+            if ( isNewRegistrant )
             {
                 var registrationParameter = PageParameter( PageParameterKey.RegistrationId );
 
