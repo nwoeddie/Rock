@@ -251,8 +251,6 @@ namespace Rock.Blocks.Event
                     Cost = f.Cost,
                     Option = f.Option
                 } ).ToList(),
-                SignatureDocumentBinaryFileId = entity.SignatureDocument?.BinaryFile?.Guid,
-                SignatureDocumentBinaryFileName = entity.SignatureDocument?.BinaryFile?.FileName,
                 HasGroupMember = entity.GroupMemberId.HasValue,
                 RegistrationIdKey = registration?.IdKey,
                 RegistrationTemplateName = template?.Name,
@@ -309,22 +307,9 @@ namespace Rock.Blocks.Event
                 bag.AttributeValues = null;
             }
 
-            // Check for an existing valid signature document linked to this person but
-            // not yet attached to the registrant.
-            if ( entity.Id != 0 && entity.PersonAlias != null && entity.SignatureDocument == null )
-            {
-                var registration = GetRegistration( entity );
-                var template = registration?.RegistrationInstance?.RegistrationTemplate;
-
-                if ( template?.RequiredSignatureDocumentTemplate != null )
-                {
-                    var existingDoc = new RegistrationRegistrantService( RockContext )
-                        .GetValidSignatureDocument( entity.PersonAlias.PersonId, template.RequiredSignatureDocumentTemplate )
-                        .FirstOrDefault();
-
-                    bag.HasExistingSignatureDocument = existingDoc != null;
-                }
-            }
+            // Surface the registrant's signature document (or a valid existing one found for
+            // the person) in the uploader and carry its id key so the save step can reuse it.
+            ApplySignatureDocumentInfo( bag, entity );
 
             return bag;
         }
@@ -542,6 +527,46 @@ namespace Rock.Blocks.Event
                 .Select( f => AttributeCache.Get( f.AttributeId.Value )?.Key )
                 .Where( k => k != null )
                 .ToHashSet();
+        }
+
+        /// <summary>
+        /// Populates the signature-document-related bag fields. The effective document is the one
+        /// already attached to the registrant or, when none is attached, a still-valid document the
+        /// person previously signed for the same template. This surfaces the document's file in the
+        /// uploader and carries its id key so the save step can reuse the document (replacing its
+        /// file, or cloning it when shared) instead of creating a duplicate.
+        /// </summary>
+        private void ApplySignatureDocumentInfo( RegistrantBag bag, RegistrationRegistrant entity )
+        {
+            var template = GetRegistration( entity )?.RegistrationInstance?.RegistrationTemplate;
+
+            if ( template?.RequiredSignatureDocumentTemplate == null )
+            {
+                return;
+            }
+
+            var signatureDocument = entity.SignatureDocument;
+
+            // When the registrant is not yet linked to a document, fall back to any still-valid
+            // document the person previously signed for this template so it can be reused.
+            if ( signatureDocument == null && entity.PersonAlias != null )
+            {
+                signatureDocument = new RegistrationRegistrantService( RockContext )
+                    .GetValidSignatureDocument( entity.PersonAlias.PersonId, template.RequiredSignatureDocumentTemplate )
+                    .FirstOrDefault();
+
+                // Only the found (not-yet-attached) case shows the informational notice.
+                bag.HasExistingSignatureDocument = signatureDocument != null;
+            }
+
+            if ( signatureDocument == null )
+            {
+                return;
+            }
+
+            bag.SignatureDocumentIdKey = signatureDocument.IdKey;
+            bag.SignatureDocumentBinaryFileId = signatureDocument.BinaryFile?.Guid;
+            bag.SignatureDocumentBinaryFileName = signatureDocument.BinaryFile?.FileName;
         }
 
         /// <summary>
@@ -769,7 +794,20 @@ namespace Rock.Blocks.Event
 
             if ( template?.RequiredSignatureDocumentTemplate != null && entity.PersonAliasId.HasValue && newPerson != null )
             {
-                HandleSignatureDocument( entity, template, newPerson.Id, entity.SignatureDocumentId, box.Bag.SignatureDocumentBinaryFileId );
+                // Resolve the document the form was showing (the registrant's own or a valid
+                // existing one found for the person) so an uploaded replacement reuses it
+                // instead of creating a duplicate. Mirrors the WebForms hfSignedDocumentId
+                // round-trip; falls back to the registrant's own document id if none was sent.
+                var existingDocumentId = entity.SignatureDocumentId;
+
+                if ( box.Bag.SignatureDocumentIdKey.IsNotNullOrWhiteSpace() )
+                {
+                    existingDocumentId = new SignatureDocumentService( RockContext )
+                        .Get( box.Bag.SignatureDocumentIdKey, !PageCache.Layout.Site.DisablePredictableIds )?.Id
+                        ?? entity.SignatureDocumentId;
+                }
+
+                HandleSignatureDocument( entity, template, newPerson.Id, existingDocumentId, box.Bag.SignatureDocumentBinaryFileId );
             }
 
             // ── Registration Session ──────────────────────────────────────────

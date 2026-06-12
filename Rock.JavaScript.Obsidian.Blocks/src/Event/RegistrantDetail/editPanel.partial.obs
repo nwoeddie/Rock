@@ -435,6 +435,13 @@
         setPropertiesBoxValue(newValue, "discountApplies", discountApplies.value);
         setPropertiesBoxValue(newValue, "isOnWaitList", isOnWaitList.value);
         setPropertiesBoxValue(newValue, "signatureDocumentBinaryFileId", signatureDocumentBinaryFile.value?.value ?? null);
+
+        // Keep the display-only file name in sync with the selected/uploaded file so it is not
+        // lost when the bag round-trips and the file ref is rebuilt from these two bag fields.
+        if (newValue.bag) {
+            newValue.bag.signatureDocumentBinaryFileName = signatureDocumentBinaryFile.value?.text ?? null;
+        }
+
         setPropertiesBoxValue(newValue, "attributeValues", attributeValues.value);
         setPropertiesBoxValue(newValue, "fees", buildFees());
 

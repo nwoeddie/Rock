@@ -65,6 +65,14 @@ namespace Rock.ViewModels.Blocks.Event.RegistrantDetail
         /// </summary>
         public string SignatureDocumentBinaryFileName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the id key of the signature document associated with this registrant, or of a
+        /// valid existing document found for the person when the registrant is not yet linked to one.
+        /// Round-tripped so an uploaded replacement updates this document (or clones it when shared)
+        /// instead of creating a duplicate. Mirrors the legacy WebForms hfSignedDocumentId hidden field.
+        /// </summary>
+        public string SignatureDocumentIdKey { get; set; }
+
         // ── Context / Display ────────────────────────────────────────────────
 
         /// <summary>

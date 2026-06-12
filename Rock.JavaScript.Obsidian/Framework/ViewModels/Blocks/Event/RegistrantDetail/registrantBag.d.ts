@@ -92,6 +92,14 @@ export type RegistrantBag = {
      */
     signatureDocumentBinaryFileName?: string | null;
 
+    /**
+     * Gets or sets the id key of the signature document associated with this registrant, or of a
+     * valid existing document found for the person when the registrant is not yet linked to one.
+     * Round-tripped so an uploaded replacement updates this document (or clones it when shared)
+     * instead of creating a duplicate. Mirrors the legacy WebForms hfSignedDocumentId hidden field.
+     */
+    signatureDocumentIdKey?: string | null;
+
     /** Gets or sets the binary file type guid for the signature document template, used to restrict uploads. */
     signatureDocumentTemplateBinaryFileTypeGuid?: Guid | null;
 
