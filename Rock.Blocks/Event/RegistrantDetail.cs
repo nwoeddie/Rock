@@ -53,6 +53,7 @@ namespace Rock.Blocks.Event
         {
             public const string RegistrantId = "RegistrantId";
             public const string RegistrationId = "RegistrationId";
+            public const string ReturnUrl = "ReturnUrl";
         }
 
         private static class NavigationUrlKey
@@ -446,9 +447,10 @@ namespace Rock.Blocks.Event
                 ? new Dictionary<string, string> { [PageParameterKey.RegistrationId] = registrationId.ToString() }
                 : null;
 
+            var returnUrl = PageParameter( PageParameterKey.ReturnUrl );
             var urls = new Dictionary<string, string>
             {
-                [NavigationUrlKey.ParentPage] = this.GetParentPageUrl( parentParams )
+                [NavigationUrlKey.ParentPage] = returnUrl.IsNotNullOrWhiteSpace() ? returnUrl : this.GetParentPageUrl( parentParams )
             };
 
             var instancePage = PageCache.ParentPage?.ParentPage;
@@ -928,7 +930,8 @@ namespace Rock.Blocks.Event
                 ? new Dictionary<string, string> { [PageParameterKey.RegistrationId] = registrationId.ToString() }
                 : null;
 
-            return ActionOk( this.GetParentPageUrl( parentParams ) );
+            var returnUrl = PageParameter( PageParameterKey.ReturnUrl );
+            return ActionOk( returnUrl.IsNotNullOrWhiteSpace() ? returnUrl : this.GetParentPageUrl( parentParams ) );
         }
 
         #endregion Block Actions
