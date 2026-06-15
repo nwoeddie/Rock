@@ -33,10 +33,13 @@
 
             <!--
                 Rendered via setInnerHTML (not v-html) so author-embedded scripts
-                (e.g. Wistia video players) execute and hydrate. Content is set
-                imperatively by the watcher below, so this div stays empty here.
+                (e.g. Wistia video players) execute and hydrate.
             -->
-            <div ref="descriptionElement" class="purchasedpackage-card-description"></div>
+            <transition name="purchasedpackage-description" mode="out-in">
+                <div :key="isExpanded ? 'full' : 'short'"
+                     :ref="renderDescription"
+                     class="purchasedpackage-card-description"></div>
+            </transition>
 
             <RockButton v-if="storePackage.shortDescription"
                         class="purchasedpackage-card-showmore"
@@ -120,6 +123,25 @@
     margin-bottom: var(--spacing-xsmall);
 }
 
+/* Fade + slide the description when toggling, matching the Package Detail
+   block's "Additional Versions" transition. */
+.purchasedpackage-description-enter-active,
+.purchasedpackage-description-leave-active {
+    transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.purchasedpackage-description-enter-from,
+.purchasedpackage-description-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+.purchasedpackage-description-enter-to,
+.purchasedpackage-description-leave-from {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 .purchasedpackage-card-showmore {
     padding: 0;
     margin-bottom: var(--spacing-small);
@@ -157,7 +179,7 @@
 </style>
 
 <script setup lang="ts">
-    import { computed, ref, watch } from "vue";
+    import { computed, ref, type ComponentPublicInstance } from "vue";
     import { setInnerHTML } from "@Obsidian/Core/Utilities/domUtils";
     import { PurchasedPackageBag } from "@Obsidian/ViewModels/Blocks/Store/PurchasedPackages/purchasedPackageBag";
     import { PurchasedPackageInstallState } from "./types.partial";
@@ -172,8 +194,6 @@
     // #region Values
 
     const isExpanded = ref(false);
-
-    const descriptionElement = ref<HTMLElement | null>(null);
 
     // #endregion Values
 
@@ -239,18 +259,20 @@
 
     // #endregion Computed Values
 
-    // #region Watchers
+    // #region Functions
 
-    /*
-        Render the description via setInnerHTML whenever the element mounts or
-        the content changes. setInnerHTML re-creates embedded script tags so
-        author content (e.g. video players) executes, which v-html does not do.
-    */
-    watch([descriptionElement, descriptionHtml], () => {
-        if (descriptionElement.value) {
-            setInnerHTML(descriptionElement.value, descriptionHtml.value);
+    /**
+     * Stable template ref callback that renders the current description into the
+     * element via setInnerHTML when it mounts. The element is keyed by expanded
+     * state, so it re-mounts on toggle and re-renders with the correct (short or
+     * full) content. setInnerHTML re-creates embedded script tags so author
+     * content (e.g. video players) executes, which v-html does not do.
+     */
+    function renderDescription(el: Element | ComponentPublicInstance | null): void {
+        if (el instanceof HTMLElement) {
+            setInnerHTML(el, descriptionHtml.value);
         }
-    });
+    }
 
-    // #endregion Watchers
+    // #endregion Functions
 </script>
