@@ -63,8 +63,8 @@ namespace Rock.Blocks.Store
     #endregion Block Attributes
 
     [Rock.SystemGuid.EntityTypeGuid( "781304D9-3782-45B0-8895-65E4B57E064F" )]
-    [Rock.SystemGuid.BlockTypeGuid( "FFC53C49-972A-4B63-883E-21DDA7652AF6" )]
-    // [Rock.SystemGuid.BlockTypeGuid( "C0332D98-7CD0-43C2-9810-60F7DF86FBB6" )]
+    // WAS [Rock.SystemGuid.BlockTypeGuid( "FFC53C49-972A-4B63-883E-21DDA7652AF6" )]
+    [Rock.SystemGuid.BlockTypeGuid( "C0332D98-7CD0-43C2-9810-60F7DF86FBB6" )]
     public class PurchasedPackages : RockBlockType
     {
         #region Keys
