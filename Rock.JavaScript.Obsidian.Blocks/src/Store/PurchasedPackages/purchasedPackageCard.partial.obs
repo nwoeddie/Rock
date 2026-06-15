@@ -1,11 +1,11 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div class="purchasedpackage-card" :class="{ 'is-expanded': isExpanded }">
-        <div class="purchasedpackage-card-media col-sm-5 col-md-4 ">
+        <div class="purchasedpackage-card-media col-sm-5 col-md-3 ">
             <img v-if="storePackage.iconUrl" :src="storePackage.iconUrl" />
         </div>
 
-        <div class="purchasedpackage-card-body col-sm-7 col-md-8 ">
+        <div class="purchasedpackage-card-body col-sm-7 col-md-9 ">
             <div class="purchasedpackage-card-header">
                 <div>
                     <h3 class="purchasedpackage-card-title">{{ storePackage.name }}</h3>
@@ -21,8 +21,6 @@
                     <span class="text-bold text-primary">{{ versionLabel }}</span>
                 </div>
             </div>
-
-
 
             <!--
                 Original v-html implementation. v-html uses innerHTML, which the
@@ -49,13 +47,13 @@
             </RockButton>
 
             <div class="purchasedpackage-card-actions">
-                <RockButton :href="storePackage.detailPageUrl ?? ''" :btnType="BtnType.Link" class="p-0">
+                <RockButton :btnType="BtnType.Link" class="p-0" @click="onSelectDetails">
                     Package Details <i class="ti ti-arrow-right"></i>
                 </RockButton>
 
-                <RockButton :href="storePackage.installPageUrl ?? ''" :btnType="BtnType.Primary"
-                            class="btn"
-                            :class="isInstallEnabled ? 'btn-primary' : 'btn-default disabled'">
+                <RockButton :btnType="isInstallEnabled ? BtnType.Primary : BtnType.Default"
+                            :disabled="!isInstallEnabled"
+                            @click="onSelectInstall">
                     <i class="ti ti-download"></i> {{ installButtonText }}
                 </RockButton>
             </div>
@@ -158,6 +156,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-top: auto;
 }
 
 @media (max-width: 767px) {
@@ -258,6 +257,29 @@
     });
 
     // #endregion Computed Values
+
+    // #region Event Handlers
+
+    /**
+     * Navigates to the package detail page when one is configured.
+     */
+    function onSelectDetails(): void {
+        if (props.storePackage.detailPageUrl) {
+            window.location.href = props.storePackage.detailPageUrl;
+        }
+    }
+
+    /**
+     * Navigates to the install / update page, but only when the package is in
+     * an actionable install state and an install page is configured.
+     */
+    function onSelectInstall(): void {
+        if (isInstallEnabled.value && props.storePackage.installPageUrl) {
+            window.location.href = props.storePackage.installPageUrl;
+        }
+    }
+
+    // #endregion Event Handlers
 
     // #region Functions
 

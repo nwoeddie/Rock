@@ -12,6 +12,11 @@
             </RockButton>
         </template>
 
+        <!-- Revoke failure -->
+        <NotificationBox v-if="revokeErrorMessage" alertType="danger" :dismissible="true" @dismiss="revokeErrorMessage = ''">
+            {{ revokeErrorMessage }}
+        </NotificationBox>
+
         <!-- Store unavailable -->
         <NotificationBox v-if="storeErrorMessage" alertType="warning">
             <h4>Store Currently Not Available</h4>
@@ -61,6 +66,7 @@
     const reloadBlock = useReloadBlock();
 
     const isRevoking = ref(false);
+    const revokeErrorMessage = ref("");
 
     // #endregion Values
 
@@ -75,14 +81,21 @@
     // #region Event Handlers
 
     /**
-     * Revokes the organization's store key, then reloads the block.
+     * Revokes the organization's store key, then reloads the block. On failure
+     * the error is surfaced and the block is left in its current state.
      */
     async function onRevokeStoreKey(): Promise<void> {
         isRevoking.value = true;
+        revokeErrorMessage.value = "";
 
         try {
-            // TODO: Handle the result / errors as needed.
-            await invokeBlockAction("RevokeStoreKey");
+            const result = await invokeBlockAction("RevokeStoreKey");
+
+            if (!result.isSuccess) {
+                revokeErrorMessage.value = result.errorMessage || "Unable to revoke the store key.";
+                return;
+            }
+
             reloadBlock();
         }
         finally {

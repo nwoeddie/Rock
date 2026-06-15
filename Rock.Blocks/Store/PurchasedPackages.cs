@@ -22,6 +22,8 @@ using System.Linq;
 using System.Runtime.Caching;
 using System.Text.RegularExpressions;
 
+using Amazon.Runtime.Internal;
+
 using Rock.Attribute;
 using Rock.Model;
 using Rock.Store;
@@ -124,11 +126,6 @@ namespace Rock.Blocks.Store
 
         #region Fields
 
-        /// <summary>
-        /// How long the purchased-packages API response is cached in memory.
-        /// </summary>
-        private static readonly TimeSpan PurchasedPackagesCacheDuration = TimeSpan.FromMinutes( 10 );
-
         #endregion Fields
 
         #region Methods
@@ -162,9 +159,9 @@ namespace Rock.Blocks.Store
                 IsStoreConfigured = true
             };
 
-            var packages = GetCachedPurchasedPackages( out var errorResponse );
+            var packages = new PackageService().GetPurchasedPackages( out var errorResponse );
 
-            if( errorResponse.IsNotNullOrWhiteSpace() )
+            if ( errorResponse.IsNotNullOrWhiteSpace() )
             {
                 box.StoreErrorMessage = errorResponse ?? "An unknown error occurred loading purchased packages.";
                 return box;
@@ -173,36 +170,6 @@ namespace Rock.Blocks.Store
                box.PurchasedPackages = packages.Select( GetPurchasedPackageBag ).ToList();
 
             return box;
-        }
-
-        /// <summary>
-        /// Returns the purchased packages list, serving from an in-process
-        /// memory cache when available to avoid redundant API calls.
-        /// Only successful (error-free) responses are cached.
-        /// </summary>
-        /// <param name="errorResponse">Set to the API error message, or <c>null</c> on success.</param>
-        /// <returns>The list of purchased packages.</returns>
-        private static List<Package> GetCachedPurchasedPackages( out string errorResponse )
-        {
-            var cached = MemoryCache.Default.Get( CacheKey.PurchasedPackages ) as List<Package>;
-
-            if ( cached != null )
-            {
-                errorResponse = null;
-                return cached;
-            }
-
-            var packages = new PackageService().GetPurchasedPackages( out errorResponse );
-
-            if ( errorResponse.IsNullOrWhiteSpace() && packages != null )
-            {
-                MemoryCache.Default.Set(
-                    CacheKey.PurchasedPackages,
-                    packages,
-                    DateTimeOffset.UtcNow.Add( PurchasedPackagesCacheDuration ) );
-            }
-
-            return packages;
         }
 
         /// <summary>
@@ -374,9 +341,16 @@ namespace Rock.Blocks.Store
         [BlockAction]
         public BlockActionResult RevokeStoreKey()
         {
-            // TODO: Revoke the key.
-            //   StoreService.RevokeOrganizationKey();
-            return ActionOk();
+            try
+            {
+                StoreService.RevokeOrganizationKey();
+                return ActionOk();
+            }
+            catch ( Exception ex )
+            {
+                ExceptionLogService.LogException( ex );
+                return ActionBadRequest( "Unable to revoke the store key. Please try again." );
+            }
         }
 
         #endregion Block Actions
