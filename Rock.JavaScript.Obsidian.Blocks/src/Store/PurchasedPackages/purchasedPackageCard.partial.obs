@@ -1,13 +1,20 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div class="purchasedpackage-card" :class="{ 'is-expanded': isExpanded }">
-        <div class="purchasedpackage-card-media col-md-3">
+        <div class="purchasedpackage-card-media col-sm-5 col-md-4 ">
             <img v-if="storePackage.iconUrl" :src="storePackage.iconUrl" />
         </div>
 
-        <div class="purchasedpackage-card-body col-md-9">
+        <div class="purchasedpackage-card-body col-sm-7 col-md-8 ">
             <div class="purchasedpackage-card-header">
-                <h3 class="purchasedpackage-card-title">{{ storePackage.name }}</h3>
+                <div>
+                    <h3 class="purchasedpackage-card-title">{{ storePackage.name }}</h3>
+                    <div>
+                        <span v-if="storePackage.purchaser" class="text-sm text-muted">
+                            Purchased by <strong>{{ storePackage.purchaser }}</strong> on {{ purchasedDateText }}
+                        </span>
+                    </div>
+                </div>
 
                 <div v-if="versionLabel" class="purchasedpackage-card-version">
                     <span class="text-xs text-uppercase text-muted d-block">Version</span>
@@ -15,12 +22,7 @@
                 </div>
             </div>
 
-            <div class="purchasedpackage-card-meta">
-                <span class="label label-success text-uppercase">Purchased</span>
-                <span v-if="storePackage.purchaser" class="text-sm text-muted">
-                    <i class="ti ti-user"></i> {{ storePackage.purchaser }}
-                </span>
-            </div>
+
 
             <!--
                 Original v-html implementation. v-html uses innerHTML, which the
@@ -34,25 +36,25 @@
                 (e.g. Wistia video players) execute and hydrate. Content is set
                 imperatively by the watcher below, so this div stays empty here.
             -->
-            <div ref="descriptionElement" class="purchasedpackage-card-description text-muted"></div>
+            <div ref="descriptionElement" class="purchasedpackage-card-description"></div>
 
-            <button v-if="storePackage.shortDescription"
-                    class="purchasedpackage-card-showmore"
-                    @click.prevent="isExpanded = !isExpanded">
+            <RockButton v-if="storePackage.shortDescription"
+                        class="purchasedpackage-card-showmore"
+                        @click.prevent="isExpanded = !isExpanded">
                 {{ isExpanded ? 'Show less' : 'Show more' }}
                 <i :class="isExpanded ? 'ti ti-chevron-up' : 'ti ti-chevron-down'"></i>
-            </button>
+            </RockButton>
 
             <div class="purchasedpackage-card-actions">
-                <a :href="storePackage.detailPageUrl ?? ''" class="purchasedpackage-card-details">
+                <RockButton :href="storePackage.detailPageUrl ?? ''" :btnType="BtnType.Link" class="p-0">
                     Package Details <i class="ti ti-arrow-right"></i>
-                </a>
+                </RockButton>
 
-                <a :href="storePackage.installPageUrl ?? ''"
-                   class="btn"
-                   :class="isInstallEnabled ? 'btn-primary' : 'btn-default disabled'">
+                <RockButton :href="storePackage.installPageUrl ?? ''" :btnType="BtnType.Primary"
+                            class="btn"
+                            :class="isInstallEnabled ? 'btn-primary' : 'btn-default disabled'">
                     <i class="ti ti-download"></i> {{ installButtonText }}
-                </a>
+                </RockButton>
             </div>
         </div>
     </div>
@@ -69,13 +71,14 @@
 }
 
 .purchasedpackage-card-media {
+    justify-content: center;
     padding: var(--spacing-medium);
 }
 
 .purchasedpackage-card-media img {
     display: block;
-    width: 100%;
     height: auto;
+    max-width: 100%;
 }
 
 .purchasedpackage-card-body {
@@ -95,9 +98,7 @@
 .purchasedpackage-card-title {
     margin: 0;
     overflow: hidden;
-    font-size: 18px;
     font-weight: var(--font-weight-semibold);
-    line-height: 1.3em;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -105,7 +106,6 @@
 .purchasedpackage-card-version {
     flex-shrink: 0;
     margin-left: var(--spacing-medium);
-    line-height: 1.2;
     text-align: right;
 }
 
@@ -132,20 +132,10 @@
     align-self: flex-start;
 }
 
-.purchasedpackage-card-showmore:hover {
-    text-decoration: underline;
-}
-
 .purchasedpackage-card-actions {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: auto;
-}
-
-.purchasedpackage-card-details {
-    font-weight: var(--font-weight-semibold);
-    white-space: nowrap;
 }
 
 @media (max-width: 767px) {
@@ -156,8 +146,12 @@
     .purchasedpackage-card-media {
         flex: none;
         width: 100%;
-        min-height: unset;
-        height: 160px;
+        max-width: none;
+    }
+
+    .purchasedpackage-card-media img {
+        max-height: 200px;
+        margin: 0 auto;
     }
 }
 </style>
@@ -167,6 +161,9 @@
     import { setInnerHTML } from "@Obsidian/Core/Utilities/domUtils";
     import { PurchasedPackageBag } from "@Obsidian/ViewModels/Blocks/Store/PurchasedPackages/purchasedPackageBag";
     import { PurchasedPackageInstallState } from "./types.partial";
+    import { BtnType } from "@Obsidian/Enums/Controls/btnType";
+    import RockButton from "@Obsidian/Controls/rockButton.obs";
+    import { RockDateTime } from "@Obsidian/Utility/rockDateTime";
 
     const props = defineProps<{
         storePackage: PurchasedPackageBag;
@@ -193,6 +190,18 @@
         }
 
         return props.storePackage.shortDescription ?? props.storePackage.description ?? "";
+    });
+
+    /**
+     * The purchased date formatted for display (M/d/yyyy), or an empty string
+     * when no purchased date is available.
+     */
+    const purchasedDateText = computed((): string => {
+        if (!props.storePackage.purchasedDate) {
+            return "";
+        }
+
+        return RockDateTime.parseISO(props.storePackage.purchasedDate)?.toASPString("M/d/yyyy") ?? "";
     });
 
     /**
