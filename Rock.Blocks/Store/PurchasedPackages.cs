@@ -19,6 +19,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.Caching;
+using System.Text.RegularExpressions;
 
 using Rock.Attribute;
 using Rock.Model;
@@ -33,7 +35,7 @@ namespace Rock.Blocks.Store
     /// </summary>
     /// <seealso cref="Rock.Blocks.RockBlockType" />
 
-    [DisplayName( "Purchased Products" )]
+    [DisplayName( "Purchased Packages" )]
     [Category( "Store" )]
     [Description( "Lists packages that have been purchased in the Rock Store." )]
     [IconCssClass( "ti ti-gift" )]
@@ -80,6 +82,11 @@ namespace Rock.Blocks.Store
             public const string PackageId = "PackageId";
         }
 
+        private static class CacheKey
+        {
+            public const string PurchasedPackages = "PurchasedPackages:List";
+        }
+
         #endregion Keys
 
         #region Enums
@@ -115,6 +122,15 @@ namespace Rock.Blocks.Store
 
         #endregion Enums
 
+        #region Fields
+
+        /// <summary>
+        /// How long the purchased-packages API response is cached in memory.
+        /// </summary>
+        private static readonly TimeSpan PurchasedPackagesCacheDuration = TimeSpan.FromMinutes( 10 );
+
+        #endregion Fields
+
         #region Methods
 
         /// <inheritdoc/>
@@ -131,8 +147,7 @@ namespace Rock.Blocks.Store
         private PurchasedPackagesInitializationBox GetInitializationBox()
         {
             // When the store has not been linked to an organization, the
-            // component redirects to the Link Organization page, so no package
-            // data needs to be loaded.
+            // component redirects to the Link Organization page
             if ( !StoreService.OrganizationIsConfigured() )
             {
                 return new PurchasedPackagesInitializationBox
@@ -147,7 +162,7 @@ namespace Rock.Blocks.Store
                 IsStoreConfigured = true
             };
 
-            var packages = new PackageService().GetPurchasedPackages( out var errorResponse );
+            var packages = GetCachedPurchasedPackages( out var errorResponse );
 
             if( errorResponse.IsNotNullOrWhiteSpace() )
             {
@@ -158,6 +173,36 @@ namespace Rock.Blocks.Store
                box.PurchasedPackages = packages.Select( GetPurchasedPackageBag ).ToList();
 
             return box;
+        }
+
+        /// <summary>
+        /// Returns the purchased packages list, serving from an in-process
+        /// memory cache when available to avoid redundant API calls.
+        /// Only successful (error-free) responses are cached.
+        /// </summary>
+        /// <param name="errorResponse">Set to the API error message, or <c>null</c> on success.</param>
+        /// <returns>The list of purchased packages.</returns>
+        private static List<Package> GetCachedPurchasedPackages( out string errorResponse )
+        {
+            var cached = MemoryCache.Default.Get( CacheKey.PurchasedPackages ) as List<Package>;
+
+            if ( cached != null )
+            {
+                errorResponse = null;
+                return cached;
+            }
+
+            var packages = new PackageService().GetPurchasedPackages( out errorResponse );
+
+            if ( errorResponse.IsNullOrWhiteSpace() && packages != null )
+            {
+                MemoryCache.Default.Set(
+                    CacheKey.PurchasedPackages,
+                    packages,
+                    DateTimeOffset.UtcNow.Add( PurchasedPackagesCacheDuration ) );
+            }
+
+            return packages;
         }
 
         /// <summary>
@@ -179,6 +224,7 @@ namespace Rock.Blocks.Store
                 PackageId = package.Id,
                 Name = package.Name,
                 Description = package.Description,
+                ShortDescription = GetShortDescription( package.Description ),
                 IconUrl = package.PackageIconBinaryFile?.ImageUrl is string iconUrl
                     ? $"{iconUrl}&h=140&w=280&zoom=2&mode=crop"
                     : null,
@@ -208,6 +254,49 @@ namespace Rock.Blocks.Store
             }
 
             return bag;
+        }
+
+        /// <summary>
+        /// Strips HTML tags from the description and truncates to
+        /// <paramref name="maxLength"/> characters at a word boundary.
+        /// Returns <c>null</c> when the plain text fits within the limit so the
+        /// component knows no "Show more" button is needed.
+        /// </summary>
+        /// <param name="html">The raw HTML description from the store API.</param>
+        /// <param name="maxLength">Maximum plain-text character count before truncation.</param>
+        /// <returns>A truncated plain-text string ending in "…", or <c>null</c>.</returns>
+        private static string GetShortDescription( string html, int maxLength = 400 )
+        {
+            if ( html.IsNullOrWhiteSpace() )
+            {
+                return null;
+            }
+
+            // Remove style/script blocks entirely so embedded CSS or JS does
+            // not bleed into the truncated plain-text output.
+            var plainText = Regex.Replace( html, @"<(style|script)[^>]*>[\s\S]*?<\/\1>", " ", RegexOptions.IgnoreCase );
+
+            // Preserve heading text as bold so the short description retains
+            // visual hierarchy from the original HTML.
+            plainText = Regex.Replace( plainText, @"<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>", "<strong>$1</strong>", RegexOptions.IgnoreCase );
+
+            plainText = Regex.Replace( plainText, @"<(?!\/?strong\b)[^>]+>", " ", RegexOptions.IgnoreCase );
+            plainText = Regex.Replace( plainText, @"\s+", " " ).Trim();
+
+            if ( plainText.Length <= maxLength )
+            {
+                return null;
+            }
+
+            var truncated = plainText.Substring( 0, maxLength );
+            var lastSpace = truncated.LastIndexOf( ' ' );
+
+            if ( lastSpace > 0 )
+            {
+                truncated = truncated.Substring( 0, lastSpace );
+            }
+
+            return truncated + "…";
         }
 
         /// <summary>

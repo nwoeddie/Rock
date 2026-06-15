@@ -23,7 +23,7 @@
 
 /** A single purchased package displayed by the Purchased Packages block. */
 export type PurchasedPackageBag = {
-    /** Gets or sets the package description. */
+    /** Gets or sets the package description (may contain HTML). */
     description?: string | null;
 
     /** Gets or sets the package detail page URL. */
@@ -65,4 +65,11 @@ export type PurchasedPackageBag = {
 
     /** Gets or sets the name of the person who purchased the package. */
     purchaser?: string | null;
+
+    /**
+     * Gets or sets a plain-text truncated version of the description for
+     * the collapsed card view. null when the full description fits
+     * within the truncation limit, meaning no "Show more" button is needed.
+     */
+    shortDescription?: string | null;
 };

@@ -1,0 +1,247 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <div class="purchasedpackage-card" :class="{ 'is-expanded': isExpanded }">
+        <div class="purchasedpackage-card-media col-md-3">
+            <img v-if="storePackage.iconUrl" :src="storePackage.iconUrl" />
+        </div>
+
+        <div class="purchasedpackage-card-body col-md-9">
+            <div class="purchasedpackage-card-header">
+                <h3 class="purchasedpackage-card-title">{{ storePackage.name }}</h3>
+
+                <div v-if="versionLabel" class="purchasedpackage-card-version">
+                    <span class="text-xs text-uppercase text-muted d-block">Version</span>
+                    <span class="text-bold text-primary">{{ versionLabel }}</span>
+                </div>
+            </div>
+
+            <div class="purchasedpackage-card-meta">
+                <span class="label label-success text-uppercase">Purchased</span>
+                <span v-if="storePackage.purchaser" class="text-sm text-muted">
+                    <i class="ti ti-user"></i> {{ storePackage.purchaser }}
+                </span>
+            </div>
+
+            <!--
+                Original v-html implementation. v-html uses innerHTML, which the
+                browser intentionally will not execute scripts from, so author-embedded
+                video players (e.g. Wistia) never hydrate. Kept here for easy revert.
+                -->
+            <!-- <div class="purchasedpackage-card-description text-muted" v-html="descriptionHtml"></div> -->
+
+            <!--
+                Rendered via setInnerHTML (not v-html) so author-embedded scripts
+                (e.g. Wistia video players) execute and hydrate. Content is set
+                imperatively by the watcher below, so this div stays empty here.
+            -->
+            <div ref="descriptionElement" class="purchasedpackage-card-description text-muted"></div>
+
+            <button v-if="storePackage.shortDescription"
+                    class="purchasedpackage-card-showmore"
+                    @click.prevent="isExpanded = !isExpanded">
+                {{ isExpanded ? 'Show less' : 'Show more' }}
+                <i :class="isExpanded ? 'ti ti-chevron-up' : 'ti ti-chevron-down'"></i>
+            </button>
+
+            <div class="purchasedpackage-card-actions">
+                <a :href="storePackage.detailPageUrl ?? ''" class="purchasedpackage-card-details">
+                    Package Details <i class="ti ti-arrow-right"></i>
+                </a>
+
+                <a :href="storePackage.installPageUrl ?? ''"
+                   class="btn"
+                   :class="isInstallEnabled ? 'btn-primary' : 'btn-default disabled'">
+                    <i class="ti ti-download"></i> {{ installButtonText }}
+                </a>
+            </div>
+        </div>
+    </div>
+</template>
+
+<style scoped>
+.purchasedpackage-card {
+    display: flex;
+    flex-flow: row nowrap;
+    overflow: clip;
+    background-color: var(--color-interface-softest);
+    border: 1px solid var(--color-interface-soft);
+    border-radius: var(--rounded-medium);
+}
+
+.purchasedpackage-card-media {
+    padding: var(--spacing-medium);
+}
+
+.purchasedpackage-card-media img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.purchasedpackage-card-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding: var(--spacing-medium);
+}
+
+.purchasedpackage-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xsmall);
+}
+
+.purchasedpackage-card-title {
+    margin: 0;
+    overflow: hidden;
+    font-size: 18px;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.purchasedpackage-card-version {
+    flex-shrink: 0;
+    margin-left: var(--spacing-medium);
+    line-height: 1.2;
+    text-align: right;
+}
+
+.purchasedpackage-card-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    margin-bottom: var(--spacing-small);
+}
+
+.purchasedpackage-card-description {
+    margin-bottom: var(--spacing-xsmall);
+}
+
+.purchasedpackage-card-showmore {
+    padding: 0;
+    margin-bottom: var(--spacing-small);
+    font-size: 12px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    align-self: flex-start;
+}
+
+.purchasedpackage-card-showmore:hover {
+    text-decoration: underline;
+}
+
+.purchasedpackage-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+}
+
+.purchasedpackage-card-details {
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+    .purchasedpackage-card {
+        flex-direction: column;
+    }
+
+    .purchasedpackage-card-media {
+        flex: none;
+        width: 100%;
+        min-height: unset;
+        height: 160px;
+    }
+}
+</style>
+
+<script setup lang="ts">
+    import { computed, ref, watch } from "vue";
+    import { setInnerHTML } from "@Obsidian/Core/Utilities/domUtils";
+    import { PurchasedPackageBag } from "@Obsidian/ViewModels/Blocks/Store/PurchasedPackages/purchasedPackageBag";
+    import { PurchasedPackageInstallState } from "./types.partial";
+
+    const props = defineProps<{
+        storePackage: PurchasedPackageBag;
+    }>();
+
+    // #region Values
+
+    const isExpanded = ref(false);
+
+    const descriptionElement = ref<HTMLElement | null>(null);
+
+    // #endregion Values
+
+    // #region Computed Values
+
+    /**
+     * The description HTML to display: the full description when expanded,
+     * otherwise the truncated short description (falling back to the full
+     * description when no short version was provided).
+     */
+    const descriptionHtml = computed((): string => {
+        if (isExpanded.value) {
+            return props.storePackage.description ?? "";
+        }
+
+        return props.storePackage.shortDescription ?? props.storePackage.description ?? "";
+    });
+
+    /**
+     * The version label to display. Prefers the latest available version,
+     * falling back to the installed version.
+     */
+    const versionLabel = computed((): string => {
+        return props.storePackage.latestVersionLabel ?? props.storePackage.installedVersionLabel ?? "";
+    });
+
+    /**
+     * Whether the install button is actionable. Only the Install and Update
+     * states navigate to the install page.
+     */
+    const isInstallEnabled = computed((): boolean => {
+        return props.storePackage.installState === PurchasedPackageInstallState.Install
+            || props.storePackage.installState === PurchasedPackageInstallState.Update;
+    });
+
+    /**
+     * The install button label for the package's install state.
+     */
+    const installButtonText = computed((): string => {
+        switch (props.storePackage.installState) {
+            case PurchasedPackageInstallState.Install:
+                return "Install";
+            case PurchasedPackageInstallState.Update:
+                return "Update";
+            case PurchasedPackageInstallState.Installed:
+                return "Installed";
+            default:
+                return "Not available";
+        }
+    });
+
+    // #endregion Computed Values
+
+    // #region Watchers
+
+    /*
+        Render the description via setInnerHTML whenever the element mounts or
+        the content changes. setInnerHTML re-creates embedded script tags so
+        author content (e.g. video players) executes, which v-html does not do.
+    */
+    watch([descriptionElement, descriptionHtml], () => {
+        if (descriptionElement.value) {
+            setInnerHTML(descriptionElement.value, descriptionHtml.value);
+        }
+    });
+
+    // #endregion Watchers
+</script>

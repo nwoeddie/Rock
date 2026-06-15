@@ -35,9 +35,16 @@ namespace Rock.ViewModels.Blocks.Store.PurchasedPackages
         public string Name { get; set; }
 
         /// <summary>
-        /// Gets or sets the package description.
+        /// Gets or sets the package description (may contain HTML).
         /// </summary>
         public string Description { get; set; }
+
+        /// <summary>
+        /// Gets or sets a plain-text truncated version of the description for
+        /// the collapsed card view. <c>null</c> when the full description fits
+        /// within the truncation limit, meaning no "Show more" button is needed.
+        /// </summary>
+        public string ShortDescription { get; set; }
 
         /// <summary>
         /// Gets or sets the pre-sized package icon URL.

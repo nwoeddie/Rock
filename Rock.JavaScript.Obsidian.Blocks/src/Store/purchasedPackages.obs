@@ -25,52 +25,22 @@
                 No packages have been purchased for this organization.
             </NotificationBox>
 
-            <div v-for="storePackage in packages"
-                 :key="storePackage.packageId"
-                 class="purchasedpackage row mb-4">
-                <div class="col-md-3">
-                    <img class="img-responsive mx-auto"
-                         :src="storePackage.iconUrl ?? ''"
-                         width="280"
-                         height="140" />
-                </div>
-                <div class="col-md-7 mb-3">
-                    <h1>{{ storePackage.name }}</h1>
-
-                    <div class="clearfix mb-2">
-                        <div class="pull-left">
-                            <strong>Purchased</strong><br>
-                            {{ formatPurchasedDate(storePackage.purchasedDate) }}
-                        </div>
-                        <div class="pull-right">
-                            <strong>Purchased by</strong><br>
-                            {{ storePackage.purchaser }}
-                        </div>
-                    </div>
-                    <div v-html="storePackage.description"></div>
-                    <div class="margin-t-md">
-                        <a :href="storePackage.detailPageUrl ?? ''" class="btn btn-default btn-sm mb-2">Package Details</a>
-                    </div>
-                </div>
-                <div class="col-md-2 purchasedpackage-install">
-                    <a :href="storePackage.installPageUrl ?? ''"
-                       class="btn btn-primary mb-3"
-                       :class="{ disabled: !isInstallEnabled(storePackage) }">
-                        {{ getInstallButtonText(storePackage) }}
-                    </a>
-
-                    <!-- Version notes -->
-                    <p v-if="storePackage.installedVersionLabel">
-                        <strong>Installed Version</strong><br>{{ storePackage.installedVersionLabel }}
-                    </p>
-                    <p v-if="storePackage.latestVersionLabel">
-                        <strong>Latest Version</strong><br>{{ storePackage.latestVersionLabel }}
-                    </p>
-                </div>
+            <div class="purchasedpackage-list">
+                <PurchasedPackageCard v-for="storePackage in packages"
+                                      :key="storePackage.packageId"
+                                      :storePackage="storePackage" />
             </div>
         </template>
     </Panel>
 </template>
+
+<style scoped>
+.purchasedpackage-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+</style>
 
 <script setup lang="ts">
     import { computed, onMounted, ref } from "vue";
@@ -82,8 +52,7 @@
     import { useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
     import { PurchasedPackagesInitializationBox } from "@Obsidian/ViewModels/Blocks/Store/PurchasedPackages/purchasedPackagesInitializationBox";
     import { PurchasedPackageBag } from "@Obsidian/ViewModels/Blocks/Store/PurchasedPackages/purchasedPackageBag";
-    import { PurchasedPackageInstallState } from "./PurchasedPackages/types.partial";
-    import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+    import PurchasedPackageCard from "./PurchasedPackages/purchasedPackageCard.partial.obs";
 
     // #region Values
 
@@ -92,27 +61,6 @@
     const reloadBlock = useReloadBlock();
 
     const isRevoking = ref(false);
-
-    console.log("Config:", config);
-
-    const installStateFields = <ListItemBag[]>[
-        {
-            text: "Not Available",
-            value: "notAvailable"
-        },
-        {
-            text: "Install",
-            value: "install"
-        },
-        {
-            text: "Update",
-            value: "update"
-        },
-        {
-            text: "Installed",
-            value: "installed"
-        }
-    ];
 
     // #endregion Values
 
@@ -143,43 +91,6 @@
     }
 
     // #endregion Event Handlers
-
-    // #region Functions
-
-    /**
-     * Returns the install button label for the package's install state.
-     */
-    function getInstallButtonText(storePackage: PurchasedPackageBag): string {
-        switch (storePackage.installState) {
-            case PurchasedPackageInstallState.Install:
-                return "Install";
-            case PurchasedPackageInstallState.Update:
-                return "Update";
-            case PurchasedPackageInstallState.Installed:
-                return "Installed";
-            default:
-                return "Not available";
-        }
-    }
-
-    /**
-     * Returns whether the install button is actionable for the package.
-     * Only the Install and Update states navigate to the install page.
-     */
-    function isInstallEnabled(storePackage: PurchasedPackageBag): boolean {
-        return storePackage.installState === PurchasedPackageInstallState.Install
-            || storePackage.installState === PurchasedPackageInstallState.Update;
-    }
-
-    /**
-     * Formats the purchased date for display.
-     */
-    function formatPurchasedDate(_date: string | null | undefined): string {
-        // TODO: Format the date ( legacy used M/d/yyyy ).
-        return "";
-    }
-
-    // #endregion Functions
 
     // #region Lifecycle Hooks
 
