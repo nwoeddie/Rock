@@ -1,11 +1,11 @@
 <!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
 <template>
     <div class="purchasedpackage-card" :class="{ 'is-expanded': isExpanded }">
-        <div class="purchasedpackage-card-media col-sm-5 col-md-3 ">
+        <div class="purchasedpackage-card-media col-sm-5 col-md-3">
             <img v-if="storePackage.iconUrl" :src="storePackage.iconUrl" />
         </div>
 
-        <div class="purchasedpackage-card-body col-sm-7 col-md-9 ">
+        <div class="purchasedpackage-card-body col-sm-7 col-md-9">
             <div class="purchasedpackage-card-header">
                 <div>
                     <h3 class="purchasedpackage-card-title">{{ storePackage.name }}</h3>
@@ -51,11 +51,16 @@
                     Package Details <i class="ti ti-arrow-right"></i>
                 </RockButton>
 
-                <RockButton :btnType="isInstallEnabled ? BtnType.Primary : BtnType.Default"
-                            :disabled="!isInstallEnabled"
-                            @click="onSelectInstall">
-                    <i class="ti ti-download"></i> {{ installButtonText }}
-                </RockButton>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-xs text-muted" v-if="storePackage.installState === PurchasedPackageInstallState.Update">
+                        Current Version: <strong>{{ storePackage.installedVersionLabel }}</strong>
+                    </span>
+                    <RockButton :btnType="isInstallEnabled ? BtnType.Primary : BtnType.Default"
+                                :disabled="!isInstallEnabled"
+                                @click="onSelectInstall">
+                        <i class="ti ti-download"></i> {{ installButtonText }}
+                    </RockButton>
+                </div>
             </div>
         </div>
     </div>
@@ -98,10 +103,7 @@
 
 .purchasedpackage-card-title {
     margin: 0;
-    overflow: hidden;
     font-weight: var(--font-weight-semibold);
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .purchasedpackage-card-version {

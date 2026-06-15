@@ -108,10 +108,10 @@
     // #region Lifecycle Hooks
 
     onMounted(() => {
-        // When the store has not been configured, send the user to the Link
-        // Organization page so they can configure it.
         if (!config.isStoreConfigured) {
-            window.location.href = config.linkOrganizationPageUrl ?? "/RockShop";
+            if (config.linkOrganizationPageUrl) {
+                window.location.href = config.linkOrganizationPageUrl;
+            }
         }
     });
 

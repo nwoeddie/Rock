@@ -19,10 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Runtime.Caching;
 using System.Text.RegularExpressions;
-
-using Amazon.Runtime.Internal;
 
 using Rock.Attribute;
 using Rock.Model;
@@ -48,19 +45,19 @@ namespace Rock.Blocks.Store
     [LinkedPage( "Detail Page",
         Key = AttributeKey.DetailPage,
         Description = "Page reference to use for the detail page.",
-        IsRequired = false,
+        IsRequired = true,
         Order = 0 )]
 
     [LinkedPage( "Install Page",
         Key = AttributeKey.InstallPage,
         Description = "Page reference to use for the install / update page.",
-        IsRequired = false,
+        IsRequired = true,
         Order = 1 )]
 
     [LinkedPage( "Link Organization Page",
         Key = AttributeKey.LinkOrganizationPage,
         Description = "Page to allow the user to link an organization to the store.",
-        IsRequired = false,
+        IsRequired = true,
         Order = 2 )]
 
     #endregion Block Attributes
@@ -82,11 +79,6 @@ namespace Rock.Blocks.Store
         private static class PageParameterKey
         {
             public const string PackageId = "PackageId";
-        }
-
-        private static class CacheKey
-        {
-            public const string PurchasedPackages = "PurchasedPackages:List";
         }
 
         #endregion Keys
@@ -159,7 +151,7 @@ namespace Rock.Blocks.Store
                 IsStoreConfigured = true
             };
 
-            var packages = new PackageService().GetPurchasedPackages( out var errorResponse );
+            var packages = new PackageService().GetPurchasedPackages( out var errorResponse ) ?? new List<Package>();
 
             if ( errorResponse.IsNotNullOrWhiteSpace() )
             {
@@ -239,8 +231,6 @@ namespace Rock.Blocks.Store
                 return null;
             }
 
-            // Remove style/script blocks entirely so embedded CSS or JS does
-            // not bleed into the truncated plain-text output.
             var plainText = Regex.Replace( html, @"<(style|script)[^>]*>[\s\S]*?<\/\1>", " ", RegexOptions.IgnoreCase );
 
             // Preserve heading text as bold so the short description retains
