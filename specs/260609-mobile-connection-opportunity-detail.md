@@ -18,7 +18,7 @@ contributors: []
 
 ## Summary
 
-This is the backend half of the new mobile **Connection Opportunity Detail** block, the third block in the Connections revamp port (after the [Connection Type List](260608-mobile-connection-type-list.md) and the [Connection Type Detail](260608-mobile-connection-type-detail.md)). It is the screen a connector lands on after tapping an opportunity in the Connection Type Detail block's Opportunities segment: the list of individual **Connection Requests** for that one opportunity. This spec covers only the server-side code in the Develop repo: a new mobile `RockBlockType` that returns a **paged**, server-filtered, server-sorted list of request summaries, a per-request has-celebration flag, the due-status computation, the opportunity header (title), the available statuses for the Status filter, security, configuration delivery, and GUID registration. The mobile shell (title, search, Filter & Sort cover sheet, the request rows with avatar/celebration badge/due badge, infinite scroll, navigation) is specified separately in [the mobile shell spec](../../RM/specs/260609-mobile-connection-opportunity-detail-shell.md) in the RM repo. The two halves share one `BlockTypeGuid`.
+This is the backend half of the new mobile **Connection Opportunity Detail** block, the third block in the Connections revamp port (after the [Connection Type List](260608-mobile-connection-type-list.md) and the [Connection Type Detail](260608-mobile-connection-type-detail.md)). It is the screen a connector lands on after tapping an opportunity in the Connection Type Detail block's Opportunities segment: the list of individual **Connection Requests** for that one opportunity. This spec covers only the server-side code in the Develop repo: a new mobile `RockBlockType` that returns a **paged**, server-filtered, server-sorted list of request summaries, a per-request has-celebration flag, the due-status computation, the per-row status name + status color (for the row's status pill), the opportunity header (title), the available statuses for the Status filter, an `IsAddEnabled` flag (drives the floating "Add Connection Request" button), security, configuration delivery (including the new `Add Page` linked-page setting that launches the separately-specced Add Connection Request V2 block), and GUID registration. The mobile shell (title, search, Filter & Sort cover sheet, the request rows with avatar/celebration badge/status pill/due badge/chevron, infinite scroll, floating Add button, navigation) is specified separately in [the mobile shell spec](../../RM/specs/260609-mobile-connection-opportunity-detail-shell.md) in the RM repo. The two halves share one `BlockTypeGuid`.
 
 **This block diverges from the first two in one important way.** The Type List and Opportunity lists are small, so they load in full and search/sort client-side. A request list is unbounded (a busy opportunity can hold thousands of requests), so this block **pages from the server** and applies **search, sort, and every filter server-side** (decided with Panha 2026-06-09 — see Considered but Rejected → Load all client-side). The server therefore *does* take search, sort, and paging parameters here, which the prior two specs deliberately avoided. It follows the established mobile paging block **`MyContact`** ([MyContact.cs](../Rock/Blocks/Types/Mobile/Engagement/MyContact.cs)): **offset/limit** paging (`Skip( Offset ).Take( Limit )`), with the shell deriving "has more" from the returned row count — no page numbers, no probe row, and no `HasMore` flag on the wire.
 
@@ -34,13 +34,16 @@ This is the backend half of the new mobile **Connection Opportunity Detail** blo
   - The paged request query for a single opportunity, with **all** filters applied server-side: connector scope (all vs mine), campus, connection state (multi), connection status (single), and due status (single); plus server-side **name search** and server-side **alphabetical sort** by requester; plus **offset/limit paging** (`Skip(Offset).Take(Limit)`, the shell deriving has-more from the returned count — the `MyContact` pattern).
   - A per-request **has-celebration** flag (whether a non-empty Celebration Note exists on the request), batched for the page. The badge is a pure indicator; no celebration text is returned and the type's Celebration feature flag is not consulted (see Design → Celebration).
   - The per-request **due status** (Overdue / Due Soon / On Track), computed with the same buckets the web uses.
+  - The per-request **status name and highlight color** (from `ConnectionStatus.Name` and `ConnectionStatus.HighlightColor`), so the shell can render the status pill (colored dot + name) under the requester name on each row.
   - The **opportunity header** (Name) for the screen title, and the **available statuses** (the type's `ConnectionStatuses`) for the Status filter UI.
-  - Security, configuration delivery (campus list + detail page), SystemGuid registration, and the contract returned.
+  - An **`IsAddEnabled`** flag on the offset-0 response — true when the `Add Page` block setting is configured AND the current person has `EDIT` auth on the opportunity's connection type — so the shell knows whether to render the floating "Add Connection Request" button.
+  - Security, configuration delivery (campus list + detail page + add page + page size), SystemGuid registration, and the contract returned.
 - Out of scope (this spec):
   - All mobile UI, which lives in the shell spec.
   - The Connections Hub features the mockup does **not** show: the board / Kanban view, grouping (by connector / campus / status / state / due), drag-to-reorder, the multi-type "My Connections" mode, attribute filters, the request-source filter, the reminders column and reminder editing, **celebration editing** (mobile v1 is display-only — the web's tap-to-add Celebration Note is deferred), group placement, workflow launching, request security editing, bulk actions, and the docked request-detail panel.
-  - The connector identity shown on the row (the web shows a connector label; the mobile mockup shows only the celebration badge, so connector display is deferred).
-  - Later blocks in this feature: request detail, add request.
+  - The connector identity shown on the row (the web shows a connector label; the mobile mockup shows only the celebration badge + the request's status pill, so connector display is deferred).
+  - The Add Connection Request screen itself (its own block — specced in [260616-mobile-add-connection-request.md](260616-mobile-add-connection-request.md)). This block only **launches** the Add screen via the `Add Page` linked-page setting; it does not host the Add form.
+  - Later blocks in this feature: request detail.
 
 ## Requirements
 
@@ -61,12 +64,12 @@ This is the backend half of the new mobile **Connection Opportunity Detail** blo
 - The block MUST apply a **name search** server-side when `SearchTerm` is non-empty: match the requester's `NickName`, `LastName`, or full name (`NickName + " " + LastName`) with `Contains`, so both partial and full-name searches work (mirroring `MyContact`'s name search).
 - The block MUST apply **alphabetical sort by requester** server-side: `LastName` then `NickName`, ascending (`NameAscending`) or descending (`NameDescending`). This is the only sort offered (see Considered but Rejected → Server-side sort options). The server therefore takes a sort parameter for this block (unlike the first two).
 - The block MUST **page** the result by **offset/limit**: `Skip( Offset ).Take( Limit )`, following the established mobile paging block `MyContact` ([MyContact.cs](../Rock/Blocks/Types/Mobile/Engagement/MyContact.cs)). `Offset` is the number of rows the shell already holds; `Limit` is the shell's load size, sourced from the `Page Size` block setting (default 15). The block returns just that page — the shell derives "has more" client-side from the returned count (`count >= Limit`), so the server needs **no** probe row and **no** `HasMore` flag.
-- For each request on the page, the block MUST return: `IdKey` (for navigation), requester full name, requester photo URL (a full public URL when the requester has a photo, else null; the shell supplies the initials/avatar fallback, as `MyContact` does), the row subtitle text (the request `Comments` rendered to plain text — it is a markdown column, so markdown/HTML is stripped), `ConnectionState`, the computed `DueStatus`, and a `HasCelebration` flag.
+- For each request on the page, the block MUST return: `IdKey` (for navigation), requester full name, requester photo URL (a full public URL when the requester has a photo, else null; the shell supplies the initials/avatar fallback, as `MyContact` does), the row subtitle text (the request `Comments` rendered to plain text — it is a markdown column, so markdown/HTML is stripped), `ConnectionState`, the computed `DueStatus`, a `HasCelebration` flag, and the **status name + status color** (`StatusName` from `ConnectionStatus.Name`; `StatusColor` from `ConnectionStatus.HighlightColor`). The status pair is resolved from the opportunity's cached type statuses by `ConnectionStatusId` after the page is materialized — no per-row DB hit.
 - The block MUST compute each row's **due status** with the same buckets as the web `ConnectionsHub.GetDueStatus` (Overdue / Due Soon / On Track), so the shell's Due badge matches the web. Inactive requests are "On Track"; Connected is not relevant (excluded). The server-side Due **filter** MUST use these same buckets — including treating Inactive as On Track — so that a request's Due badge and its inclusion under a Due filter always agree (an Inactive past-due request is On Track, not Overdue, in both).
 - The block MUST set a `HasCelebration` flag on each row indicating whether the request has a (non-empty) Celebration Note (`NoteType` `CELEBRATION_NOTE`). It MUST fetch these for the page's requests in a **single batched query** keyed by `EntityId` (never one query per row — see [data-model.md](../.claude/rules/data-model.md)). For v1 this is the whole celebration story: no celebration text is returned (the badge is a pure indicator), and the type's `EnabledFeatureFlags.Celebration` flag is not consulted — the badge shows wherever a celebration note exists.
-- The block MUST return an **opportunity header** (Name) for the screen title, and the **available statuses** (the type's `ConnectionStatuses` mapped to `{ Name, Guid, Color }`, ordered by `Order`) so the shell can populate the Status filter. Both are populated on the **offset-0 response** (the shell caches them from the first load); paging calls may leave them null.
-- The block MUST deliver static configuration via `GetMobileConfigurationValues()`: the campus filter list (built from `CampusCache.All()`, active campuses only, ordered, mapped to `ListItemViewModel`; never a direct `Campus` table query) and the detail page. This matches the [Connection Type List](260608-mobile-connection-type-list.md) and [Connection Type Detail](260608-mobile-connection-type-detail.md) backends.
-- The block MUST expose a `GetConnectionRequests` block action that takes the full filter/search/sort + offset/limit request bag and returns one page (plus the header + available statuses on the offset-0 call).
+- The block MUST return an **opportunity header** (Name) for the screen title, the **available statuses** (the type's `ConnectionStatuses` mapped to `{ Name, Guid, Color }`, ordered by `Order`) so the shell can populate the Status filter, and an **`IsAddEnabled`** flag (true when `AddPageGuid` is set on Configuration AND the current person has `EDIT` auth on the opportunity's `ConnectionType` — drives the floating Add button's visibility). All three are populated on the **offset-0 response** (the shell caches them from the first load); paging calls may leave them null/default.
+- The block MUST deliver static configuration via `GetMobileConfigurationValues()`: the campus filter list (built from `CampusCache.All()`, active campuses only, ordered, mapped to `ListItemViewModel`; never a direct `Campus` table query), the **detail page** (opens when a request is tapped), the **add page** (opens when the floating "Add Connection Request" button is tapped — points at the new Add Connection Request V2 block, specced in [260616-mobile-add-connection-request.md](260616-mobile-add-connection-request.md)), and the **page size**. This matches the [Connection Type List](260608-mobile-connection-type-list.md) and [Connection Type Detail](260608-mobile-connection-type-detail.md) backends.
+- The block MUST expose a `GetConnectionRequests` block action that takes the full filter/search/sort + offset/limit request bag and returns one page (plus the header + available statuses + `IsAddEnabled` on the offset-0 call).
 
 ### Non-functional / conventions (server)
 
@@ -82,18 +85,19 @@ This is the backend half of the new mobile **Connection Opportunity Detail** blo
 
 | Piece | Path | Notes |
 |---|---|---|
-| New server block | `Develop/Rock.Blocks/Mobile/Connection/<BlockName>.cs` | Class `<BlockName>` (name TBD, see Open Questions), `[DisplayName("Connection Opportunity Detail")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
+| New server block | `Develop/Rock.Blocks/Mobile/Connection/ConnectionRequestListV2.cs` | Class `ConnectionRequestListV2`, `[DisplayName("Connection Request List V2")]`, new `EntityTypeGuid` + `BlockTypeGuid`. |
 | Old server block | `Develop/Rock/Blocks/Types/Mobile/Connection/ConnectionRequestList.cs` (`612E9E13-...`) | Untouched. |
 
-The user-facing `DisplayName` is "Connection Opportunity Detail" (parallel to the Connection Type Detail block). The class and namespace name (shown as `<BlockName>` throughout this spec) is **not yet decided** and will be settled at implementation start (see Open Questions): it cannot be the plain `ConnectionRequestList` class while the existing mobile block of that name occupies the namespace, so it will take a distinct name or the old block will be renamed/retired. This is separate from the web block (`ConnectionsHub` in Engagement) whose request query we adapt. The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).
+The user-facing `DisplayName` is **"Connection Request List V2"** and the class name is **`ConnectionRequestListV2`** (locked 2026-06-16), succeeding the legacy mobile block `ConnectionRequestList` (`612E9E13-...`) per the V2 naming convention used by blocks 1 and 2 of this initiative (`ConnectionTypeListV2`, `ConnectionOpportunityListV2`). This is separate from the web block (`ConnectionsHub` in Engagement) whose request query we adapt. The same `BlockTypeGuid` literal is shared with the mobile block (see shell spec).
 
 ### Block settings (attributes)
 
-For v1 the block exposes two settings. Declared per [block-architecture.md](../.claude/rules/block-architecture.md): each `FieldAttribute` assigned vertically by property, with the keys in a nested `AttributeKey` static class.
+For v1 the block exposes three settings. Declared per [block-architecture.md](../.claude/rules/block-architecture.md): each `FieldAttribute` assigned vertically by property, with the keys in a nested `AttributeKey` static class.
 
 | Setting | Field type | Key | Default | Purpose |
 |---|---|---|---|---|
 | Detail Page | `LinkedPage` | `DetailPage` | none | Page opened when a request is tapped; the request's `IdKey` is passed as the `ConnectionRequest` page parameter to the (future) mobile Connection Request Detail block. Same pattern as the Connection Type Detail block's Detail Page. |
+| Add Page | `LinkedPage` | `AddPage` | none | Page opened when the floating "Add Connection Request" button is tapped — points at the new Add Connection Request V2 block (specced in [260616-mobile-add-connection-request.md](260616-mobile-add-connection-request.md)). The current `ConnectionOpportunity` IdKey is passed as a page parameter so the Add block prefills + locks Type and Opportunity. When this setting is empty, the floating button is **not** rendered (the offset-0 `IsAddEnabled` flag is false). |
 | Page Size | `IntegerField` | `PageSize` | 15 | The number of requests fetched per load (the infinite-scroll page size). Delivered to the shell via configuration; the shell uses it as its load size and sends it back as `Limit`. Because the shell's load size and the server's page size are the same value, the client-side has-more check (`Requests.Count >= Limit`) stays correct. No hard cap — the setting is trusted (matching the old block's `MaxRequestsToShow`). |
 
 Everything else is fixed in code for v1: the campus list (all active campuses from `CampusCache.All()`), the connector-scope default (My Requests, web parity, then the person's saved choice), the state default (`[ Active ]`), and the alphabetical-only sort. There is no `HeaderTemplate` / `RequestTemplate` Lava template, because the new block renders natively. Any of these can graduate to a block setting later.
@@ -111,10 +115,10 @@ sequenceDiagram
     Note right of S: resolve opportunity by IdKey, authorize (type VIEW/EDIT), require IsActive
     S->>DB: Filtered + sorted request page (Skip Offset / Take Limit) + batched celebration notes
     DB-->>S: rows
-    S-->>M: GetConnectionRequestsResponseBag { Opportunity*, AvailableStatuses*, Requests[] }  (* offset-0 only)
+    S-->>M: GetConnectionRequestsResponseBag { Opportunity*, AvailableStatuses*, IsAddEnabled*, Requests[] }  (* offset-0 only)
 ```
 
-Static configuration (campus list and detail page) is delivered through `GetMobileConfigurationValues()`. Everything else — filters, search, sort, paging — flows through `GetConnectionRequests`. Because all of it is server-side, **any** change (filter Apply, search keystroke debounce, sort change) is a "new query": it resets `Offset` to 0, clears the list, and re-invokes the action; infinite scroll re-invokes with `Offset` = the count already loaded. This is the deliberate divergence from the first two blocks, where sort/search were client-side over an in-memory list.
+Static configuration (campus list, detail page, **add page**, page size) is delivered through `GetMobileConfigurationValues()`. Everything else — filters, search, sort, paging, plus the per-load `IsAddEnabled` gate for the floating Add button — flows through `GetConnectionRequests`. Because all of it is server-side, **any** change (filter Apply, search keystroke debounce, sort change) is a "new query": it resets `Offset` to 0, clears the list, and re-invokes the action; infinite scroll re-invokes with `Offset` = the count already loaded. This is the deliberate divergence from the first two blocks, where sort/search were client-side over an in-memory list.
 
 ### Request query (adapted from the web Connections Hub)
 
@@ -213,6 +217,7 @@ var pageRows = requestsQry
     {
         cr.Id,
         cr.ConnectionState,
+        cr.ConnectionStatusId,
         cr.DueDate,
         cr.DueSoonDate,
         cr.ConnectedDateTime,
@@ -220,6 +225,11 @@ var pageRows = requestsQry
         Requester = cr.PersonAlias.Person
     } )
     .ToList();
+
+// Build a status lookup ONCE from the opportunity's type, so each row's StatusName + StatusColor
+// is an in-memory dictionary hit — never a per-row DB query.
+var statusLookup = connectionOpportunity.ConnectionType.ConnectionStatuses
+    .ToDictionary( s => s.Id, s => new { s.Name, Color = s.HighlightColor } );
 ```
 
 **Campus / status resolution.** `request.CampusGuid` and `request.StatusGuid` arrive as `Guid?` and are resolved to a `CampusId` / `ConnectionStatusId` (via `CampusCache` and the type's cached `ConnectionStatuses`) **before** the `.Where()`, so the LINQ filters on ids, not Guids ([CLAUDE.md](../CLAUDE.md)).
@@ -274,17 +284,23 @@ private static DueStatus GetDueStatus( DateTime? dueDate, DateTime? dueSoonDate,
 ### Row projection
 
 ```csharp
-var summaries = pageRows.Select( r => new ConnectionRequestSummaryBag
+var summaries = pageRows.Select( r =>
 {
-    IdKey = r.Id.AsIdKey(), // shell passes IdKey as the ConnectionRequest page parameter on tap.
-    RequesterName = r.Requester.FullName,
-    PhotoUrl = r.Requester.PhotoId.HasValue
-        ? MobileHelper.BuildPublicApplicationRootUrl( FileUrlHelper.GetImageUrl( r.Requester.PhotoId.Value ) )
-        : null, // full public photo URL when a photo exists; the shell supplies an initials/avatar fallback (same approach as MyContact).
-    Comment = r.Comments?.ConvertMarkdownToHtml().StripHtml(), // row subtitle: Comments is markdown, so render to plain text.
-    ConnectionState = r.ConnectionState,
-    DueStatus = GetDueStatus( r.DueDate, r.DueSoonDate, r.ConnectionState ),
-    HasCelebration = celebratedRequestIds.Contains( r.Id )
+    var status = statusLookup.TryGetValue( r.ConnectionStatusId, out var s ) ? s : null;
+    return new ConnectionRequestSummaryBag
+    {
+        IdKey = r.Id.AsIdKey(), // shell passes IdKey as the ConnectionRequest page parameter on tap.
+        RequesterName = r.Requester.FullName,
+        PhotoUrl = r.Requester.PhotoId.HasValue
+            ? MobileHelper.BuildPublicApplicationRootUrl( FileUrlHelper.GetImageUrl( r.Requester.PhotoId.Value ) )
+            : null, // full public photo URL when a photo exists; the shell supplies an initials/avatar fallback (same approach as MyContact).
+        Comment = r.Comments?.ConvertMarkdownToHtml().StripHtml(), // row subtitle: Comments is markdown, so render to plain text.
+        ConnectionState = r.ConnectionState,
+        DueStatus = GetDueStatus( r.DueDate, r.DueSoonDate, r.ConnectionState ),
+        HasCelebration = celebratedRequestIds.Contains( r.Id ),
+        StatusName = status?.Name, // shown as the status pill label (e.g. "In Progress").
+        StatusColor = status?.Color // hex string from ConnectionStatus.HighlightColor; drives the pill's colored dot.
+    };
 } ).ToList();
 ```
 
@@ -293,18 +309,23 @@ var summaries = pageRows.Select( r => new ConnectionRequestSummaryBag
 The bags and enums live in `Rock.Common.Mobile` (RM repo) and are defined in full in the [shell spec](../../RM/specs/260609-mobile-connection-opportunity-detail-shell.md). The server references the built `Rock.Common.Mobile.dll` in `RockWeb/Bin`. Property names MUST match the mobile definitions exactly. What the server populates:
 
 - `GetConnectionRequestsRequestBag` { `ConnectionOpportunityIdKey`, `ConnectorScope` (`ConnectionRequestConnectorScope`), `CampusGuid?`, `States` (`List<ConnectionState>`), `StatusGuid?`, `DueStatus?` (`DueStatus`), `SearchTerm`, `SortOrder` (`ConnectionRequestSortOption`), `Offset`, `Limit` }. (`Offset`/`Limit` mirror `MyContact`'s `ContactSearchOptions`.)
-- `GetConnectionRequestsResponseBag` { `ConnectionOpportunityHeaderBag Opportunity`, `List<ConnectionStatusItemBag> AvailableStatuses`, `List<ConnectionRequestSummaryBag> Requests` }. `Opportunity` and `AvailableStatuses` are populated only on the offset-0 response; the shell derives "has more" from `Requests.Count >= Limit` (no `HasMore` on the wire).
+- `GetConnectionRequestsResponseBag` { `ConnectionOpportunityHeaderBag Opportunity`, `List<ConnectionStatusItemBag> AvailableStatuses`, `bool IsAddEnabled`, `List<ConnectionRequestSummaryBag> Requests` }. `Opportunity`, `AvailableStatuses`, and `IsAddEnabled` are populated only on the offset-0 response; the shell derives "has more" from `Requests.Count >= Limit` (no `HasMore` on the wire).
 - `ConnectionOpportunityHeaderBag` { `Name` } — the screen title ("Connection Opportunity Name" in the mockup). No icon is rendered per the mockup (the field can be added later).
-- `ConnectionStatusItemBag` { `Name`, `Value` (Guid), `Color` } — one per `ConnectionStatus` of the opportunity's type, for the Status filter. (Mirrors the web's `ConnectionStatusBag`. `Color` is carried for parity and a possible future status indicator but is **not rendered in v1** — the Status filter is names-only.)
-- `ConnectionRequestSummaryBag` { `IdKey`, `RequesterName`, `PhotoUrl`, `Comment`, `ConnectionState`, `DueStatus`, `HasCelebration` }. (No celebration text — the badge is a pure indicator. `ConnectionState` is returned to support an optional non-Active state indicator on the row — see the shell spec's open question; the mockup, which shows the Active-only default, does not depict one.)
-- `Configuration` (returned from `GetMobileConfigurationValues`) { `Campuses` (active campuses from `CampusCache.All()` as `ListItemViewModel`, Value = Guid, Text = Name), `Guid? DetailPageGuid`, `int PageSize` (the `Page Size` setting, default 15 — the shell uses it as its load size) }.
+- `ConnectionStatusItemBag` { `Name`, `Value` (Guid), `Color` } — one per `ConnectionStatus` of the opportunity's type, for the Status filter. (Mirrors the web's `ConnectionStatusBag`. `Color` carries `ConnectionStatus.HighlightColor` for parity; in v1 the Status filter sheet still shows names-only, but the same color value is now also surfaced per row as `StatusColor` on `ConnectionRequestSummaryBag` for the row status pill.)
+- `ConnectionRequestSummaryBag` { `IdKey`, `RequesterName`, `PhotoUrl`, `Comment`, `ConnectionState`, `DueStatus`, `HasCelebration`, `StatusName`, `StatusColor` }. `StatusName` is `ConnectionStatus.Name`; `StatusColor` is the hex `ConnectionStatus.HighlightColor`. Both are resolved in memory after the page materializes via the opportunity's cached type statuses (no per-row DB hit). The shell renders them as a colored-dot + name pill under the requester name. No celebration text — the badge is a pure indicator. `ConnectionState` is returned to support an optional non-Active state indicator on the row — see the shell spec's open question.
+- `Configuration` (returned from `GetMobileConfigurationValues`) { `Campuses` (active campuses from `CampusCache.All()` as `ListItemViewModel`, Value = Guid, Text = Name), `Guid? DetailPageGuid`, `Guid? AddPageGuid` (the `Add Page` linked-page setting; null when not configured — drives whether the floating Add button can render at all), `int PageSize` (the `Page Size` setting, default 15 — the shell uses it as its load size) }.
 
 `ConnectionState` and `DueStatus` already exist in `Rock.Common.Mobile/Enums/` and are reused (do not redefine). `ConnectionRequestConnectorScope` and `ConnectionRequestSortOption` are new shared enums (defined in the shell spec). Because sort crosses the wire for this block, `ConnectionRequestSortOption` lives in the shared contract — unlike the first two blocks, whose sort enums were shell-local.
 
 ## Open Questions (backend)
 
-1. **Block class / namespace name (decide at implementation start).** Undecided; shown as `<BlockName>`. It cannot reuse the plain `ConnectionRequestList` class name while the old block occupies it in the same mobile namespace. Options: a distinct name (for example `ConnectionOpportunityDetail` to match the display name, or `ConnectionRequestListV2`), or rename/retire the old block. Ask Panha when implementation begins.
-2. **Honor per-request security (`EnableRequestSecurity`)?** The block authorizes at the connection-**type** level (`VIEW`/`EDIT`), matching the Connection Type Detail block and the web's type gate. But a connection type can turn on **request-level security** (`ConnectionType.EnableRequestSecurity`), and the web Connections Hub tracks per-request security (`IsRequestSecurityEnabled` / `isRequestSecurityDisabled`). If a type has it enabled, individual requests can be restricted, and type-level authorization alone would over-expose them. Confirm whether this block must filter the list by per-request `IsAuthorized( VIEW )`. **Caveat:** per-request auth is an in-memory check that can't live in the LINQ `Skip/Take`, so honoring it breaks clean offset/limit paging (you would over-fetch and filter per page, or page on an authorized-id set). Options: (a) honor it (accept the paging complication), or (b) declare request-level security out of scope for v1 and document that the block is intended for types without it. Decide before implementation.
+_None — all backend questions resolved as of 2026-06-16. See Resolved below._
+
+**Resolved 2026-06-16 (with Panha):**
+- **Block class name locked at `ConnectionRequestListV2`**, display name **"Connection Request List V2"**, succeeding the old mobile `ConnectionRequestList` (`612E9E13-...`). Follows the V2 naming convention used by blocks 1 (`ConnectionTypeListV2`) and 2 (`ConnectionOpportunityListV2`) — the new block is named after the legacy block it succeeds, not after the screen concept (`ConnectionOpportunityDetail` was considered and rejected). Old block left intact.
+- **Per-request security (`EnableRequestSecurity`) is out of scope for v1.** This block authorizes only at the connection-**type** level (`VIEW`/`EDIT`); when a type has `EnableRequestSecurity` on, the list still shows every type-authorized row. This faithfully matches the web `ConnectionsHub.GetGridData` ([../Rock.Blocks/Engagement/ConnectionsHub.cs](../Rock.Blocks/Engagement/ConnectionsHub.cs)), whose grid SQL filters only at the type/opportunity/state/connector/campus level and never calls per-request `IsAuthorized( VIEW )` — the web only enforces per-request VIEW/EDIT on the single-request endpoints (open detail, save, reassign, change status, add activity). Per-request auth will therefore be honored on **block 5 (Connection Request Detail)** instead, where the single-request shape makes the check trivial and lossless. Considered alternatives — (a) honor per-request VIEW in this block (breaks clean offset/limit paging) and (c) gate the whole opportunity when the flag is on (over-restrictive) — were rejected.
+- **Row contract gains `StatusName` + `StatusColor`** so the shell can render a status pill (colored dot + status name) under the requester name. Color sourced from `ConnectionStatus.HighlightColor` (Rock's canonical admin-settable status color); resolved in memory after page materialization via the opportunity's cached type statuses (no per-row DB hit). Confirmed by Panha after seeing the updated mockup.
+- **New `Add Page` linked-page block setting** + an `IsAddEnabled` flag on the offset-0 response (true when `AddPageGuid` is set AND the current person has `EDIT` on the opportunity's type). The Add screen itself is a separate block (see [260616-mobile-add-connection-request.md](260616-mobile-add-connection-request.md)) — this block only launches it, passing the current `ConnectionOpportunity` IdKey as a page parameter so the Add block can prefill+lock Type and Opportunity.
 
 **Resolved 2026-06-09 (with Panha):**
 - **Server-side paging** (not load-all), following the `MyContact` mobile block's offset/limit + `IPaginator` pattern (`Skip(Offset).Take(Limit)`, has-more derived client-side). The request list pages from the server; search, sort, and all filters are server-side. This is the explicit divergence from the first two blocks.
