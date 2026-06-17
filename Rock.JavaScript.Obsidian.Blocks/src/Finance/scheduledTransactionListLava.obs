@@ -1,0 +1,147 @@
+<!-- Copyright by the Spark Development Network; Licensed under the Rock Community License -->
+<template>
+    <div class="scheduledtransaction-list">
+        <div v-for="(item, index) in items"
+             :key="item.idKey ?? index"
+             class="scheduledtransaction-item"
+             v-html="item.rowHtml ?? ''"
+             @click="onRowClick"></div>
+    </div>
+
+    <NotificationBox v-if="isEmpty" alertType="info">
+        {{ emptyMessage }}
+    </NotificationBox>
+
+    <a v-if="showAddButton"
+       href="#"
+       class="btn btn-primary"
+       @click.prevent="onAddClick">{{ addButtonText }}</a>
+
+    <Modal v-model="isConfirmOpen"
+           title="Are you sure?"
+           saveText="Delete"
+           cancelText="Cancel"
+           @save="onConfirmDelete">
+        <p>Are you sure you want to delete this transaction?</p>
+    </Modal>
+</template>
+
+<script setup lang="ts">
+    import { ref } from "vue";
+    import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
+    import { CustomBlockBox } from "@Obsidian/ViewModels/Blocks/customBlockBox";
+    import { ScheduledTransactionListLavaBag } from "@Obsidian/ViewModels/Blocks/Finance/ScheduledTransactionListLava/scheduledTransactionListLavaBag";
+    import { ScheduledTransactionListLavaOptionsBag } from "@Obsidian/ViewModels/Blocks/Finance/ScheduledTransactionListLava/scheduledTransactionListLavaOptionsBag";
+    import { ScheduledTransactionItemBag } from "@Obsidian/ViewModels/Blocks/Finance/ScheduledTransactionListLava/scheduledTransactionItemBag";
+    import Modal from "@Obsidian/Controls/modal.obs";
+    import NotificationBox from "@Obsidian/Controls/notificationBox.obs";
+
+    // #region Types
+
+    const enum NavigationUrlKey {
+        EntryPage = "EntryPage"
+    }
+
+    // #endregion Types
+
+    // #region Values
+
+    const config = useConfigurationValues<CustomBlockBox<ScheduledTransactionListLavaBag, ScheduledTransactionListLavaOptionsBag>>();
+    const invokeBlockAction = useInvokeBlockAction();
+
+    const items = ref<ScheduledTransactionItemBag[]>(config.bag?.items ?? []);
+    const isEmpty = ref<boolean>(config.bag?.isEmpty ?? false);
+    const emptyMessage = ref<string>(config.bag?.emptyMessage ?? "");
+    const showAddButton = ref<boolean>(config.bag?.showAddButton ?? false);
+    const addButtonText = ref<string>(config.bag?.addButtonText ?? "");
+
+    const isConfirmOpen = ref<boolean>(false);
+    const pendingIdKey = ref<string>("");
+
+    // #endregion Values
+
+    // #region Event Handlers
+
+    /**
+     * Dispatches click events on the v-html-rendered row body. Looks for the
+     * .edit input (carries data-edit-url for navigation) or the .delete anchor
+     * (carries data-id-key for the Cancel block action). Lava-template content
+     * that happens to contain its own anchors is ignored.
+     */
+    function onRowClick(event: Event): void {
+        const target = event.target as HTMLElement | null;
+
+        if (!target) {
+            return;
+        }
+
+        const editEl = target.closest<HTMLElement>(".edit");
+
+        if (editEl) {
+            event.preventDefault();
+            const editUrl = editEl.dataset.editUrl;
+
+            if (editUrl) {
+                window.location.href = editUrl;
+            }
+
+            return;
+        }
+
+        const deleteEl = target.closest<HTMLElement>(".delete");
+
+        if (deleteEl) {
+            event.preventDefault();
+            const idKey = deleteEl.dataset.idKey;
+
+            if (idKey) {
+                pendingIdKey.value = idKey;
+                isConfirmOpen.value = true;
+            }
+        }
+    }
+
+    /**
+     * Navigates to the configured entry page so the user can add a new
+     * scheduled transaction.
+     */
+    function onAddClick(): void {
+        const url = config.navigationUrls?.[NavigationUrlKey.EntryPage];
+
+        if (url) {
+            window.location.href = url;
+        }
+    }
+
+    /**
+     * Fired when the user confirms the delete in the modal. Calls the
+     * Cancel block action and swaps the affected row's bag with the
+     * server's replacement (which carries the success or error alert HTML
+     * and clears both action-button visibility flags).
+     */
+    async function onConfirmDelete(): Promise<void> {
+        isConfirmOpen.value = false;
+
+        const idKey = pendingIdKey.value;
+
+        if (!idKey) {
+            return;
+        }
+
+        const result = await invokeBlockAction<ScheduledTransactionItemBag>("CancelScheduledTransaction", { idKey });
+
+        if (result.isSuccess && result.data) {
+            const targetIndex = items.value.findIndex(item => item.idKey === idKey);
+
+            if (targetIndex >= 0) {
+                items.value.splice(targetIndex, 1, result.data);
+            }
+        }
+
+        pendingIdKey.value = "";
+    }
+
+    // #endregion Event Handlers
+
+    onConfigurationValuesChanged(useReloadBlock());
+</script>
