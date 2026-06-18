@@ -19,7 +19,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Entity;
+using System.Data.SqlClient;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 using Rock.Attribute;
 using Rock.Common.Mobile.Blocks.Connection.ConnectionRequestDetailV2;
@@ -36,6 +38,8 @@ using MobileConnectionState = Rock.Common.Mobile.Enums.ConnectionState;
 using MobileDueStatus = Rock.Common.Mobile.Enums.DueStatus;
 using MobileGroupMemberStatus = Rock.Common.Mobile.Blocks.Connection.ConnectionRequestDetailV2.GroupMemberStatus;
 using MobileMeetsGroupRequirement = Rock.Common.Mobile.Blocks.Connection.ConnectionRequestDetailV2.MeetsGroupRequirement;
+using MobileActivityEntryType = Rock.Common.Mobile.Blocks.Connection.ConnectionRequestDetailV2.ActivityEntryType;
+using MobileSystemUpdateType = Rock.Common.Mobile.Blocks.Connection.ConnectionRequestDetailV2.SystemUpdateType;
 
 using ConnectionState = Rock.Model.ConnectionState;
 using GroupMemberStatus = Rock.Model.GroupMemberStatus;
@@ -806,6 +810,46 @@ namespace Rock.Blocks.Mobile.Connection
             return ActionOk( BuildRefreshedResponse( connectionRequest.Id ) );
         }
 
+        /// <summary>
+        /// Gets the full activity feed for a connection request: logged
+        /// activities, the requester's activities on other requests of the same
+        /// type (when the type enables it), system updates parsed from history,
+        /// sent communications, and request notes - ordered newest first. Ports
+        /// the web Connections Hub GetActivityEntries.
+        /// </summary>
+        /// <param name="request">The request carrying the connection request IdKey.</param>
+        /// <returns>The activity feed entries.</returns>
+        [BlockAction]
+        public BlockActionResult GetActivities( GetActivitiesRequestBag request )
+        {
+            if ( request == null || request.ConnectionRequestIdKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "Missing request options." );
+            }
+
+            var connectionRequest = GetRequestQueryable( request.ConnectionRequestIdKey ).FirstOrDefault();
+
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !connectionRequest.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) )
+            {
+                return ActionForbidden( "You are not authorized to view this connection request." );
+            }
+
+            // Merge fields are only needed to resolve SMS message content (web parity).
+            var mergeFields = RequestContext.GetCommonMergeFields();
+            mergeFields.AddOrReplace( "ConnectionRequest", connectionRequest );
+            mergeFields.AddOrReplace( "Person", connectionRequest.PersonAlias?.Person );
+
+            return ActionOk( new GetActivitiesResponseBag
+            {
+                Activities = GetActivityEntries( connectionRequest, mergeFields )
+            } );
+        }
+
         #endregion
 
         #region Private Methods - Resolution and Auth
@@ -958,9 +1002,7 @@ namespace Rock.Blocks.Mobile.Connection
                 ConnectionRequestIdKey = connectionRequest.IdKey,
 
                 RequesterFullName = requester?.FullName,
-                RequesterPhotoUrl = requester != null && requester.PhotoId.HasValue
-                    ? MobileHelper.BuildPublicApplicationRootUrl( FileUrlHelper.GetImageUrl( requester.PhotoId.Value ) )
-                    : null,
+                RequesterPhotoUrl = BuildPersonPhotoUrl( requester?.PhotoId ),
                 RequesterPersonGuid = requester?.Guid ?? Guid.Empty,
                 RequesterPersonAliasGuid = connectionRequest.PersonAlias?.Guid ?? Guid.Empty,
                 PersonConnectionStatusName = requester?.ConnectionStatusValue?.Value,
@@ -1323,9 +1365,7 @@ namespace Rock.Blocks.Mobile.Connection
                 {
                     PersonGuid = c.Guid,
                     FullName = $"{c.NickName} {c.LastName}".Trim(),
-                    PhotoUrl = c.PhotoId.HasValue
-                        ? MobileHelper.BuildPublicApplicationRootUrl( FileUrlHelper.GetImageUrl( c.PhotoId.Value ) )
-                        : null,
+                    PhotoUrl = BuildPersonPhotoUrl( c.PhotoId ),
                     CampusGuid = c.CampusGuid
                 } )
                 .ToList();
@@ -1820,6 +1860,418 @@ namespace Rock.Blocks.Mobile.Connection
 
             errorMessage = null;
             return true;
+        }
+
+        #endregion
+
+        #region Private Methods - Activity Feed
+
+        /// <summary>
+        /// Builds the connection request's activity feed - logged activities,
+        /// the requester's activities on other requests of the same type (when
+        /// the type enables the full activity list), system updates parsed from
+        /// history, sent communications, and viewable request notes - ordered
+        /// newest first. Ports the web Connections Hub GetActivityEntries into
+        /// the mobile activity bag.
+        /// </summary>
+        /// <param name="connectionRequest">The request, with its opportunity, type and requester loaded.</param>
+        /// <param name="mergeFields">Lava merge fields used to resolve SMS message content.</param>
+        /// <returns>The activity feed entries, newest first.</returns>
+        private List<ConnectionRequestActivityBag> GetActivityEntries( ConnectionRequest connectionRequest, Dictionary<string, object> mergeFields )
+        {
+            var connectionRequestActivityService = new ConnectionRequestActivityService( RockContext );
+            var connectionRequestActivities = connectionRequestActivityService.Queryable()
+                .AsNoTracking()
+                .Include( a => a.CreatedByPersonAlias.Person )
+                .Include( a => a.ConnectionActivityType )
+                .Where( a => a.ConnectionRequestId == connectionRequest.Id )
+                .ToList();
+
+            var entries = new List<ConnectionRequestActivityBag>();
+
+            // Activities logged against this request.
+            entries.AddRange( connectionRequestActivities.Select( a => new ConnectionRequestActivityBag
+            {
+                Key = $"{MobileActivityEntryType.Activity}_{IdHasher.Instance.GetHash( a.Id )}",
+                EntryType = MobileActivityEntryType.Activity,
+                EntryDateTime = a.CreatedDateTime?.ToRockDateTimeOffset(),
+                PersonName = a.CreatedByPersonAlias?.Person?.FullName ?? "Rock",
+                PhotoUrl = BuildPersonPhotoUrl( a.CreatedByPersonAlias?.Person?.PhotoId ),
+                Title = string.Format( "Activity: {0}", a.ConnectionActivityType?.Name ),
+                Content = a.Note
+            } ) );
+
+            // When the type enables it, also surface the requester's activities
+            // on their other requests of the same type, tagged with the
+            // originating opportunity and status for the meta line.
+            if ( connectionRequest.ConnectionOpportunity.ConnectionType.EnableFullActivityList )
+            {
+                var connectionTypeId = connectionRequest.ConnectionOpportunity.ConnectionTypeId;
+                var requesterPersonId = connectionRequest.PersonAlias.PersonId;
+
+                var otherRequestActivities = connectionRequestActivityService.Queryable()
+                    .AsNoTracking()
+                    .Where( a => a.ConnectionRequest != null
+                        && a.ConnectionRequest.PersonAlias != null
+                        && a.ConnectionRequest.ConnectionOpportunity.ConnectionTypeId == connectionTypeId
+                        && a.ConnectionRequestId != connectionRequest.Id
+                        && a.ConnectionRequest.PersonAlias.PersonId == requesterPersonId )
+                    .Select( a => new
+                    {
+                        ActivityId = a.Id,
+                        EntryDateTime = a.CreatedDateTime,
+                        Content = a.Note,
+                        CreatedByPerson = a.CreatedByPersonAlias != null ? a.CreatedByPersonAlias.Person : null,
+                        ActivityTypeName = a.ConnectionActivityType.Name,
+                        OpportunityName = a.ConnectionRequest.ConnectionOpportunity.Name,
+                        StatusName = a.ConnectionRequest.ConnectionStatus.Name
+                    } )
+                    .ToList();
+
+                entries.AddRange( otherRequestActivities.Select( a => new ConnectionRequestActivityBag
+                {
+                    Key = $"{MobileActivityEntryType.Activity}_{IdHasher.Instance.GetHash( a.ActivityId )}",
+                    EntryType = MobileActivityEntryType.Activity,
+                    EntryDateTime = a.EntryDateTime?.ToRockDateTimeOffset(),
+                    PersonName = a.CreatedByPerson?.FullName ?? "Rock",
+                    PhotoUrl = BuildPersonPhotoUrl( a.CreatedByPerson?.PhotoId ),
+                    Title = string.Format( "Activity: {0}", a.ActivityTypeName ),
+                    Content = a.Content,
+                    OpportunityName = a.OpportunityName,
+                    RequestStatus = a.StatusName
+                } ) );
+            }
+
+            var categoryId = CategoryCache.Get( Rock.SystemGuid.Category.HISTORY_CONNECTION_REQUEST.AsGuid() ).Id;
+            var connectionRequestEntityTypeId = EntityTypeCache.Get( Rock.SystemGuid.EntityType.CONNECTION_REQUEST.AsGuid() ).Id;
+            var communicationEntityTypeId = EntityTypeCache.Get( Rock.SystemGuid.EntityType.COMMUNICATION.AsGuid() ).Id;
+
+            // System updates are read from history via raw SQL for performance
+            // (web parity).
+            var historySql = @"
+SELECT
+    h.[Id],
+    LTRIM( RTRIM( CONCAT( COALESCE( p.[NickName], '' ), ' ', COALESCE( p.[LastName], '' ) ) ) ) AS CreatedBy,
+    h.[CreatedDateTime],
+    h.[Verb],
+    h.[ValueName],
+    h.[NewValue],
+    h.[OldValue]
+FROM [History] h
+LEFT JOIN [PersonAlias] pa
+    ON pa.[Id] = h.[CreatedByPersonAliasId]
+LEFT JOIN [Person] p
+    ON p.[Id] = pa.[PersonId]
+WHERE h.[CategoryId] = @CategoryId
+  AND h.[EntityTypeId] = @ConnectionRequestEntityTypeId
+  AND h.[EntityId] = @RequestId;
+";
+
+            var historyRows = RockContext.Database
+                .SqlQuery<HistoryRow>( historySql,
+                    new SqlParameter( "@CategoryId", categoryId ),
+                    new SqlParameter( "@ConnectionRequestEntityTypeId", connectionRequestEntityTypeId ),
+                    new SqlParameter( "@RequestId", connectionRequest.Id ) )
+                .ToList();
+
+            entries.AddRange( historyRows.Select( r =>
+            {
+                var systemUpdateType = MobileSystemUpdateType.Creation;
+                var previousValue = StripBracketId( r.OldValue );
+                var newValue = StripBracketId( r.NewValue );
+
+                if ( r.Verb == "Add" )
+                {
+                    systemUpdateType = MobileSystemUpdateType.Creation;
+                }
+                else
+                {
+                    switch ( r.ValueName )
+                    {
+                        case "Connector":
+                            if ( r.NewValue.IsNotNullOrWhiteSpace() && r.OldValue.IsNotNullOrWhiteSpace() )
+                            {
+                                systemUpdateType = MobileSystemUpdateType.Reassignment;
+                            }
+                            else if ( r.OldValue.IsNotNullOrWhiteSpace() )
+                            {
+                                systemUpdateType = MobileSystemUpdateType.Unassignment;
+                            }
+                            else
+                            {
+                                systemUpdateType = MobileSystemUpdateType.Assignment;
+                            }
+                            break;
+                        case "ConnectionStatus":
+                            if ( r.NewValue.IsNotNullOrWhiteSpace() && r.OldValue.IsNotNullOrWhiteSpace() )
+                            {
+                                systemUpdateType = MobileSystemUpdateType.StatusUpdated;
+                            }
+                            else if ( r.OldValue.IsNotNullOrWhiteSpace() )
+                            {
+                                systemUpdateType = MobileSystemUpdateType.StatusCleared;
+                            }
+                            else
+                            {
+                                systemUpdateType = MobileSystemUpdateType.StatusSet;
+                            }
+                            break;
+                        case "ConnectionState":
+                            if ( newValue == ConnectionState.Connected.ToString() )
+                            {
+                                systemUpdateType = MobileSystemUpdateType.Completion;
+                            }
+                            else
+                            {
+                                systemUpdateType = MobileSystemUpdateType.StateChange;
+
+                                if ( Enum.TryParse( previousValue, out ConnectionState previousConnectionState ) )
+                                {
+                                    previousValue = GetConnectionStateDisplay( previousConnectionState );
+                                }
+
+                                if ( Enum.TryParse( newValue, out ConnectionState newConnectionState ) )
+                                {
+                                    newValue = GetConnectionStateDisplay( newConnectionState );
+                                }
+                            }
+                            break;
+                        case "DueDate":
+                            systemUpdateType = MobileSystemUpdateType.DueDateChange;
+                            break;
+                        case "DueSoonDate":
+                            systemUpdateType = MobileSystemUpdateType.DueSoonDateChange;
+                            break;
+                    }
+                }
+
+                return new ConnectionRequestActivityBag
+                {
+                    Key = $"{MobileActivityEntryType.SystemUpdate}_{IdHasher.Instance.GetHash( r.Id )}",
+                    EntryType = MobileActivityEntryType.SystemUpdate,
+                    EntryDateTime = r.CreatedDateTime?.ToRockDateTimeOffset(),
+                    PersonName = r.CreatedBy,
+                    UpdateType = systemUpdateType,
+                    PreviousValue = previousValue,
+                    NewValue = newValue
+                };
+            } ) );
+
+            // Communications (email / SMS) related to this request via raw SQL.
+            var communicationSql = @"
+SELECT
+    c.[Id],
+    c.[CommunicationType],
+    c.[Subject],
+    c.[SMSMessage],
+    c.[CreatedDateTime],
+    p.[NickName],
+    p.[LastName],
+    p.[PhotoId],
+    bf.[Guid] AS BinaryFileGuid,
+    bf.[FileName]
+FROM [RelatedEntity] re
+INNER JOIN [Communication] c
+    ON c.[Id] = re.[TargetEntityId]
+LEFT JOIN [PersonAlias] pa
+    ON pa.[Id] = c.[CreatedByPersonAliasId]
+LEFT JOIN [Person] p
+    ON p.[Id] = pa.[PersonId]
+LEFT JOIN [CommunicationAttachment] ca
+    ON ca.[CommunicationId] = c.[Id]
+LEFT JOIN [BinaryFile] bf
+    ON bf.[Id] = ca.[BinaryFileId]
+WHERE re.[SourceEntityTypeId] = @SourceEntityTypeId
+  AND re.[SourceEntityId] = @SourceEntityId
+  AND re.[TargetEntityTypeId] = @TargetEntityTypeId;
+";
+
+            var communicationRows = RockContext.Database
+                .SqlQuery<CommunicationRow>( communicationSql,
+                    new SqlParameter( "@SourceEntityTypeId", connectionRequestEntityTypeId ),
+                    new SqlParameter( "@SourceEntityId", connectionRequest.Id ),
+                    new SqlParameter( "@TargetEntityTypeId", communicationEntityTypeId ) )
+                .ToList();
+
+            // The attachment join can return one row per attachment, so group by
+            // communication and fold the distinct attachments back together.
+            entries.AddRange( communicationRows
+                .Where( r => r.CommunicationType == CommunicationType.Email || r.CommunicationType == CommunicationType.SMS )
+                .GroupBy( r => new
+                {
+                    r.Id,
+                    r.CommunicationType,
+                    r.Subject,
+                    r.SMSMessage,
+                    r.CreatedDateTime,
+                    r.NickName,
+                    r.LastName,
+                    r.PhotoId
+                } )
+                .Select( g =>
+                {
+                    var createdBy = $"{g.Key.NickName ?? string.Empty} {g.Key.LastName ?? string.Empty}".Trim();
+
+                    if ( createdBy.IsNullOrWhiteSpace() )
+                    {
+                        createdBy = "Unknown Person";
+                    }
+
+                    string title;
+                    string content = null;
+
+                    if ( g.Key.CommunicationType == CommunicationType.SMS )
+                    {
+                        title = "SMS";
+                        content = g.Key.SMSMessage.ResolveMergeFields( mergeFields );
+                    }
+                    else
+                    {
+                        title = $"Email: {g.Key.Subject}";
+                    }
+
+                    var attachments = g
+                        .Where( x => x.BinaryFileGuid.HasValue )
+                        .GroupBy( x => x.BinaryFileGuid.Value )
+                        .Select( fileGroup => fileGroup.First() )
+                        .Select( x => new ListItemViewModel
+                        {
+                            Value = MobileHelper.BuildPublicApplicationRootUrl( FileUrlHelper.GetFileUrl( x.BinaryFileGuid.Value ) ),
+                            Text = x.FileName
+                        } )
+                        .ToList();
+
+                    return new ConnectionRequestActivityBag
+                    {
+                        Key = $"{MobileActivityEntryType.Communication}_{IdHasher.Instance.GetHash( g.Key.Id )}",
+                        EntryType = MobileActivityEntryType.Communication,
+                        EntryDateTime = g.Key.CreatedDateTime?.ToRockDateTimeOffset(),
+                        PersonName = createdBy,
+                        PhotoUrl = BuildPersonPhotoUrl( g.Key.PhotoId ),
+                        Title = title,
+                        Content = content,
+                        Attachments = attachments
+                    };
+                } ) );
+
+            // Request notes the current person is permitted to view.
+            var connectionRequestNoteTypeId = NoteTypeCache.Get( Rock.SystemGuid.NoteType.CONNECTION_REQUEST_NOTE.AsGuid() ).Id;
+            var noteService = new NoteService( RockContext );
+
+            var connectionRequestNoteQuery = noteService.Queryable()
+                .Include( n => n.CreatedByPersonAlias.Person )
+                .Where( n => n.NoteTypeId == connectionRequestNoteTypeId && n.EntityId == connectionRequest.Id );
+
+            connectionRequestNoteQuery = connectionRequestNoteQuery.AreViewableBy( RequestContext.CurrentPerson?.Id ?? 0 );
+
+            var connectionRequestNotes = connectionRequestNoteQuery.ToList()
+                .Where( n => n.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson ) );
+
+            entries.AddRange( connectionRequestNotes.Select( n => new ConnectionRequestActivityBag
+            {
+                Key = $"{MobileActivityEntryType.RequestNote}_{IdHasher.Instance.GetHash( n.Id )}",
+                EntryType = MobileActivityEntryType.RequestNote,
+                EntryDateTime = n.CreatedDateTime?.ToRockDateTimeOffset(),
+                PersonName = n.CreatedByPersonAlias?.Person?.FullName,
+                PhotoUrl = BuildPersonPhotoUrl( n.CreatedByPersonAlias?.Person?.PhotoId ),
+                Title = "Request Note",
+                Content = n.Text
+            } ) );
+
+            return entries.OrderByDescending( e => e.EntryDateTime ).ToList();
+        }
+
+        /// <summary>
+        /// Removes a trailing bracketed id (e.g. " [123]") that Rock appends to
+        /// some history values, leaving only the human-readable label. Ports the
+        /// web Connections Hub StripBracketId helper.
+        /// </summary>
+        /// <param name="value">The history value to clean.</param>
+        /// <returns>The value without a trailing bracketed id, or <c>null</c>.</returns>
+        private static string StripBracketId( string value )
+        {
+            return value.IsNullOrWhiteSpace()
+                ? null
+                : Regex.Replace( value, @"\s*\[\d+\]\s*$", "" );
+        }
+
+        /// <summary>
+        /// Builds the absolute photo URL for a person's photo, or <c>null</c>
+        /// when they have none (callers that show an avatar render the initials
+        /// fallback in that case).
+        /// </summary>
+        /// <param name="photoId">The person's photo binary file id.</param>
+        /// <returns>The absolute photo URL, or <c>null</c>.</returns>
+        private static string BuildPersonPhotoUrl( int? photoId )
+        {
+            return photoId.HasValue
+                ? MobileHelper.BuildPublicApplicationRootUrl( FileUrlHelper.GetImageUrl( photoId.Value ) )
+                : null;
+        }
+
+        /// <summary>
+        /// Gets the friendly display text for a connection state, matching the
+        /// web's enum display names (only Future Follow Up differs from the enum
+        /// name). Used when composing a state-change system update.
+        /// </summary>
+        /// <param name="state">The connection state.</param>
+        /// <returns>The friendly display text.</returns>
+        private static string GetConnectionStateDisplay( ConnectionState state )
+        {
+            return state == ConnectionState.FutureFollowUp ? "Future Follow Up" : state.ToString();
+        }
+
+        #endregion
+
+        #region Supporting Classes
+
+        /// <summary>
+        /// A history row read by <see cref="GetActivityEntries"/> and mapped to a
+        /// system update feed entry.
+        /// </summary>
+        private class HistoryRow
+        {
+            public int Id { get; set; }
+
+            public string CreatedBy { get; set; }
+
+            public DateTime? CreatedDateTime { get; set; }
+
+            public string Verb { get; set; }
+
+            public string ValueName { get; set; }
+
+            public string NewValue { get; set; }
+
+            public string OldValue { get; set; }
+        }
+
+        /// <summary>
+        /// A communication row (one per attachment, folded together in memory)
+        /// read by <see cref="GetActivityEntries"/> and mapped to a communication
+        /// feed entry.
+        /// </summary>
+        private class CommunicationRow
+        {
+            public int Id { get; set; }
+
+            public CommunicationType CommunicationType { get; set; }
+
+            public string Subject { get; set; }
+
+            public string SMSMessage { get; set; }
+
+            public DateTime? CreatedDateTime { get; set; }
+
+            public string NickName { get; set; }
+
+            public string LastName { get; set; }
+
+            public int? PhotoId { get; set; }
+
+            public Guid? BinaryFileGuid { get; set; }
+
+            public string FileName { get; set; }
         }
 
         #endregion
