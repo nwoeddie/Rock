@@ -999,6 +999,9 @@ namespace Rock.Blocks.Mobile.Connection
                     : new List<GroupMemberRequirementBag>(),
 
                 Attributes = GetClientAttributeValuesForView( connectionRequest ),
+                EditableAttributeKeys = canEdit
+                    ? connectionRequest.GetPublicAttributesForEdit( RequestContext.CurrentPerson, enforceSecurity: true ).Keys.ToList()
+                    : new List<string>(),
                 ManualWorkflows = GetConnectionOpportunityManualWorkflowTypes( connectionRequest.ConnectionOpportunity, currentPerson )
                     .Where( w => w.ManualTriggerFilterConnectionStatusId == null
                         || w.ManualTriggerFilterConnectionStatusId == connectionRequest.ConnectionStatusId )
@@ -1165,7 +1168,14 @@ namespace Rock.Blocks.Mobile.Connection
                     TextValue = entity.GetAttributeTextValue( kvp.Value.Key )
                 } );
 
-            foreach ( var kvp in entity.GetPublicAttributeValuesForView( RequestContext.CurrentPerson ) )
+            // Seed Value from the public EDIT values, not the view values. The
+            // shell editor feeds Value straight into the mobile FieldType's
+            // SetEditValue, which expects the edit-value shape (File / Image /
+            // DefinedValue carry a {value,text} JSON for edit but a plain
+            // friendly string for view, so the view value would fail to parse).
+            // Read-only display uses TextValue, so non-editable attributes do
+            // not need a Value. Mirrors the v1 block's GetPublicEditableAttributeValues.
+            foreach ( var kvp in entity.GetPublicAttributeValuesForEdit( RequestContext.CurrentPerson, enforceSecurity: true ) )
             {
                 if ( attributes.TryGetValue( kvp.Key, out var attribute ) )
                 {
