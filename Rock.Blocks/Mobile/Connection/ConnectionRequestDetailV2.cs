@@ -256,6 +256,94 @@ namespace Rock.Blocks.Mobile.Connection
         }
 
         /// <summary>
+        /// Gets the group-member attributes that apply to a chosen placement
+        /// group and role, with the request's saved member-attribute values
+        /// seeded in. Called by the Placement Group editor as the group / role
+        /// selection changes. Adapted from the existing block's
+        /// GetPlacementGroupMemberAttributesAndValues.
+        /// </summary>
+        /// <param name="request">The payload carrying the request IdKey plus the chosen group + role.</param>
+        /// <returns>The member attributes to edit.</returns>
+        [BlockAction]
+        public BlockActionResult GetPlacementGroupMemberAttributes( GetPlacementGroupMemberAttributesRequestBag request )
+        {
+            if ( request == null || request.ConnectionRequestIdKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "Missing request options." );
+            }
+
+            var connectionRequest = GetRequestQueryable( request.ConnectionRequestIdKey ).FirstOrDefault();
+
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !CanEditConnectionRequest( connectionRequest, out var error ) )
+            {
+                return error;
+            }
+
+            // Validate the chosen group + role are a real placement option for
+            // the request's opportunity.
+            var validPlacementGroups = GetRequestPlacementGroups( connectionRequest );
+            var placementGroup = validPlacementGroups.FirstOrDefault( g => g.Value == request.GroupGuid );
+            var placementRole = placementGroup?.Roles.FirstOrDefault( r => r.Value == request.GroupMemberRoleGuid );
+
+            if ( placementGroup == null || placementRole == null )
+            {
+                return ActionBadRequest( "Invalid placement group selection." );
+            }
+
+            // Resolve the group + role identifiers so an empty group member can
+            // be created to load the member attributes from.
+            var groupInfo = new GroupService( RockContext ).Queryable()
+                .Where( g => g.Guid == request.GroupGuid )
+                .Select( g => new { g.Id, g.GroupTypeId } )
+                .FirstOrDefault();
+
+            if ( groupInfo == null )
+            {
+                return ActionBadRequest( "Invalid placement group selection." );
+            }
+
+            var groupMemberRoleId = GroupTypeCache.Get( groupInfo.GroupTypeId )?.Roles
+                .FirstOrDefault( r => r.Guid == request.GroupMemberRoleGuid )
+                ?.Id;
+
+            if ( !groupMemberRoleId.HasValue )
+            {
+                return ActionBadRequest( "Invalid placement group selection." );
+            }
+
+            var groupMember = new GroupMember
+            {
+                GroupId = groupInfo.Id,
+                GroupRoleId = groupMemberRoleId.Value
+            };
+
+            groupMember.LoadAttributes( RockContext );
+
+            // Restore the request's saved member-attribute values so the editor
+            // opens with the current values when the assigned group + role are
+            // reselected.
+            var savedMemberAttributeValues = connectionRequest.AssignedGroupMemberAttributeValues?.FromJsonOrNull<Dictionary<string, string>>();
+
+            if ( savedMemberAttributeValues != null )
+            {
+                foreach ( var item in savedMemberAttributeValues )
+                {
+                    groupMember.SetAttributeValue( item.Key, item.Value );
+                }
+            }
+
+            return ActionOk( new GetPlacementGroupMemberAttributesResponseBag
+            {
+                Attributes = GetClientAttributeValuesForView( groupMember )
+            } );
+        }
+
+        /// <summary>
         /// Saves the editable fields of a connection request that do not have a
         /// dedicated quick-action (campus, request source, comments, placement
         /// group, custom attributes). Carries the full field set; unedited
