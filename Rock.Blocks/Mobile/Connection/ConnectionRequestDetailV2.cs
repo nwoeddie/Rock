@@ -237,6 +237,7 @@ namespace Rock.Blocks.Mobile.Connection
                     .ToList(),
                 States = GetSelectableStates( connectionType ),
                 Connectors = GetAvailableConnectors( connectionRequest ),
+                ActivityTypes = GetActivityTypes( connectionType ),
                 PlacementGroups = GetRequestPlacementGroups( connectionRequest ),
                 RequestSources = connectionType.ConnectionTypeSources
                     .OrderBy( s => s.Name )
@@ -712,6 +713,371 @@ namespace Rock.Blocks.Mobile.Connection
         }
 
         /// <summary>
+        /// Adds an activity to the request (the overflow Add Activity action and
+        /// the Activity Feed New Activity action). Ports the single-request slice
+        /// of the web AddActivityForRequests, including the optional person-note
+        /// creation.
+        /// </summary>
+        /// <param name="request">The add-activity payload.</param>
+        /// <returns>The refreshed request detail.</returns>
+        [BlockAction]
+        public BlockActionResult AddActivity( AddActivityRequestBag request )
+        {
+            if ( request == null || request.ConnectionRequestIdKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "Missing request options." );
+            }
+
+            var connectionRequest = GetRequestQueryable( request.ConnectionRequestIdKey ).FirstOrDefault();
+
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !CanEditConnectionRequest( connectionRequest, out var error ) )
+            {
+                return error;
+            }
+
+            var activityType = new ConnectionActivityTypeService( RockContext ).Get( request.ActivityTypeGuid );
+
+            // The activity type must be active and either global (no specific
+            // type) or belong to the request's type - the same set the Add
+            // Activity picker is built from.
+            if ( activityType == null
+                || !activityType.IsActive
+                || ( activityType.ConnectionTypeId.HasValue
+                    && activityType.ConnectionTypeId.Value != connectionRequest.ConnectionOpportunity.ConnectionTypeId ) )
+            {
+                return ActionBadRequest( "Invalid activity type." );
+            }
+
+            // Resolve the optional connector to a person alias, validating it
+            // against the available connectors (web parity).
+            int? connectorPersonAliasId = null;
+
+            if ( request.ConnectorPersonGuid.HasValue )
+            {
+                var isValidConnector = GetAvailableConnectors( connectionRequest )
+                    .Any( c => c.PersonGuid == request.ConnectorPersonGuid.Value );
+
+                connectorPersonAliasId = new PersonAliasService( RockContext ).GetPrimaryAliasId( request.ConnectorPersonGuid.Value );
+
+                if ( !isValidConnector || !connectorPersonAliasId.HasValue )
+                {
+                    return ActionBadRequest( "Invalid connector." );
+                }
+            }
+
+            // A person note is created when the activity type always creates one,
+            // or when it asks and the connector opted in (web parity).
+            var shouldCreatePersonNote = activityType.PersonNoteCreationBehavior == PersonNoteCreationBehavior.AlwaysCreateAPersonNote
+                || ( activityType.PersonNoteCreationBehavior == PersonNoteCreationBehavior.AskAtActivityCreation && request.AddPersonNote );
+
+            if ( shouldCreatePersonNote && !activityType.PersonNoteTypeId.HasValue )
+            {
+                return ActionBadRequest( "The selected activity type is missing a required person note type." );
+            }
+
+            var activity = new ConnectionRequestActivity
+            {
+                ConnectionRequestId = connectionRequest.Id,
+                ConnectionOpportunityId = connectionRequest.ConnectionOpportunityId,
+                ConnectionActivityTypeId = activityType.Id,
+                ConnectorPersonAliasId = connectorPersonAliasId,
+                Note = request.Note
+            };
+
+            new ConnectionRequestActivityService( RockContext ).Add( activity );
+
+            if ( shouldCreatePersonNote )
+            {
+                var personNote = new Note
+                {
+                    NoteTypeId = activityType.PersonNoteTypeId.Value,
+                    EntityId = connectionRequest.PersonAlias.PersonId,
+                    Caption = connectionRequest.ConnectionOpportunity.Name,
+                    Text = request.Note,
+                    CreatedByPersonAliasId = connectorPersonAliasId
+                };
+
+                new NoteService( RockContext ).Add( personNote );
+            }
+
+            RockContext.SaveChanges();
+
+            return ActionOk( BuildRefreshedResponse( connectionRequest.Id ) );
+        }
+
+        /// <summary>
+        /// Gets the options needed to render the Transfer sheet: the
+        /// opportunities of the request's type, the type's statuses, and the
+        /// request's current opportunity / campus / status / connector. Ports
+        /// the web Connections Hub <c>GetTransferDetails</c> (the opportunity
+        /// search/browse mode and its attributes are omitted on mobile).
+        /// </summary>
+        /// <param name="request">The transfer-details request payload.</param>
+        /// <returns>The transfer options.</returns>
+        [BlockAction]
+        public BlockActionResult GetTransferDetails( GetTransferDetailsRequestBag request )
+        {
+            if ( request == null || request.ConnectionRequestIdKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "Missing request options." );
+            }
+
+            var connectionRequest = GetRequestQueryable( request.ConnectionRequestIdKey ).FirstOrDefault();
+
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            // A transfer is an edit; gate it with the same EDIT authorization
+            // the web uses (CanEditSpecifiedConnectionRequest).
+            if ( !CanEditConnectionRequest( connectionRequest, out var error ) )
+            {
+                return error;
+            }
+
+            var connectionType = connectionRequest.ConnectionOpportunity.ConnectionType;
+
+            var opportunities = new ConnectionOpportunityService( RockContext ).Queryable()
+                .AsNoTracking()
+                .Include( "ConnectionOpportunityCampuses.Campus" )
+                .Where( o => o.ConnectionTypeId == connectionType.Id )
+                .ToList();
+
+            var opportunityItems = opportunities
+                .OrderBy( o => o.Order )
+                .ThenBy( o => o.Name )
+                .Select( o => new TransferOpportunityItemBag
+                {
+                    Value = o.Guid,
+                    Name = o.Name,
+                    ShowCampusOnTransfer = o.ShowCampusOnTransfer,
+                    ShowStatusOnTransfer = o.ShowStatusOnTransfer,
+                    Campuses = o.ConnectionOpportunityCampuses
+                        .Where( c => c.Campus != null && c.Campus.IsActive == true )
+                        .Select( c => c.Campus )
+                        .OrderBy( c => c.Order )
+                        .ThenBy( c => c.Name )
+                        .Select( c => new ListItemViewModel
+                        {
+                            Value = c.Guid.ToString(),
+                            Text = c.Name
+                        } )
+                        .ToList()
+                } )
+                .ToList();
+
+            var statuses = connectionType.ConnectionStatuses
+                .OrderBy( s => s.Order )
+                .ThenBy( s => s.Name )
+                .Select( s => new ListItemViewModel
+                {
+                    Value = s.Guid.ToString(),
+                    Text = s.Name
+                } )
+                .ToList();
+
+            var details = new GetTransferDetailsResponseBag
+            {
+                CurrentOpportunityGuid = connectionRequest.ConnectionOpportunity.Guid,
+                CurrentCampusGuid = connectionRequest.Campus?.Guid,
+                CurrentStatusGuid = connectionRequest.ConnectionStatus.Guid,
+                CurrentConnectorName = connectionRequest.ConnectorPersonAlias?.Person?.FullName ?? "No Connector",
+                Opportunities = opportunityItems,
+                Statuses = statuses
+            };
+
+            return ActionOk( details );
+        }
+
+        /// <summary>
+        /// Gets the connectors available for a transfer target opportunity,
+        /// narrowed to the chosen campus. Fetched lazily by the Transfer sheet
+        /// when the "Select Connector" option is used and as the opportunity /
+        /// campus change (mirrors the web FetchConnectorOptions call).
+        /// </summary>
+        /// <param name="request">The connector-fetch payload.</param>
+        /// <returns>The available connectors for the target opportunity.</returns>
+        [BlockAction]
+        public BlockActionResult GetTransferConnectors( GetTransferConnectorsRequestBag request )
+        {
+            if ( request == null || request.ConnectionRequestIdKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "Missing request options." );
+            }
+
+            var connectionRequest = GetRequestQueryable( request.ConnectionRequestIdKey ).FirstOrDefault();
+
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !CanEditConnectionRequest( connectionRequest, out var error ) )
+            {
+                return error;
+            }
+
+            var opportunityId = new ConnectionOpportunityService( RockContext ).GetId( request.OpportunityGuid );
+
+            if ( !opportunityId.HasValue )
+            {
+                return ActionBadRequest( $"{ConnectionOpportunity.FriendlyTypeName} not found." );
+            }
+
+            return ActionOk( GetTransferConnectorItems( opportunityId.Value, request.CampusGuid ) );
+        }
+
+        /// <summary>
+        /// Transfers the request to a different opportunity, optionally updating
+        /// the status, campus, and connector based on the new opportunity's
+        /// transfer configuration. Placement group assignments are cleared and a
+        /// Transferred activity is logged. Ports the web Connections Hub
+        /// <c>TransferConnectionRequest</c> (single-request slice); the connector
+        /// is identified by person Guid (resolved to a PersonAlias) to match the
+        /// other V2 connector actions.
+        /// </summary>
+        /// <param name="request">The transfer payload.</param>
+        /// <returns>The refreshed request detail.</returns>
+        [BlockAction]
+        public BlockActionResult TransferRequest( TransferRequestBag request )
+        {
+            if ( request == null || request.ConnectionRequestIdKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "Missing request options." );
+            }
+
+            var connectionRequest = GetRequestQueryable( request.ConnectionRequestIdKey ).FirstOrDefault();
+
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !CanEditConnectionRequest( connectionRequest, out var error ) )
+            {
+                return error;
+            }
+
+            var sourceOpportunityId = connectionRequest.ConnectionOpportunityId;
+            var newOpportunity = new ConnectionOpportunityService( RockContext ).Get( request.NewOpportunityGuid );
+
+            if ( newOpportunity == null )
+            {
+                return ActionBadRequest( $"{ConnectionOpportunity.FriendlyTypeName} not found." );
+            }
+
+            if ( newOpportunity.Id == sourceOpportunityId )
+            {
+                return ActionBadRequest( "This request already belongs to the selected opportunity. Please choose a different opportunity to transfer to." );
+            }
+
+            connectionRequest.ConnectionOpportunityId = newOpportunity.Id;
+            connectionRequest.ConnectionTypeId = newOpportunity.ConnectionTypeId;
+
+            // Apply the status only when the new opportunity surfaces it on transfer.
+            if ( newOpportunity.ShowStatusOnTransfer && request.StatusGuid.HasValue )
+            {
+                var connectionStatusId = new ConnectionStatusService( RockContext ).Queryable()
+                    .Where( s => s.ConnectionTypeId == connectionRequest.ConnectionTypeId && s.Guid == request.StatusGuid.Value )
+                    .Select( s => s.Id )
+                    .FirstOrDefault();
+
+                if ( connectionStatusId == 0 )
+                {
+                    return ActionBadRequest( $"{ConnectionStatus.FriendlyTypeName} not found." );
+                }
+
+                connectionRequest.ConnectionStatusId = connectionStatusId;
+            }
+
+            // Apply the campus only when the new opportunity surfaces it on
+            // transfer; clear it when shown but nothing was chosen.
+            if ( newOpportunity.ShowCampusOnTransfer && request.CampusGuid.HasValue )
+            {
+                var campus = CampusCache.Get( request.CampusGuid.Value );
+
+                var campusId = campus == null ? 0 : new ConnectionOpportunityCampusService( RockContext ).Queryable()
+                    .Where( c => c.ConnectionOpportunityId == newOpportunity.Id && c.CampusId == campus.Id )
+                    .Select( c => c.CampusId )
+                    .FirstOrDefault();
+
+                if ( campusId == 0 )
+                {
+                    return ActionBadRequest( $"{ConnectionOpportunityCampus.FriendlyTypeName} not found." );
+                }
+
+                connectionRequest.CampusId = campusId;
+            }
+            else if ( newOpportunity.ShowCampusOnTransfer )
+            {
+                connectionRequest.CampusId = null;
+            }
+
+            // Placement group assignments do not carry across a transfer.
+            connectionRequest.AssignedGroupId = null;
+            connectionRequest.AssignedGroupMemberRoleId = null;
+            connectionRequest.AssignedGroupMemberStatus = null;
+
+            // Assign the connector according to the chosen option.
+            if ( request.ConnectorOption == "default" )
+            {
+                connectionRequest.ConnectorPersonAliasId = newOpportunity.GetDefaultConnectorPersonAliasId( connectionRequest.CampusId );
+            }
+            else if ( request.ConnectorOption == "none" )
+            {
+                connectionRequest.ConnectorPersonAliasId = null;
+            }
+            else if ( request.ConnectorOption == "select" )
+            {
+                if ( !request.ConnectorPersonGuid.HasValue )
+                {
+                    return ActionBadRequest( "Connector not found." );
+                }
+
+                var newConnectorId = new PersonAliasService( RockContext ).GetPrimaryAliasId( request.ConnectorPersonGuid.Value );
+
+                if ( !newConnectorId.HasValue )
+                {
+                    return ActionBadRequest( "Connector not found." );
+                }
+
+                connectionRequest.ConnectorPersonAliasId = newConnectorId.Value;
+            }
+
+            // The "current" option leaves the existing connector untouched.
+
+            // Log a transfer activity when the standard Transferred activity
+            // type is configured (web parity).
+            var transferredActivityGuid = Rock.SystemGuid.ConnectionActivityType.TRANSFERRED.AsGuid();
+            var transferredActivityId = new ConnectionActivityTypeService( RockContext ).Queryable()
+                .Where( t => t.Guid == transferredActivityGuid )
+                .Select( t => t.Id )
+                .FirstOrDefault();
+
+            if ( transferredActivityId > 0 )
+            {
+                new ConnectionRequestActivityService( RockContext ).Add( new ConnectionRequestActivity
+                {
+                    ConnectionRequestId = connectionRequest.Id,
+                    ConnectionOpportunityId = connectionRequest.ConnectionOpportunityId,
+                    ConnectionActivityTypeId = transferredActivityId,
+                    Note = request.Note,
+                    ConnectorPersonAliasId = connectionRequest.ConnectorPersonAliasId
+                } );
+            }
+
+            RockContext.SaveChanges();
+
+            return ActionOk( BuildRefreshedResponse( connectionRequest.Id ) );
+        }
+
+        /// <summary>
         /// Launches a manual connection workflow for the request and reports
         /// whether it needs an interactive entry form.
         /// </summary>
@@ -957,6 +1323,7 @@ namespace Rock.Blocks.Mobile.Connection
                 .Include( r => r.ConnectorPersonAlias.Person )
                 .Include( r => r.ConnectionOpportunity.ConnectionType.ConnectionStatuses )
                 .Include( r => r.ConnectionOpportunity.ConnectionType.ConnectionTypeSources )
+                .Include( r => r.ConnectionOpportunity.ConnectionType.ConnectionActivityTypes )
                 .Include( r => r.ConnectionStatus )
                 .Include( r => r.Campus )
                 .Include( r => r.ConnectionTypeSource )
@@ -1455,6 +1822,70 @@ namespace Rock.Blocks.Mobile.Connection
                     FullName = $"{c.NickName} {c.LastName}".Trim(),
                     PhotoUrl = BuildPersonPhotoUrl( c.PhotoId ),
                     CampusGuid = c.CampusGuid
+                } )
+                .ToList();
+        }
+
+        /// <summary>
+        /// Gets the connectors of a target opportunity for a transfer, narrowed
+        /// to the chosen campus (a connector with no campus is always kept).
+        /// Unlike <see cref="GetAvailableConnectors"/> this is keyed by an
+        /// arbitrary opportunity (the transfer target) and does not inject the
+        /// request's current connector or the current person, since the
+        /// "Current Connector" and "Default Connector" options cover those.
+        /// </summary>
+        /// <param name="opportunityId">The transfer target opportunity.</param>
+        /// <param name="campusGuid">The chosen campus to narrow to, or <c>null</c> for no filter.</param>
+        /// <returns>The connectors available for the target opportunity and campus.</returns>
+        private List<ConnectorItemBag> GetTransferConnectorItems( int opportunityId, Guid? campusGuid )
+        {
+            var connectorList = new ConnectionOpportunityConnectorGroupService( RockContext ).Queryable()
+                .Where( a => a.ConnectionOpportunityId == opportunityId )
+                .SelectMany( g => g.ConnectorGroup.Members )
+                .Where( m => m.GroupMemberStatus == GroupMemberStatus.Active )
+                .Select( m => new
+                {
+                    m.Person.Guid,
+                    m.Person.NickName,
+                    m.Person.LastName,
+                    m.Person.PhotoId,
+                    CampusGuid = ( Guid? ) m.Group.Campus.Guid
+                } )
+                .ToList();
+
+            return connectorList
+                .Where( c => !campusGuid.HasValue || !c.CampusGuid.HasValue || c.CampusGuid.Value == campusGuid.Value )
+                .GroupBy( c => c.Guid )
+                .Select( g => g.First() )
+                .OrderBy( c => c.LastName )
+                .ThenBy( c => c.NickName )
+                .Select( c => new ConnectorItemBag
+                {
+                    PersonGuid = c.Guid,
+                    FullName = $"{c.NickName} {c.LastName}".Trim(),
+                    PhotoUrl = BuildPersonPhotoUrl( c.PhotoId ),
+                    CampusGuid = c.CampusGuid
+                } )
+                .ToList();
+        }
+
+        /// <summary>
+        /// Gets the active activity types for a connection type, used by the Add
+        /// Activity sheet. Mirrors the web Connections Hub activity-type options
+        /// (the type's active <see cref="ConnectionActivityType"/> rows).
+        /// </summary>
+        /// <param name="connectionType">The request's connection type.</param>
+        /// <returns>The active activity types, ordered by name.</returns>
+        private List<ActivityTypeItemBag> GetActivityTypes( ConnectionType connectionType )
+        {
+            return connectionType.ConnectionActivityTypes
+                .Where( at => at.IsActive )
+                .OrderBy( at => at.Name )
+                .Select( at => new ActivityTypeItemBag
+                {
+                    Guid = at.Guid,
+                    Name = at.Name,
+                    AsksForPersonNote = at.PersonNoteCreationBehavior == PersonNoteCreationBehavior.AskAtActivityCreation
                 } )
                 .ToList();
         }
