@@ -65,8 +65,8 @@
             valueBuilder.addTextValue("Client Id", props.modelValue.clientId);
         }
 
-        if (props.modelValue?.redirectUri) {
-            valueBuilder.addTextValue("Redirect Uri", props.modelValue.redirectUri);
+        if (props.modelValue?.redirectUris && props.modelValue.redirectUris.length > 0) {
+            valueBuilder.addTextValue("Redirect URIs", props.modelValue.redirectUris.join("\n"));
         }
 
         if (props.modelValue?.postLogoutRedirectUri) {
