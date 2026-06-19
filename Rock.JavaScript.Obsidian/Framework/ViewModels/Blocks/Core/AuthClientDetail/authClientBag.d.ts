@@ -50,8 +50,8 @@ export type AuthClientBag = {
     /** Gets or sets the post logout redirect URI. */
     postLogoutRedirectUri?: string | null;
 
-    /** Gets or sets the redirect URL. */
-    redirectUri?: string | null;
+    /** Gets or sets the redirect URIs registered for this client. */
+    redirectUris?: string[] | null;
 
     /** Gets or sets the scope approval expiration in days. */
     scopeApprovalExpiration: number;

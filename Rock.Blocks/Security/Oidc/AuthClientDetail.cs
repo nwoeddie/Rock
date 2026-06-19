@@ -183,7 +183,7 @@ namespace Rock.Blocks.Security.Oidc
                 IsActive = entity.Id == 0 || entity.IsActive,
                 Name = entity.Name,
                 PostLogoutRedirectUri = entity.PostLogoutRedirectUri,
-                RedirectUri = entity.RedirectUri,
+                RedirectUris = entity.GetRedirectUris(),
                 ScopeApprovalExpiration = entity.ScopeApprovalExpiration,
                 ScopeClaims = ToScopeClaims( activeClaims ),
             };
@@ -252,8 +252,8 @@ namespace Rock.Blocks.Security.Oidc
             box.IfValidProperty( nameof( box.Bag.PostLogoutRedirectUri ),
                 () => entity.PostLogoutRedirectUri = box.Bag.PostLogoutRedirectUri );
 
-            box.IfValidProperty( nameof( box.Bag.RedirectUri ),
-                () => entity.RedirectUri = box.Bag.RedirectUri );
+            box.IfValidProperty( nameof( box.Bag.RedirectUris ),
+                () => entity.RedirectUri = AuthClient.JoinRedirectUris( box.Bag.RedirectUris ) );
 
             box.IfValidProperty( nameof( box.Bag.ScopeApprovalExpiration ),
                 () => entity.ScopeApprovalExpiration = box.Bag.ScopeApprovalExpiration );
@@ -442,6 +442,14 @@ namespace Rock.Blocks.Security.Oidc
             if ( !TryGetEntityForEditAction( box.Bag.IdKey, out var entity, out var actionError ) )
             {
                 return actionError;
+            }
+
+            // Validate the redirect URIs against the raw bag values before they are
+            // normalized and comma-joined for storage, so a value that contains the
+            // comma delimiter is rejected rather than silently split into two URIs.
+            if ( !AuthClient.ValidateRedirectUris( box.Bag.RedirectUris, out var redirectUriError ) )
+            {
+                return ActionBadRequest( redirectUriError );
             }
 
             // Update the entity instance from the information in the bag.

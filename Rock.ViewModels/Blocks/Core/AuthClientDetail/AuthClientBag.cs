@@ -54,9 +54,10 @@ namespace Rock.ViewModels.Blocks.Core.AuthClientDetail
         public string PostLogoutRedirectUri { get; set; }
 
         /// <summary>
-        /// Gets or sets the redirect URL.
+        /// Gets or sets the redirect URIs registered for this client. A client may
+        /// have more than one; an authorization request must use one of these values.
         /// </summary>
-        public string RedirectUri { get; set; }
+        public List<string> RedirectUris { get; set; }
 
         /// <summary>
         /// Gets or sets the scope approval expiration in days.
