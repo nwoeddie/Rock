@@ -713,6 +713,56 @@ namespace Rock.Blocks.Mobile.Connection
         }
 
         /// <summary>
+        /// Reassigns the request to a different requester (the overflow Update
+        /// Requestor action). Mirrors the web Connections Hub edit panel's
+        /// required Requester person picker, which sets the request's
+        /// PersonAliasId to the chosen person; the request always has a
+        /// requester, so the person cannot be cleared.
+        /// </summary>
+        /// <param name="request">The update-requester payload.</param>
+        /// <returns>The refreshed request detail.</returns>
+        [BlockAction]
+        public BlockActionResult UpdateRequester( UpdateRequesterRequestBag request )
+        {
+            if ( request == null || request.ConnectionRequestIdKey.IsNullOrWhiteSpace() )
+            {
+                return ActionBadRequest( "Missing request options." );
+            }
+
+            if ( request.RequesterPersonGuid == Guid.Empty )
+            {
+                return ActionBadRequest( "A requester is required." );
+            }
+
+            var connectionRequest = GetRequestQueryable( request.ConnectionRequestIdKey ).FirstOrDefault();
+
+            if ( connectionRequest == null )
+            {
+                return ActionBadRequest( $"{ConnectionRequest.FriendlyTypeName} not found." );
+            }
+
+            if ( !CanEditConnectionRequest( connectionRequest, out var error ) )
+            {
+                return error;
+            }
+
+            // Resolve the chosen person to their primary alias - the requester is
+            // stored as a PersonAlias, matching the web edit panel.
+            var requesterPersonAliasId = new PersonAliasService( RockContext ).GetPrimaryAliasId( request.RequesterPersonGuid );
+
+            if ( !requesterPersonAliasId.HasValue )
+            {
+                return ActionBadRequest( "Invalid requester." );
+            }
+
+            connectionRequest.PersonAliasId = requesterPersonAliasId.Value;
+
+            RockContext.SaveChanges();
+
+            return ActionOk( BuildRefreshedResponse( connectionRequest.Id ) );
+        }
+
+        /// <summary>
         /// Adds an activity to the request (the overflow Add Activity action and
         /// the Activity Feed New Activity action). Ports the single-request slice
         /// of the web AddActivityForRequests, including the optional person-note
