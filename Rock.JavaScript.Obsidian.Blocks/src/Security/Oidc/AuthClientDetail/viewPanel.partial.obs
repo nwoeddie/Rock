@@ -27,6 +27,7 @@
     import { ValueDetailListItem } from "@Obsidian/Types/Controls/valueDetailListItem";
     import { AuthClientBag } from "@Obsidian/ViewModels/Blocks/Core/AuthClientDetail/authClientBag";
     import { AuthClientDetailOptionsBag } from "@Obsidian/ViewModels/Blocks/Core/AuthClientDetail/authClientDetailOptionsBag";
+    import { escapeHtml } from "@Obsidian/Utility/stringUtils";
 
     const props = defineProps({
         modelValue: {
@@ -66,7 +67,7 @@
         }
 
         if (props.modelValue?.redirectUris && props.modelValue.redirectUris.length > 0) {
-            valueBuilder.addTextValue("Redirect URIs", props.modelValue.redirectUris.join("\n"));
+            valueBuilder.addHtmlValue("Redirect URIs", props.modelValue.redirectUris.map(escapeHtml).join("<br>"));
         }
 
         if (props.modelValue?.postLogoutRedirectUri) {
