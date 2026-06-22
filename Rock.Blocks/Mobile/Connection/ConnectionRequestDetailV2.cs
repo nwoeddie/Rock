@@ -1598,13 +1598,52 @@ namespace Rock.Blocks.Mobile.Connection
                     .FirstOrDefault();
             }
 
+            // Load the assigned group member's attribute values (e.g. "Hours
+            // Serving") so they can be shown beneath the row. Mirrors the editor's
+            // GetPlacementGroupMemberAttributes: build an empty member for the
+            // group + role, seed the request's saved values, then format for view.
+            var memberAttributeValues = new List<ListItemViewModel>();
+
+            if ( connectionRequest.AssignedGroupMemberRoleId.HasValue )
+            {
+                var groupMember = new GroupMember
+                {
+                    GroupId = connectionRequest.AssignedGroupId.Value,
+                    GroupRoleId = connectionRequest.AssignedGroupMemberRoleId.Value
+                };
+
+                groupMember.LoadAttributes( RockContext );
+
+                var savedMemberAttributeValues = connectionRequest.AssignedGroupMemberAttributeValues?.FromJsonOrNull<Dictionary<string, string>>();
+
+                if ( savedMemberAttributeValues != null )
+                {
+                    foreach ( var item in savedMemberAttributeValues )
+                    {
+                        groupMember.SetAttributeValue( item.Key, item.Value );
+                    }
+                }
+
+                // Only attributes the person may view, with a non-empty formatted
+                // value, are surfaced.
+                memberAttributeValues = GetClientAttributeValuesForView( groupMember )
+                    .Where( a => a.TextValue.IsNotNullOrWhiteSpace() )
+                    .Select( a => new ListItemViewModel
+                    {
+                        Text = a.Name,
+                        Value = a.TextValue
+                    } )
+                    .ToList();
+            }
+
             return new PlacementGroupSummaryBag
             {
                 GroupGuid = connectionRequest.AssignedGroup.Guid,
                 Name = connectionRequest.AssignedGroup.Name,
                 IconCssClass = connectionRequest.AssignedGroup.GroupType?.IconCssClass,
                 RoleName = roleName,
-                StatusName = connectionRequest.AssignedGroupMemberStatus?.ToString()
+                StatusName = connectionRequest.AssignedGroupMemberStatus?.ToString(),
+                MemberAttributeValues = memberAttributeValues
             };
         }
 
