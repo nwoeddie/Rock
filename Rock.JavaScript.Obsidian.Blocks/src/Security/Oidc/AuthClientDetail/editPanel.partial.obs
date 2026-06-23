@@ -51,10 +51,9 @@
         </div>
         <div class="row">
             <div class="col-md-6">
-                <TextBox v-model="redirectUri"
-                         label="Redirect Uri"
-                         help="After the person has provided their credentials, they will be redirected back to the client via the path indicated here. This URI is provided by the client system."
-                         rules="required" />
+                <ValueList v-model="redirectUris"
+                           label="Redirect URIs"
+                           help="After the person has provided their credentials, they will be redirected back to the client via one of the URIs listed here. Enter one URI per row; the authorization request must use one of these values. These URIs are provided by the client system." />
             </div>
             <div class="col-md-6">
                 <TextBox v-model="postLogoutRedirectUri"
@@ -103,6 +102,7 @@
     import { computed, PropType, ref, watch } from "vue";
     import CheckBox from "@Obsidian/Controls/checkBox.obs";
     import TextBox from "@Obsidian/Controls/textBox.obs";
+    import ValueList from "@Obsidian/Controls/valueList.obs";
     import NumberBox from "@Obsidian/Controls/numberBox.obs";
     import Panel from "@Obsidian/Controls/panel.obs";
     import { setPropertiesBoxValue, useInvokeBlockAction, watchPropertyChanges } from "@Obsidian/Utility/block";
@@ -143,7 +143,7 @@
     const name = propertyRef(props.modelValue.bag?.name ?? "", "Name");
     const clientId = propertyRef(props.modelValue.bag?.clientId ?? "", "ClientId");
     const clientSecret = propertyRef(props.modelValue.bag?.clientSecret ?? "", "ClientSecret");
-    const redirectUri = propertyRef(props.modelValue.bag?.redirectUri ?? "", "RedirectUri");
+    const redirectUris = propertyRef(props.modelValue.bag?.redirectUris ?? [], "RedirectUris");
     const postLogoutRedirectUri = propertyRef(props.modelValue.bag?.postLogoutRedirectUri ?? "", "PostLogoutRedirectUri");
     const scopeApprovalExpiration = propertyRef(props.modelValue.bag?.scopeApprovalExpiration, "ScopeApprovalExpiration");
     const scopeClaims = ref(props.modelValue.bag?.scopeClaims ?? {});
@@ -152,7 +152,7 @@
 
     // The properties that are being edited. This should only contain
     // objects returned by propertyRef().
-    const propRefs = [isActive, name, clientId, clientSecret, redirectUri, postLogoutRedirectUri, scopeApprovalExpiration];
+    const propRefs = [isActive, name, clientId, clientSecret, redirectUris, postLogoutRedirectUri, scopeApprovalExpiration];
 
     // #endregion
 
@@ -209,7 +209,7 @@
         updateRefValue(name, props.modelValue.bag?.name ?? "");
         updateRefValue(clientId, props.modelValue.bag?.clientId ?? "");
         updateRefValue(clientSecret, props.modelValue.bag?.clientSecret ?? "");
-        updateRefValue(redirectUri, props.modelValue.bag?.redirectUri ?? "");
+        updateRefValue(redirectUris, props.modelValue.bag?.redirectUris ?? []);
         updateRefValue(postLogoutRedirectUri, props.modelValue.bag?.postLogoutRedirectUri ?? "");
         updateRefValue(scopeApprovalExpiration, props.modelValue.bag?.scopeApprovalExpiration);
         updateRefValue(scopeClaims, props.modelValue.bag?.scopeClaims ?? {});
@@ -227,7 +227,7 @@
         setPropertiesBoxValue(newValue, "name", name.value);
         setPropertiesBoxValue(newValue, "clientId", clientId.value);
         setPropertiesBoxValue(newValue, "clientSecret", clientSecret.value);
-        setPropertiesBoxValue(newValue, "redirectUri", redirectUri.value);
+        setPropertiesBoxValue(newValue, "redirectUris", redirectUris.value);
         setPropertiesBoxValue(newValue, "postLogoutRedirectUri", postLogoutRedirectUri.value);
         setPropertiesBoxValue(newValue, "scopeApprovalExpiration", toNumber(scopeApprovalExpiration.value));
         setPropertiesBoxValue(newValue, "scopeClaims", scopeClaims.value);

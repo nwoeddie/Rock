@@ -14,9 +14,12 @@
 // limitations under the License.
 // </copyright>
 
+using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
+using System.Linq;
 using System.Runtime.Serialization;
 using Rock.Data;
 using Rock.Enums.Security;
@@ -140,6 +143,135 @@ namespace Rock.Model
         [Required]
         [Range( 0, int.MaxValue )]
         public int ScopeApprovalExpiration { get; set; } = 365;
+
+        #region Redirect URI Helpers
+
+        /*
+            6/18/26 - CLAUDE
+
+            Redirect URIs are stored as a single comma-delimited string in the
+            RedirectUri column (the format the OIDC authorization provider and
+            the dynamic-registration paths already use). These helpers centralize
+            the split/join/validate rules so the provider, the detail block, and
+            their tests all share one implementation.
+
+            Reason: One source of truth for multi-redirect-URI parsing and validation.
+        */
+
+        /// <summary>
+        /// Gets the list of registered redirect URIs by splitting the comma-delimited
+        /// <see cref="RedirectUri"/> value. Entries are trimmed, blank entries removed,
+        /// and duplicates removed using an ordinal comparison. Returns an empty list
+        /// when no redirect URIs are registered.
+        /// </summary>
+        /// <returns>The normalized list of registered redirect URIs.</returns>
+        public List<string> GetRedirectUris()
+        {
+            if ( RedirectUri.IsNullOrWhiteSpace() )
+            {
+                return new List<string>();
+            }
+
+            return RedirectUri
+                .Split( ',' )
+                .Select( uri => uri.Trim() )
+                .Where( uri => uri.IsNotNullOrWhiteSpace() )
+                .Distinct( StringComparer.Ordinal )
+                .ToList();
+        }
+
+        /// <summary>
+        /// Normalizes a set of redirect URIs into the comma-delimited string used to
+        /// store the <see cref="RedirectUri"/> value. Entries are trimmed, blank
+        /// entries removed, and duplicates removed using an ordinal comparison.
+        /// </summary>
+        /// <param name="redirectUris">The redirect URIs to normalize and join.</param>
+        /// <returns>The comma-delimited storage value, or an empty string when none are supplied.</returns>
+        public static string JoinRedirectUris( IEnumerable<string> redirectUris )
+        {
+            if ( redirectUris == null )
+            {
+                return string.Empty;
+            }
+
+            var normalized = redirectUris
+                .Where( uri => uri.IsNotNullOrWhiteSpace() )
+                .Select( uri => uri.Trim() )
+                .Distinct( StringComparer.Ordinal )
+                .ToList();
+
+            return string.Join( ",", normalized );
+        }
+
+        /// <summary>
+        /// Validates a set of redirect URIs. At least one URI is required, and each
+        /// must be a well-formed absolute http or https URI that does not contain a
+        /// comma (the storage delimiter).
+        /// </summary>
+        /// <param name="redirectUris">The redirect URIs to validate.</param>
+        /// <param name="errorMessage">On <c>false</c> return, the reason validation failed; otherwise empty.</param>
+        /// <returns><c>true</c> when all redirect URIs are valid; otherwise <c>false</c>.</returns>
+        public static bool ValidateRedirectUris( IEnumerable<string> redirectUris, out string errorMessage )
+        {
+            errorMessage = string.Empty;
+
+            var uris = ( redirectUris ?? Enumerable.Empty<string>() )
+                .Where( uri => uri.IsNotNullOrWhiteSpace() )
+                .Select( uri => uri.Trim() )
+                .ToList();
+
+            if ( !uris.Any() )
+            {
+                errorMessage = "At least one redirect URI is required.";
+                return false;
+            }
+
+            foreach ( var uri in uris )
+            {
+                if ( !IsValidRedirectUri( uri, out errorMessage ) )
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Determines whether a single redirect URI is valid for storage: it must be
+        /// non-blank, must not contain a comma (the storage delimiter), and must be a
+        /// well-formed absolute http or https URI.
+        /// </summary>
+        /// <param name="redirectUri">The redirect URI to validate.</param>
+        /// <param name="errorMessage">On <c>false</c> return, the reason the URI is invalid; otherwise empty.</param>
+        /// <returns><c>true</c> when the redirect URI is valid; otherwise <c>false</c>.</returns>
+        private static bool IsValidRedirectUri( string redirectUri, out string errorMessage )
+        {
+            errorMessage = string.Empty;
+
+            if ( redirectUri.IsNullOrWhiteSpace() )
+            {
+                errorMessage = "A redirect URI cannot be blank.";
+                return false;
+            }
+
+            if ( redirectUri.Contains( "," ) )
+            {
+                errorMessage = $"The redirect URI '{redirectUri}' cannot contain a comma. Enter each redirect URI separately.";
+                return false;
+            }
+
+            if ( !Uri.TryCreate( redirectUri, UriKind.Absolute, out var uri )
+                || ( uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps ) )
+            {
+                errorMessage = $"The redirect URI '{redirectUri}' must be a valid absolute http or https URL.";
+                return false;
+            }
+
+            return true;
+        }
+
+        #endregion Redirect URI Helpers
     }
 
     #region Entity Configuration

@@ -282,13 +282,14 @@ namespace Rock.Oidc.Authorization
                 context.OwinContext.Set( "pkce.code_challenge_method", codeChallengeMethod );
             }
 
+            // A client may register more than one redirect URI (stored comma-delimited).
+            var registeredRedirectUris = authClient.GetRedirectUris();
+
             if ( context.RedirectUri.IsNotNullOrWhiteSpace() )
             {
                 // Verify that the redirect URI is one of the URIs registered for
                 // this client application.
-                var validRedirectUris = authClient.RedirectUri?.SplitDelimitedValues( "," ) ?? new string[0];
-
-                if ( !validRedirectUris.Contains( context.RedirectUri, StringComparer.Ordinal ) )
+                if ( !registeredRedirectUris.Contains( context.RedirectUri, StringComparer.Ordinal ) )
                 {
                     context.Reject(
                         error: OpenIdConnectConstants.Errors.InvalidRequest,
@@ -299,9 +300,19 @@ namespace Rock.Oidc.Authorization
 
                 context.Validate( context.RedirectUri );
             }
+            else if ( registeredRedirectUris.Count == 1 )
+            {
+                // Per the OIDC spec, redirect_uri may be omitted only when the client
+                // has exactly one registered redirect URI.
+                context.Validate( registeredRedirectUris[0] );
+            }
             else
             {
-                context.Validate( authClient.RedirectUri );
+                context.Reject(
+                    error: OpenIdConnectConstants.Errors.InvalidRequest,
+                    description: "The 'redirect_uri' parameter is required when multiple redirect URIs are registered." );
+
+                return;
             }
         }
 
