@@ -573,7 +573,7 @@ $(document).ready(function () {
                 lHeading.Text = GetOccurrenceTitle( occurrence );
                 pnlSingle_Choice.Visible = true;
 
-                var groupMember = occurrence.Group.Members.Where( gm => gm.PersonId == person.Id ).FirstOrDefault();
+                var groupMember = GetGroupMember( occurrence, person, rockContext );
                 if ( groupMember == null )
                 {
                     groupMember = new GroupMember();
@@ -622,7 +622,7 @@ $(document).ready(function () {
                     return;
                 }
 
-                var groupMember = occurrence.Group.Members.Where( gm => gm.PersonId == person.Id ).FirstOrDefault();
+                var groupMember = GetGroupMember( occurrence, person, rockContext );
                 if ( groupMember == null )
                 {
                     groupMember = new GroupMember();
@@ -654,7 +654,7 @@ $(document).ready(function () {
                     return false;
                 }
 
-                var groupMember = occurrence.Group.Members.Where( gm => gm.PersonId == person.Id ).FirstOrDefault();
+                var groupMember = GetGroupMember( occurrence, person, rockContext );
                 if ( groupMember == null )
                 {
                     groupMember = new GroupMember();
@@ -749,7 +749,7 @@ $(document).ready(function () {
         /// <param name="declineNote">(Optional) An explanation of the reason for declining.  Only used if rsvpStatus is No.</param>
         private void UpdateOrCreateAttendanceRecord( AttendanceOccurrence occurrence, Person person, RockContext rockContext, Rock.Model.RSVP rsvpStatus, PlaceHolder attributePlaceHolder = null, int declineReasonId = 0, string declineNote = "" )
         {
-            var attendance = occurrence.Attendees.Where( a => person.Aliases.Contains( a.PersonAlias ) ).FirstOrDefault();
+            var attendance = GetAttendance( occurrence, person, rockContext );
             if ( attendance == null )
             {
                 attendance = new Attendance
@@ -760,7 +760,8 @@ $(document).ready(function () {
                     DidAttend = false
                 };
 
-                occurrence.Attendees.Add( attendance );
+                // Add through the service rather than occurrence.Attendees.Add(), which would lazy-load every attendance row for the occurrence first.
+                new AttendanceService( rockContext ).Add( attendance );
             }
 
             attendance.RSVP = rsvpStatus;
@@ -780,7 +781,7 @@ $(document).ready(function () {
             // more than one) it will overwrite values.
             if ( attributePlaceHolder != null )
             {
-                var groupMember = occurrence.Group.Members.Where( gm => gm.PersonId == person.Id ).FirstOrDefault();
+                var groupMember = GetGroupMember( occurrence, person, rockContext );
 
                 // Only auto-enroll a new GroupMember when the RSVP is accepted, so declining doesn't silently add the person to the group.
                 if ( groupMember == null && rsvpStatus == Rock.Model.RSVP.Yes )
@@ -806,6 +807,65 @@ $(document).ready(function () {
             }
 
             rockContext.SaveChanges();
+        }
+
+        /*
+            10/13/2026 - ER
+
+            The GroupMember and Attendance lookups below used to go through the occurrence.Group.Members and
+            occurrence.Attendees navigation properties. Those are lazy-loaded, so finding the one respondent
+            loaded every member of the group (and every attendance row for the occurrence) into memory first.
+            On a group with ~50k members this made each page load take more than 10 seconds.
+
+            Reason: Page load time must not scale with group size.
+        */
+
+        /// <summary>
+        /// Gets the respondent's GroupMember record in the occurrence's group, or null if they aren't a member.
+        /// </summary>
+        /// <param name="occurrence">The AttendanceOccurrence whose group is searched.</param>
+        /// <param name="person">The Person record of the respondent.</param>
+        /// <param name="rockContext">The RockContext.</param>
+        /// <returns>The GroupMember, or null.</returns>
+        private GroupMember GetGroupMember( AttendanceOccurrence occurrence, Person person, RockContext rockContext )
+        {
+            if ( !occurrence.GroupId.HasValue )
+            {
+                return null;
+            }
+
+            var groupId = occurrence.GroupId.Value;
+            var personId = person.Id;
+
+            // Include deceased and archived members to match what the occurrence.Group.Members navigation
+            // property returned, since the archived-member query filter doesn't apply to navigation properties.
+            // Order by Id so a person with more than one row in the group (e.g. multiple roles) always gets the
+            // same one, matching the primary-key order the navigation property loaded in.
+            return new GroupMemberService( rockContext )
+                .Queryable( true, true )
+                .Where( gm => gm.GroupId == groupId && gm.PersonId == personId )
+                .OrderBy( gm => gm.Id )
+                .FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Gets the respondent's existing Attendance record for the occurrence, matching any of the person's aliases, or null if none exists.
+        /// </summary>
+        /// <param name="occurrence">The AttendanceOccurrence.</param>
+        /// <param name="person">The Person record of the respondent.</param>
+        /// <param name="rockContext">The RockContext.</param>
+        /// <returns>The Attendance, or null.</returns>
+        private Attendance GetAttendance( AttendanceOccurrence occurrence, Person person, RockContext rockContext )
+        {
+            var occurrenceId = occurrence.Id;
+            var personId = person.Id;
+
+            // Order by Id so a person with rows under more than one alias always gets the same one.
+            return new AttendanceService( rockContext )
+                .Queryable()
+                .Where( a => a.OccurrenceId == occurrenceId && a.PersonAlias.PersonId == personId )
+                .OrderBy( a => a.Id )
+                .FirstOrDefault();
         }
 
         /// <summary>
@@ -842,7 +902,7 @@ $(document).ready(function () {
                 person = new PersonService( rockContext ).Get( person.Guid );
 
                 // Capture group-member status before the save so we can tell if the responder is being treated as a non-member.
-                var isExistingGroupMember = occurrence.Group.Members.Any( gm => gm.PersonId == person.Id );
+                var isExistingGroupMember = GetGroupMember( occurrence, person, rockContext ) != null;
 
                 UpdateOrCreateAttendanceRecord( occurrence, person, rockContext, Rock.Model.RSVP.No, attributePlaceHolder );
                 hfDeclineReason_OccurrenceId.Value = occurrenceId.ToString();
@@ -950,7 +1010,7 @@ $(document).ready(function () {
                     // At least one occurrence is valid.
                     hasValidOccurrences = true;
 
-                    var groupMember = occurrence.Group.Members.Where( gm => gm.PersonId == person.Id ).FirstOrDefault();
+                    var groupMember = GetGroupMember( occurrence, person, rockContext );
                     if ( groupMember == null )
                     {
                         //Person is not a member of the group associated with this invitation.
@@ -1003,7 +1063,7 @@ $(document).ready(function () {
                         continue;
                     }
 
-                    var groupMember = occurrence.Group.Members.Where( gm => gm.PersonId == person.Id ).FirstOrDefault();
+                    var groupMember = GetGroupMember( occurrence, person, rockContext );
                     if ( groupMember == null )
                     {
                         //Person is not a member of the group associated with this invitation.
